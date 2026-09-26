@@ -81,9 +81,24 @@ export type ChatResponse = DiscoverResponse & {
   plan: PlanResponse;
 };
 export type EventResponse = { itinerary: Itinerary; state: TravelerState; changes: Change[]; problems: string[] };
+export type ExperienceItem = {
+  id: string;
+  title: string;
+  category: string;
+  place_id: string;
+  description?: string;
+  tags?: string[];
+  duration_min?: number;
+  price_inr?: number;
+  rating?: number;
+  review_count?: number;
+  accessibility?: string[];
+  tourist_index?: number;
+};
+
 export type Catalog = {
   places: { id: string; name: string; lat: number; lon: number }[];
-  experiences: { id: string; title: string; category: string; place_id: string }[];
+  experiences: ExperienceItem[];
   provider_listings: string[];
   paused: string[];
   vocabulary: { tags: string[]; categories: string[]; accessibility: string[] };

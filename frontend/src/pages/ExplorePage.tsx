@@ -46,6 +46,7 @@ export default function ExplorePage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Voyagenix-style Quick Planner State
   const [quickArea, setQuickArea] = useState("Hawa Mahal / Old City");
@@ -67,6 +68,7 @@ export default function ExplorePage() {
   }
 
   const send = (msg: string) => run(async () => {
+    setIsChatOpen(true);
     const res = await api.chat(msg, state, `${clock}:00`);
     let plan = res.plan;
     const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
@@ -86,6 +88,7 @@ export default function ExplorePage() {
 
   const handleQuickPlan = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsChatOpen(true);
     const prompt = `We're a ${quickGroup} near ${quickArea}, free ${quickWindow}, budget ₹${quickBudget}, looking for ${quickStyle}.`;
     send(prompt);
     const el = document.getElementById("engine-workspace");
@@ -93,6 +96,7 @@ export default function ExplorePage() {
   };
 
   const triggerChapterPrompt = (promptText: string) => {
+    setIsChatOpen(true);
     send(promptText);
     const el = document.getElementById("engine-workspace");
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -401,26 +405,39 @@ export default function ExplorePage() {
 
       {/* 4. INTERACTIVE LIVE DISCOVERY ENGINE */}
       <section id="engine-workspace" className="engine-workspace">
-        <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
           <div>
             <p className="eyebrow" style={{ color: "var(--accent)", margin: 0 }}>REAL-TIME ADAPTIVE ENGINE</p>
             <h2 className="display" style={{ fontSize: "2.2rem", margin: "0.25rem 0 0" }}>Interactive Jaipur Discovery</h2>
           </div>
-          {state && (
-            <button type="button" className="secondary" onClick={newTrip}>
-              ↺ Plan a Fresh Situation
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className={`chat-toggle-btn ${isChatOpen ? "active" : ""}`}
+              onClick={() => setIsChatOpen((v) => !v)}
+              aria-expanded={isChatOpen}
+            >
+              {isChatOpen ? "✕ Close AI Assistant" : "✨ Ask TrueLocal AI / Chatbot"}
             </button>
-          )}
+            {state && (
+              <button type="button" className="secondary" onClick={newTrip}>
+                ↺ Plan a Fresh Situation
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="engine-layout-grid">
-          {/* Left Column: Situation Chat & Inputs */}
-          <aside className="side">
+        <div className="engine-layout-container">
+          {/* Left Column: Sliding Situation Chat & Inputs */}
+          <aside className={`side-chat-drawer ${isChatOpen ? "open" : ""}`} aria-hidden={!isChatOpen}>
             <section className="panel chat" aria-live="polite">
-              <h2 style={{ justifyContent: "space-between" }}>
-                Tell us your situation
-                {state && <button type="button" className="secondary mini" onClick={newTrip} title="Start over as a different traveler">↺ Reset</button>}
-              </h2>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <h2 style={{ margin: 0, fontSize: "1.05rem" }}>Tell us your situation</h2>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  {state && <button type="button" className="secondary mini" onClick={newTrip} title="Start over as a different traveler">↺ Reset</button>}
+                  <button type="button" className="chat-close-btn" onClick={() => setIsChatOpen(false)} title="Close chat drawer">✕</button>
+                </div>
+              </div>
               <div className="msgs">
                 {msgs.length === 0 && (
                   <p className="muted">
@@ -492,8 +509,8 @@ export default function ExplorePage() {
             )}
           </aside>
 
-          {/* Right Column: Map, Recommendations & Plan */}
-          <main style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          {/* Right Column / Full-Width: Map, Recommendations & Plan */}
+          <div className="engine-main-content">
             {error && <p className="error" role="alert">{error}</p>}
 
             {/* MapView Box */}
@@ -506,25 +523,17 @@ export default function ExplorePage() {
                   <span><i className="pin pin-stop">A</i> in your plan</span>
                 </div>
               )}
+              {!isChatOpen && (
+                <button
+                  type="button"
+                  className="chat-toggle-btn"
+                  style={{ position: "absolute", bottom: "16px", right: "16px", zIndex: 500, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+                  onClick={() => setIsChatOpen(true)}
+                >
+                  ✨ Ask AI Assistant
+                </button>
+              )}
             </div>
-
-            {!state && (
-              <section className="panel welcome">
-                <h2 className="display">How It Works in Three Steps</h2>
-                <ol className="steps">
-                  <li>
-                    <strong>Describe your group &amp; situation.</strong> Who is with you, where you are, your budget, and what you feel like experiencing.
-                    <button disabled={busy} onClick={() => send(EXAMPLES[0])}>Try Family Example</button>
-                  </li>
-                  <li>
-                    <strong>Automatic Weather &amp; Route Checks.</strong> Every option is checked against travel time, operating hours, diurnal temperatures, group size, and accessibility.
-                  </li>
-                  <li>
-                    <strong>One-Click Adaptation.</strong> Delays, monsoons, fatigue, or budget shifts automatically repair only the affected stops in real time.
-                  </li>
-                </ol>
-              </section>
-            )}
 
             {state && (
               <div className="cols">
@@ -697,7 +706,7 @@ export default function ExplorePage() {
                 </ul>
               </details>
             )}
-          </main>
+          </div>
         </div>
       </section>
     </div>

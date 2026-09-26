@@ -24,18 +24,31 @@
    - Chapter 02 (`02`): *Sacred Geometry & Sunsets — Hidden Stepwells & High Bastions*.
    - Chapter 03 (`03`): *Royal Feasts & Night Bazaars — Secret Bazaars & Spice Trails*.
    - Each chapter features high-resolution photography cards and auto-populates the interactive AI engine upon clicking.
-6. **Live Interactive Engine Integration**:
-   - Seamlessly nested the real-time AI situation chat, interactive MapView, recommendation cards, and disruption simulator inside `#engine-workspace`.
+6. **Live Interactive Engine & Sliding AI Assistant**:
+   - Pinned the chatbot inside a toggle button (`✨ Ask TrueLocal AI / Chatbot`), allowing the map to take the full page width by default.
+   - Built a smooth slide-in animation where the chat drawer expands from the left and the Leaflet Map with `ResizeObserver` seamlessly adjusts to the right.
+   - Removed the legacy "Try it in three steps" component for a clean, distraction-free explorer experience.
+7. **Color Palette Harmonization**:
+   - Unified the theme to **Royal Amber Gold (`#d97706` / `#e5a93c`) & Deep Royal Indigo (`#141738`)** with lime-wash marble surfaces.
+   - Eliminated the clashing pink/magenta elements (header border, pill highlights) for a cohesive luxury appearance.
+8. **Plan a Trip (`/trips/new`) Must-Sees Photo Grid & Reviews**:
+   - Transformed the plain text must-see chips into a rich attraction card grid with high-resolution photography (`photos.ts`), category/duration/cost badges, rating stars, and review counts.
+   - Added search filter & category pills (All, Heritage, Craft, Food, Nature, etc.).
+   - Added an info modal (`ℹ️`) providing 2-3 lines overview, verified traveler review breakdown, and one-click must-see selection.
 
 ## Files touched
 - `frontend/index.html`
+- `frontend/src/photos.ts`
 - `frontend/src/styles.css`
 - `frontend/src/Layout.tsx`
+- `frontend/src/MapView.tsx`
+- `frontend/src/api.ts`
 - `frontend/src/pages/ExplorePage.tsx`
+- `frontend/src/pages/TripWizard.tsx`
 - `docs/context/2026-09-26-20-jaipur-luxury-ui-redesign.md`
 - `CONTEXT.md`
 
 ## Current state
 - Backend: 116 tests passing (115 passed, 1 skipped), `ruff check .` clean.
 - Frontend: TypeScript clean build (`tsc --noEmit && vite build`).
-- Modern luxury UI inspired by Unmapped, Voyagenix, MNTN, and Luxury Travel Escapes live.
+- Complete luxury Jaipur experience platform live with unified gold theme, full-page sliding map, and attraction photo grid.

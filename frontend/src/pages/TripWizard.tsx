@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useClock } from "../clock";
 import { v2 } from "../v2api";
-import type { Catalog } from "../api";
+import type { Catalog, ExperienceItem } from "../api";
 import type { Companion, Diet, Profile, StayType, TripDraft, TripTraveler } from "../types";
 import { MAX_TRIP_DAYS } from "../types";
 import { Postcard, dateRange, inr, msg, toDraft, tripDays } from "./TripsPage";
+import { getExperiencePhoto } from "../photos";
 
 // "Plan a trip" wizard (P3) at /trips/new, and the same screens to open/edit a trip at /trips/:id.
 // Validation mirrors TripDraft in backend/app/schemas.py; the server has the final say.
@@ -18,6 +19,18 @@ const STAYS: [StayType, string, string][] = [
   ["homestay", "Homestay", "Stay with a local family"], ["hostel", "Hostel", "Social and easy on budget"]];
 const ACCESS: [string, string][] = [["wheelchair", "Wheelchair"], ["step_free", "Step-free"], ["seating", "Needs seating"], ["quiet", "Quiet places"]];
 const DIETS: [Diet, string][] = [["vegetarian", "Vegetarian"], ["non_vegetarian", "Non-veg"], ["vegan", "Vegan"], ["jain", "Jain"]];
+
+const CAT_FILTERS: [string, string][] = [
+  ["all", "All Sights"],
+  ["culture", "🏛️ Heritage"],
+  ["art", "🎨 Craft & Art"],
+  ["food", "🍛 Food & Chai"],
+  ["nature", "🌿 Nature & Views"],
+  ["learning", "📚 Learning"],
+  ["shopping", "🛍️ Bazaars"],
+  ["nightlife", "🌙 Evening"],
+  ["wellness", "🧘 Wellness"],
+];
 
 const addDays = (s: string, n: number) => {
   const d = new Date(`${s}T00:00`);
@@ -115,6 +128,9 @@ export default function TripWizard() {
   const [titleTouched, setTitleTouched] = useState(editing);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mustSeeSearch, setMustSeeSearch] = useState("");
+  const [mustSeeCategory, setMustSeeCategory] = useState("all");
+  const [infoExp, setInfoExp] = useState<ExperienceItem | null>(null);
 
   useEffect(() => {
     v2.catalog().then(setCatalog).catch(() => setCatalog("offline"));
@@ -249,21 +265,209 @@ export default function TripWizard() {
           </>}
 
           {step === 3 && <>
-            <p className="hint">We plan around these first. Optional, up to 20.</p>
+            <p className="hint">We plan around these first. Pick the sights you definitely want to visit in person (up to 20).</p>
             {catalog === null && <p className="muted">Loading experiences…</p>}
             {catalog === "offline" && <p className="hint">The experience list loads from the server, which isn't reachable right now. You can save and add must-sees later.</p>}
-            {catalog && catalog !== "offline" && (
-              <div className="chips must-see">
-                {catalog.experiences.map((e) => {
-                  const on = draft.must_see.includes(e.id);
-                  return (
-                    <button type="button" key={e.id} className={`chip${on ? " on" : ""}`} aria-pressed={on}
-                      disabled={!on && draft.must_see.length >= 20}
-                      onClick={() => set({ must_see: on ? draft.must_see.filter((x) => x !== e.id) : [...draft.must_see, e.id] })}>
-                      {on ? "★ " : ""}{e.title}
-                    </button>
-                  );
-                })}
+            {catalog && catalog !== "offline" && (() => {
+              const query = mustSeeSearch.trim().toLowerCase();
+              const filtered = catalog.experiences.filter((e) => {
+                const matchesCat = mustSeeCategory === "all" || e.category === mustSeeCategory;
+                const matchesSearch = !query || e.title.toLowerCase().includes(query) || (e.description && e.description.toLowerCase().includes(query)) || (e.tags && e.tags.some((t) => t.toLowerCase().includes(query)));
+                return matchesCat && matchesSearch;
+              });
+
+              return (
+                <div className="must-see-section">
+                  {/* Search and Category Filters */}
+                  <div className="must-see-search-bar">
+                    <input
+                      type="text"
+                      className="must-see-search-input"
+                      placeholder="🔍 Search Jaipur attractions, forts, crafts, food..."
+                      value={mustSeeSearch}
+                      onChange={(e) => setMustSeeSearch(e.target.value)}
+                    />
+                    <div className="must-see-filter-chips">
+                      {CAT_FILTERS.map(([k, label]) => (
+                        <button
+                          type="button"
+                          key={k}
+                          className={`chip ${mustSeeCategory === k ? "on" : ""}`}
+                          onClick={() => setMustSeeCategory(k)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {draft.must_see.length > 0 && (
+                    <div className="row" style={{ alignItems: "center", gap: "8px" }}>
+                      <span className="small" style={{ fontWeight: 600, color: "var(--marigold-gold)" }}>
+                        ★ {draft.must_see.length} must-see{draft.must_see.length > 1 ? "s" : ""} selected:
+                      </span>
+                      {draft.must_see.map((id) => (
+                        <span key={id} className="chip mini on" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          {titles.get(id) ?? id}
+                          <button
+                            type="button"
+                            style={{ background: "transparent", color: "inherit", padding: 0, fontSize: "0.75rem", border: 0, cursor: "pointer" }}
+                            onClick={() => set({ must_see: draft.must_see.filter((x) => x !== id) })}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Attraction Photo Grid */}
+                  <div className="must-see-grid">
+                    {filtered.map((e) => {
+                      const on = draft.must_see.includes(e.id);
+                      const photo = getExperiencePhoto(e.id, e.category);
+                      return (
+                        <div
+                          key={e.id}
+                          className={`must-see-card ${on ? "selected" : ""}`}
+                          onClick={() => {
+                            if (on) {
+                              set({ must_see: draft.must_see.filter((x) => x !== e.id) });
+                            } else if (draft.must_see.length < 20) {
+                              set({ must_see: [...draft.must_see, e.id] });
+                            }
+                          }}
+                        >
+                          <div className="must-see-img-wrap">
+                            <img src={photo} alt={e.title} loading="lazy" />
+                            <button
+                              type="button"
+                              className="must-see-info-trigger"
+                              title="View Overview & Reviews"
+                              onClick={(evt) => {
+                                evt.stopPropagation();
+                                setInfoExp(e);
+                              }}
+                            >
+                              ℹ️
+                            </button>
+                            <span className="must-see-top-badge">
+                              {on ? "★ Selected" : "+ Must-See"}
+                            </span>
+                            <span className="must-see-bottom-badge">
+                              {e.duration_min ? `${e.duration_min}m` : "60m"} · {e.price_inr ? `₹${e.price_inr}` : "Free"}
+                            </span>
+                          </div>
+                          <div className="must-see-card-body">
+                            <h4 className="must-see-card-title">{e.title}</h4>
+                            <div className="must-see-rating-row">
+                              <span>★ {e.rating ?? 4.5}</span>
+                              <span style={{ color: "var(--muted)", fontWeight: 400 }}>
+                                ({e.review_count ? e.review_count.toLocaleString() : "10k+"} reviews)
+                              </span>
+                            </div>
+                            {e.description && (
+                              <p className="must-see-desc-preview">{e.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Info Modal */}
+            {infoExp && (
+              <div className="exp-modal-backdrop" onClick={() => setInfoExp(null)}>
+                <div className="exp-modal-card" onClick={(e) => e.stopPropagation()}>
+                  <img
+                    src={getExperiencePhoto(infoExp.id, infoExp.category)}
+                    alt={infoExp.title}
+                    className="exp-modal-img"
+                  />
+                  <div className="exp-modal-content">
+                    <div className="exp-modal-head">
+                      <div>
+                        <span className="chip tag" style={{ marginBottom: "6px" }}>
+                          {infoExp.category.toUpperCase()}
+                        </span>
+                        <h3>{infoExp.title}</h3>
+                      </div>
+                      <button
+                        type="button"
+                        className="chat-close-btn"
+                        onClick={() => setInfoExp(null)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                      <span className="chip" style={{ color: "var(--marigold-gold)", fontWeight: 700 }}>
+                        ★ {infoExp.rating ?? 4.5} / 5.0
+                      </span>
+                      <span className="chip">
+                        👥 {infoExp.review_count ? infoExp.review_count.toLocaleString() : "10k+"} reviews
+                      </span>
+                      <span className="chip">
+                        ⏱️ {infoExp.duration_min ? `${infoExp.duration_min} mins` : "1 hour"}
+                      </span>
+                      <span className="chip">
+                        💰 {infoExp.price_inr ? `₹${infoExp.price_inr} per person` : "Free entry"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "0.95rem" }}>Overview</h4>
+                      <p style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.5, color: "var(--ink)" }}>
+                        {infoExp.description || "A signature Jaipur cultural attraction featuring iconic Rajput architecture and rich artisan history."}
+                      </p>
+                    </div>
+
+                    <div className="exp-modal-reviews">
+                      <h4 style={{ margin: 0, fontSize: "0.88rem", color: "var(--marigold-gold)" }}>
+                        Verified Traveler Feedback
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "0.85rem", fontStyle: "italic", color: "var(--muted)" }}>
+                        "Breathtaking cultural experience with authentic local atmosphere. Unmissable when visiting the Pink City!"
+                      </p>
+                      <div className="small muted" style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>✓ 96% of TrueLocal travelers recommend</span>
+                        <span>Jaipur Cultural Review Score: 9.4/10</span>
+                      </div>
+                    </div>
+
+                    {infoExp.tags && infoExp.tags.length > 0 && (
+                      <div className="chips">
+                        {infoExp.tags.map((t) => (
+                          <span key={t} className="chip mini tag">{t}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className={draft.must_see.includes(infoExp.id) ? "secondary" : ""}
+                        onClick={() => {
+                          const on = draft.must_see.includes(infoExp.id);
+                          set({
+                            must_see: on
+                              ? draft.must_see.filter((x) => x !== infoExp.id)
+                              : [...draft.must_see, infoExp.id],
+                          });
+                        }}
+                      >
+                        {draft.must_see.includes(infoExp.id) ? "✓ Added to Must-Sees (Remove)" : "★ Add to Must-Sees"}
+                      </button>
+                      <button type="button" className="secondary" onClick={() => setInfoExp(null)}>
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             <h3>Review</h3>

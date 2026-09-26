@@ -22,7 +22,16 @@ export default function MapView({ state, recs, stops }: { state: TravelerState |
     }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
-    return () => { m.remove(); };
+
+    const ro = new ResizeObserver(() => {
+      m.invalidateSize();
+    });
+    if (el.current) ro.observe(el.current);
+
+    return () => {
+      ro.disconnect();
+      m.remove();
+    };
   }, []);
 
   useEffect(() => {
