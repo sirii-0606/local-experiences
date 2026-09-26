@@ -11,6 +11,7 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
   const [text, setText] = useState(EXAMPLE);
   const [draft, setDraft] = useState<ListingDraft | null>(null);
   const [parser, setParser] = useState("");
+  const [fits, setFits] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   // default to the provider's newest listing, else a seed example with interesting demand
   const [selected, setSelected] = useState(() => catalog?.provider_listings.at(-1) ?? "ex-cooking-class");
@@ -30,8 +31,18 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
     const res = await api.draft(text);
     setDraft(res.draft);
     setParser(res.parser);
+    setFits(res.fits ?? []);
     setNotice("");
   });
+
+  const pinHere = () => {
+    if (!navigator.geolocation) return setError("This browser can't share its location.");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setDraft((d) => (d ? { ...d, near: null, lat: pos.coords.latitude, lon: pos.coords.longitude } : d)),
+      () => setError("Location wasn't shared. Pick a landmark or type the area instead."),
+      { timeout: 10000 },
+    );
+  };
 
   const [editing, setEditing] = useState<string | null>(null);
   const publish = () => run(async () => {
@@ -41,7 +52,7 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
     } else {
       const res = await api.publish(draft!, `${clock}:00`);
       tokens.set(res.experience.id, res.edit_token); // only this browser can edit it later
-      setNotice(`Live: "${res.experience.title}". Travelers near ${draft!.near} interested in ${draft!.tags.slice(0, 3).join(", ")} can now be matched with it.`);
+      setNotice(`Live: "${res.experience.title}". Travelers near ${draft!.near ?? (draft!.area || "your pin")} interested in ${draft!.tags.slice(0, 3).join(", ")} can now be matched with it.`);
       setSelected(res.experience.id);
     }
     await onChanged();
@@ -77,6 +88,9 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
         <button disabled={busy || !text.trim()} onClick={makeDraft}>Draft my listing</button>
         {notice && <p className="ok">✓ {notice}</p>}
 
+        {draft && fits.length > 0 && (
+          <p className="fits">We'll match it with: {fits.map((f) => <span key={f} className="chip tag">{f}</span>)}</p>
+        )}
         {draft && (
           <form className="draft" onSubmit={(e) => { e.preventDefault(); publish(); }}>
             <p className="muted small">{editing ? "Editing your live listing." : `Drafted by ${parser === "llm" ? "Claude" : "the offline parser"}. Edit anything that's wrong.`}</p>
@@ -85,10 +99,21 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
             <label className="wide">Description<textarea rows={2} value={draft.description} onChange={(e) => set("description", e.target.value)} /></label>
             <label>Nearest landmark
               <select value={draft.near ?? ""} onChange={(e) => set("near", e.target.value || null)}>
-                <option value="">Choose…</option>
+                <option value="">None of these (pin it instead)</option>
                 {catalog?.places.filter((p) => !p.id.startsWith("pl-u-")).map((p) => <option key={p.id}>{p.name}</option>)}
               </select>
             </label>
+            {!draft.near && (
+              <>
+                <label>Area and town<input value={draft.area ?? ""} placeholder="e.g. Versova, Mumbai" onChange={(e) => set("area", e.target.value)} /></label>
+                <div className="pin-row">
+                  <span className="muted small">
+                    {draft.lat != null && draft.lon != null ? `📍 Pinned at ${draft.lat.toFixed(4)}, ${draft.lon.toFixed(4)}` : "No pin yet: travelers need one to find you."}
+                  </span>
+                  <button type="button" className="secondary mini" onClick={pinHere}>📍 Use where I am now</button>
+                </div>
+              </>
+            )}
             <label>Category
               <select value={draft.category} onChange={(e) => set("category", e.target.value)}>
                 {catalog?.vocabulary.categories.map((c) => <option key={c}>{c}</option>)}

@@ -1,7 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import MapView from "../MapView";
+import { ExperienceReviews } from "../ReviewsPanel";
 import { api } from "../api";
+import type { CalendarExport, ChatContext } from "../types";
 import type {
   Catalog,
   Change,
@@ -75,6 +77,18 @@ export default function ExplorePage() {
 
   // Weather & Live Atmospheric State
   const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
+
+  // Where the traveler is and what the planner assumed (from /chat), the device location if
+  // shared, the calendar export, and the reviews dialog.
+  const [chatCtx, setChatCtx] = useState<ChatContext | null>(null);
+  // The page starts on a demo state; only a state from the traveler's own chat is refined further,
+  // so a first message is read against their profile, not the demo family.
+  const [ownState, setOwnState] = useState(false);
+  const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
+  const [calendar, setCalendar] = useState<CalendarExport | null>(null);
+  const [reviewsFor, setReviewsFor] = useState<{ id: string; title: string } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const askedFromUrl = useRef(false);
 
   // Real-World Social Signals State
   const [socialSignals, setSocialSignals] = useState<SocialSignal[]>([]);
@@ -161,43 +175,8 @@ export default function ExplorePage() {
           console.warn("API discover/plan call error, populating fallback catalog:", apiErr);
         }
 
-        // Guaranteed fallback if discover returns 0
-        if (initialRecs.length === 0 && cat?.experiences?.length) {
-          initialRecs = cat.experiences.map((e) => {
-            const pl = placesMap.get(e.place_id) || { lat: 26.9239, lon: 75.8267 };
-            return {
-              experience_id: e.id,
-              title: e.title,
-              score: 0.95,
-              lat: pl.lat,
-              lon: pl.lon,
-              start: `${dateStr}T16:00:00`,
-              end: `${dateStr}T17:30:00`,
-              km: 1.5,
-              travel_min: e.duration_min || 45,
-              cost_inr: e.price_inr || 0,
-              confidence: 0.9,
-              low_confidence: false,
-              reasons: [e.description || "Curated Jaipur experience", `${e.category || "Heritage"} highlight`],
-            };
-          });
-        }
-
-        // Guaranteed fallback if plan stops are 0
-        if (initialStops.length === 0 && initialRecs.length > 0) {
-          initialStops = initialRecs.slice(0, 2).map((r, idx) => ({
-            title: r.title,
-            experience_id: r.experience_id,
-            lat: r.lat,
-            lon: r.lon,
-            start: `${dateStr}T${16 + idx * 2}:00:00`,
-            end: `${dateStr}T${17 + idx * 2}:30:00`,
-            status: "proposed" as const,
-            locked: false,
-            cost_inr: r.cost_inr || 0,
-          }));
-        }
-
+        // No fallbacks: if the engine finds nothing feasible, the page says so instead of
+        // inventing recommendations or plan stops.
         if (!active) return;
         setState(initState);
         setRecs(initialRecs);
@@ -218,7 +197,7 @@ export default function ExplorePage() {
   useEffect(() => {
     async function loadAtmosphericAndSocial() {
       try {
-        const wRes = await api.weather(clock);
+        const wRes = await api.weather(clock, chatCtx?.lat, chatCtx?.lon);
         if (wRes?.summary) {
           setWeatherSummary(wRes.summary);
         }
@@ -236,7 +215,18 @@ export default function ExplorePage() {
       }
     }
     loadAtmosphericAndSocial();
-  }, [clock]);
+  }, [clock, chatCtx?.lat, chatCtx?.lon]);
+
+  // Landing-page examples arrive as /explore?q=...: ask the assistant once the page is ready.
+  useEffect(() => {
+    const q = params.get("q");
+    if (!q || !state || askedFromUrl.current) return;
+    askedFromUrl.current = true;
+    setIsChatOpen(true);
+    sendChat(q);
+    params.delete("q");
+    setParams(params, { replace: true });
+  }, [state]);
 
   // Digital Twin Execution Handler
   async function triggerSimulation(scenarioToRun?: SimulationScenario) {
@@ -340,8 +330,9 @@ export default function ExplorePage() {
   const filteredRecs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    // If searching or filtering by a specific category, search across all experiences in Jaipur
-    if (query || selectedCategory !== "all" || budgetLimit < 6000) {
+    // An explicit search or category browses everything in the area (marked "not checked" on the
+    // card unless the engine also recommended it); otherwise the list is the engine's own picks.
+    if (query || selectedCategory !== "all") {
       return allExperiences
         .filter(({ exp, rec }) => {
           // Category filter
@@ -390,13 +381,9 @@ export default function ExplorePage() {
         .map(({ rec }) => rec);
     }
 
-    // Default "All Spots" view: Show top curated AI recommendations (or top 8 iconic highlights)
-    if (recs.length > 0) {
-      return recs;
-    }
-
-    return allExperiences.slice(0, 8).map(({ rec }) => rec);
+    return budgetLimit >= 6000 ? recs : recs.filter((r) => r.cost_inr <= budgetLimit);
   }, [allExperiences, searchQuery, selectedCategory, budgetLimit, placesMap, recs]);
+  const recIds = useMemo(() => new Set(recs.map((r) => r.experience_id)), [recs]);
 
   // Actions
   async function run(fn: () => Promise<void>) {
@@ -527,7 +514,8 @@ export default function ExplorePage() {
       if (!msgText.trim()) return;
       setMsgs((m) => [...m, { role: "user", text: msgText }]);
       setChatText("");
-      const res = await api.chat(msgText, state, `${clock}:00`);
+      const res = await api.chat(msgText, ownState ? state : null, `${clock}:00`, here?.lat, here?.lon);
+      setOwnState(true);
       let plan = res.plan;
       const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
       if (locked.length) plan = await api.plan(res.state, { stops: locked }, 3);
@@ -536,11 +524,40 @@ export default function ExplorePage() {
       setExcluded(res.excluded);
       setItinerary(plan.itinerary);
       setProblems(plan.problems);
-      setMsgs((m) => [
-        ...m,
-        { role: "bot", text: `Understood: Curated ${res.recommendations.length} matching spots for your schedule.` },
-      ]);
+      const ctx = res.context ?? null;
+      setChatCtx(ctx);
+      if (ctx && ctx.location_source !== "default") setCatalog(await api.catalog(ctx.lat, ctx.lon));
+      setMsgs((m) => [...m, { role: "bot", text: botReply(res.recommendations.length, ctx) }]);
     });
+
+  const shareLocation = () => {
+    if (!navigator.geolocation) return setError("This browser can't share its location.");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setHere({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setMsgs((m) => [...m, { role: "bot", text: "📍 Got your location. I'll plan around where you are." }]);
+      },
+      () => setError("Location wasn't shared. You can also just name the town or area you're in."),
+      { timeout: 10000 },
+    );
+  };
+
+  const exportCalendar = () =>
+    run(async () => {
+      if (!state) return;
+      const cal = await api.calendar(state, { stops: itinerary.stops.filter(LIVE) });
+      setCalendar(cal);
+    });
+
+  const downloadIcs = () => {
+    if (!calendar) return;
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([calendar.ics], { type: "text/calendar" })),
+      download: "truelocal-plan.ics",
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   // Calculate live plan stats
   const liveStops = itinerary.stops.filter(LIVE);
@@ -577,11 +594,11 @@ export default function ExplorePage() {
                 { id: "all", label: "All Spots", icon: "✨" },
                 { id: "food", label: "Local Food", icon: "🍛" },
                 { id: "culture", label: "Heritage", icon: "🏛️" },
-                { id: "craft", label: "Crafts & Print", icon: "🎨" },
-                { id: "hidden-gem", label: "Stepwells", icon: "🪜" },
-                { id: "sunset", label: "Sunset Points", icon: "🌅" },
-                { id: "shopping", label: "Bazaars", icon: "🛍️" },
-                { id: "nature", label: "Nature Safari", icon: "🌿" },
+                { id: "craft", label: "Crafts", icon: "🎨" },
+                { id: "hidden-gem", label: "Hidden Gems", icon: "💎" },
+                { id: "sunset", label: "Sunset & Views", icon: "🌅" },
+                { id: "shopping", label: "Markets", icon: "🛍️" },
+                { id: "nature", label: "Nature", icon: "🌿" },
               ].map((c) => (
                 <button
                   key={c.id}
@@ -735,7 +752,7 @@ export default function ExplorePage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search spots, food walks, block-printing, stepwells in Jaipur..."
+                placeholder="Search places, food walks, workshops, viewpoints..."
                 className="main-search-input"
               />
               {searchQuery && (
@@ -747,7 +764,7 @@ export default function ExplorePage() {
 
             {/* Quick Keyword Pills */}
             <div className="quick-keyword-pills">
-              {["Hawa Mahal", "Sanganer Craft", "Amer Stepwell", "Nahargarh Sunset", "Johari Food"].map((kw) => (
+              {["Heritage", "Street food", "Sunset", "Workshop", "Museum"].map((kw) => (
                 <button
                   key={kw}
                   type="button"
@@ -760,6 +777,13 @@ export default function ExplorePage() {
             </div>
           </div>
 
+          {/* Where you are and what the planner took into account (from the last message) */}
+          {chatCtx ? <ContextStrip ctx={chatCtx} /> : (
+            <div className="ctx-strip muted small">
+              Showing the demo city. Ask the assistant, e.g. “I'm in Pune, it's 6 pm, we love history”, or share your location to plan anywhere.
+            </div>
+          )}
+
           {/* Middle: Recommended Spots List */}
           <section className="recommended-section">
             <div className="section-header-row">
@@ -767,7 +791,7 @@ export default function ExplorePage() {
                 <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "var(--ink)" }}>
                   Recommended Spots &amp; Experiences
                 </h3>
-                <span className="count-pill">{filteredRecs.length} curated</span>
+                <span className="count-pill">{filteredRecs.length} {searchQuery.trim() || selectedCategory !== "all" ? "found" : "that fit now"}</span>
               </div>
               <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
                 Hover a card to view route on map
@@ -777,15 +801,15 @@ export default function ExplorePage() {
             <div className="spots-cards-grid">
               {filteredRecs.map((r, i) => {
                 const exp = expMap.get(r.experience_id);
-                const photo = getExperiencePhoto(r.experience_id);
+                const photo = getExperiencePhoto(r.experience_id, exp?.category);
                 const isPlanned = liveStops.some((s) => s.experience_id === r.experience_id);
                 const isHovered = highlightedExpId === r.experience_id;
                 const category = exp?.category || "culture";
                 const reasonText =
                   r.reasons && r.reasons.length > 0
                     ? r.reasons.join(" • ")
-                    : exp?.description || "Curated based on your preferences & Jaipur weather.";
-                const rating = exp?.rating ?? 4.9;
+                    : exp?.description || "";
+                const rating: number | null = exp?.rating ?? null;
 
                 return (
                   <div
@@ -795,7 +819,8 @@ export default function ExplorePage() {
                     onMouseLeave={() => setHighlightedExpId(null)}
                   >
                     <div className="spot-card-media">
-                      <img src={photo} alt={r.title} loading="lazy" />
+                      {photo ? <img src={photo} alt={r.title} loading="lazy" />
+                        : <div className="spot-photo-placeholder" aria-hidden="true">{CAT_ICON[category] || "📍"}</div>}
                       <span className="spot-number-badge">{i + 1}</span>
                       <span className="spot-cat-badge">
                         {CAT_ICON[category] || "🏛️"} {category}
@@ -804,12 +829,16 @@ export default function ExplorePage() {
 
                     <div className="spot-card-body">
                       <h4 className="spot-title">{r.title}</h4>
-                      <p className="spot-reason">{reasonText}</p>
+                      <p className="spot-reason">
+                        {recIds.has(r.experience_id) ? reasonText
+                          : "Not checked against your time and budget yet. Add it and we'll say if it fits."}
+                      </p>
 
                       <div className="spot-meta-row">
                         <span className="spot-price">₹{r.cost_inr || "Free"}</span>
                         <span className="spot-time">⏱ {r.travel_min || 45} mins</span>
-                        <span className="spot-rating">⭐ {rating}</span>
+                        <button type="button" className="spot-rating spot-reviews-btn" onClick={() => setReviewsFor({ id: r.experience_id, title: r.title })}
+                          title="Read verified reviews">⭐ {rating !== null ? rating.toFixed(1) : "Reviews"}</button>
                       </div>
 
                       <div className="spot-card-actions">
@@ -852,16 +881,24 @@ export default function ExplorePage() {
                   {liveStops.length} Stops
                 </span>
               </div>
-              <div style={{ display: "flex", gap: "12px", fontSize: "0.82rem", fontWeight: 700, color: "var(--muted)" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", fontSize: "0.82rem", fontWeight: 700, color: "var(--muted)" }}>
                 <span>⏱ ~{totalDurationMin} mins total</span>
                 <span>💰 ₹{totalCost} total</span>
+                <button type="button" className="mini" disabled={busy || liveStops.length === 0} onClick={exportCalendar}>
+                  📅 Add to calendar
+                </button>
               </div>
             </div>
 
+            {problems.length > 0 && (
+              <ul className="plan-problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>
+            )}
             {liveStops.length === 0 ? (
               <div className="empty-plan-placeholder">
                 <p style={{ margin: 0, color: "var(--muted)", fontWeight: 600 }}>
-                  No stops added yet. Click <b>"+ Add to Day Plan"</b> on any spot above to build your schedule!
+                  {recs.length === 0 && !busy
+                    ? "Nothing fits this time window right now. Try another time, a bigger budget or a different area."
+                    : <>No stops added yet. Click <b>"+ Add to Day Plan"</b> on any spot above to build your schedule!</>}
                 </p>
               </div>
             ) : (
@@ -869,7 +906,7 @@ export default function ExplorePage() {
                 {liveStops.map((s, idx) => {
                   const stopLetter = String.fromCharCode(65 + idx);
                   const isHovered = highlightedExpId === s.experience_id;
-                  const photo = s.experience_id ? getExperiencePhoto(s.experience_id) : "";
+                  const photo = s.experience_id ? getExperiencePhoto(s.experience_id, expMap.get(s.experience_id)?.category) : "";
 
                   return (
                     <div
@@ -935,34 +972,31 @@ export default function ExplorePage() {
                 </span>
                 <div>
                   <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
-                    Jaipur Weather: {weatherSummary ? `${weatherSummary.temp_c.toFixed(1)}°C` : (liveWeather && liveWeather !== "offline" ? `${liveWeather.temp_c.toFixed(0)}°C` : "32°C")}
+                    {chatCtx ? chatCtx.location : "Demo city"} weather:{" "}
+                    {weatherSummary?.temp_c != null ? `${weatherSummary.temp_c.toFixed(0)}°C` : "unavailable"}
                   </h4>
                   <span style={{ fontSize: "0.74rem", color: "var(--muted)", display: "block" }}>
-                    {weatherSummary ? `${weatherSummary.description}` : "Clear & mild breeze in central district"}
+                    {weatherSummary?.available ? weatherSummary.description : "No live forecast right now. Plans assume clear weather."}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Meteorological telemetry pills */}
-            {weatherSummary && (
+            {/* Measured values only: anything the forecast didn't include is simply not shown */}
+            {weatherSummary?.available && (
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", fontSize: "0.72rem", fontWeight: 700, marginTop: "4px" }}>
-                <span style={{ background: "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: "var(--ink)", border: "1px solid var(--line)" }}>
-                  💧 {weatherSummary.humidity_pct}% Humidity
-                </span>
-                <span style={{ background: "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: "var(--ink)", border: "1px solid var(--line)" }}>
-                  💨 {weatherSummary.wind_kmh} km/h Wind
-                </span>
-                <span style={{ background: weatherSummary.precip_prob > 30 ? "rgba(184, 67, 48, 0.15)" : "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: weatherSummary.precip_prob > 30 ? "var(--accent)" : "var(--ink)", border: "1px solid var(--line)" }}>
-                  🌧️ {weatherSummary.precip_prob}% Rain Prob
-                </span>
+                {weatherSummary.humidity_pct != null && <span className="wx-pill">💧 {weatherSummary.humidity_pct}% humidity</span>}
+                {weatherSummary.wind_kmh != null && <span className="wx-pill">💨 {weatherSummary.wind_kmh.toFixed(0)} km/h wind</span>}
+                {weatherSummary.precip_prob != null && (
+                  <span className={`wx-pill ${weatherSummary.precip_prob > 30 ? "wet" : ""}`}>🌧️ {weatherSummary.precip_prob}% chance of rain</span>
+                )}
               </div>
             )}
 
             {/* AI Weather Advisory Banner */}
-            {weatherSummary?.condition !== "clear" && (
+            {weatherSummary?.available && weatherSummary.condition !== "clear" && (
               <div style={{ background: weatherSummary?.condition === "rain" ? "#e3f2fd" : "#fff3e0", border: `1px solid ${weatherSummary?.condition === "rain" ? "#90caf9" : "#ffb74d"}`, borderRadius: "8px", padding: "8px 10px", fontSize: "0.72rem", color: "#1e131d", lineHeight: 1.35, marginTop: "4px" }}>
-                <strong style={{ display: "block", marginBottom: "2px" }}>🤖 AI Weather Advisory:</strong>
+                <strong style={{ display: "block", marginBottom: "2px" }}>Weather tip:</strong>
                 {weatherSummary?.ai_guidance}
               </div>
             )}
@@ -972,15 +1006,15 @@ export default function ExplorePage() {
               <span className="transport-label">Transit Mode:</span>
               <div className="transport-pill-row">
                 {[
-                  { id: "auto", label: "🛺 Auto (20km/h)", desc: "Bazaar Agility" },
-                  { id: "cab", label: "🚗 AC Cab (35km/h)", desc: "Comfort" },
-                  { id: "walk", label: "🚶 Walking", desc: "Old City Lanes" },
+                  { id: "auto", label: "🛺 Auto" },
+                  { id: "cab", label: "🚗 Cab" },
+                  { id: "walk", label: "🚶 Walk" },
                 ].map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     className={`transport-btn ${transportMode === m.id ? "active" : ""}`}
-                    onClick={() => setTransportMode(m.id as any)}
+                    onClick={() => handleTransportChange(m.id as TransportMode)}
                   >
                     {m.label}
                   </button>
@@ -1271,7 +1305,7 @@ export default function ExplorePage() {
                   </h3>
                 </div>
                 <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>
-                  Live traveler reactions, crowdsourced weather reports, and traffic police advisories.
+                  Sample posts for the demo, not a live feed. Reports you add are kept for this session.
                 </p>
               </div>
               <button type="button" onClick={() => setIsSocialOpen(false)} className="close-drawer-btn" style={{ fontSize: "1.2rem" }}>
@@ -1431,6 +1465,37 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {reviewsFor && (
+        <ExperienceReviews experienceId={reviewsFor.id} title={reviewsFor.title} onClose={() => setReviewsFor(null)} />
+      )}
+
+      {calendar && (
+        <div className="exp-modal-backdrop" style={{ zIndex: 3000 }} onClick={() => setCalendar(null)}>
+          <div className="exp-modal-card cal-modal" role="dialog" aria-label="Add your plan to a calendar" onClick={(e) => e.stopPropagation()}>
+            <div className="rv-modal-head">
+              <div>
+                <h3>Add your plan to a calendar</h3>
+                <p className="muted small">Each reminder fires when it's time to leave: travel time from the previous stop, plus 15 minutes.</p>
+              </div>
+              <button type="button" className="close-drawer-btn" onClick={() => setCalendar(null)} aria-label="Close">✕</button>
+            </div>
+            <button type="button" onClick={downloadIcs}>⬇ Download all stops (.ics, with reminders)</button>
+            <p className="muted small">Opens in Google Calendar, Apple Calendar or Outlook. Or add stops one by one:</p>
+            <ul className="cal-list">
+              {calendar.events.map((e) => (
+                <li key={e.start + e.title}>
+                  <div>
+                    <strong>{hhmm(e.start)}–{hhmm(e.end)} {e.title}</strong>
+                    <span className="muted small">🔔 {e.remind_min} min before · {e.reminder.split("\n")[0]}</span>
+                  </div>
+                  <a className="button mini" href={e.google_url} target="_blank" rel="noopener noreferrer">Google Calendar ↗</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Floating AI Chat Drawer (Opens smoothly when requested) */}
       {isChatOpen && (
         <div className="floating-chat-drawer">
@@ -1446,7 +1511,7 @@ export default function ExplorePage() {
 
           <div className="chat-drawer-messages">
             <div className="chat-msg bot">
-              Hello! Tell me what you'd like to experience in Jaipur (e.g. "We have 3 hours near Hawa Mahal, budget ₹1500, want spicy food & crafts").
+              Hi! Tell me where you are and what you feel like, e.g. “I'm in Pune with my parents, it's 6 pm, we love history” or “4 hours before my train, want a beach with a view”.
             </div>
             {msgs.map((m, idx) => (
               <div key={idx} className={`chat-msg ${m.role}`}>
@@ -1466,9 +1531,13 @@ export default function ExplorePage() {
               type="text"
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
-              placeholder="Ask anything about Jaipur or adapt your plan..."
+              placeholder="Where are you, and what would you like to do?"
               className="chat-input"
             />
+            <button type="button" className="chat-loc-btn" onClick={shareLocation}
+              title={here ? "Using your location" : "Plan around where you are"} aria-label="Use my location">
+              {here ? "📍✓" : "📍"}
+            </button>
             <button type="submit" className="chat-send-btn" disabled={busy || !chatText.trim()}>
               Send
             </button>
@@ -1476,5 +1545,55 @@ export default function ExplorePage() {
         </div>
       )}
     </div>
+  );
+}
+
+// The assistant's reply, from what the engine actually did (never a canned claim).
+function botReply(n: number, ctx: ChatContext | null): string {
+  if (!ctx) return n ? `Found ${n} options that fit.` : "Nothing fits right now. Try another time or area.";
+  const parts = [n ? `${n} options in ${ctx.location} that fit your time and budget.` : `Nothing fits right now in ${ctx.location}.`];
+  if (ctx.weather.available && ctx.weather.condition) {
+    parts.push(`Weather: ${ctx.weather.condition}${ctx.weather.temp_c != null ? `, ${Math.round(ctx.weather.temp_c)}°C` : ""}${ctx.weather.applied ? " (outdoor plans adjusted)" : ""}.`);
+  }
+  const closed = ctx.closed_now[0];
+  if (closed) parts.push(`${closed.title} is closed for now${closed.next_open ? `, opens ${fmtWhen(closed.next_open)}` : ""}.`);
+  if (ctx.assumptions.length) parts.push(`I assumed: ${ctx.assumptions.join(" ")}`);
+  return parts.join(" ");
+}
+
+function fmtWhen(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(undefined, { weekday: "short" })} ${iso.slice(11, 16)}`;
+}
+
+function ContextStrip({ ctx }: { ctx: ChatContext }) {
+  const src = { text: "you said", device: "your location", previous: "earlier", profile: "your profile", default: "demo city" }[ctx.location_source];
+  return (
+    <section className="ctx-strip" aria-label="What the planner took into account">
+      <div className="ctx-row">
+        <span className="ctx-item">📍 <b>{ctx.location}</b> <span className="muted">({src})</span></span>
+        <span className="ctx-item">
+          {ctx.weather.available
+            ? `${ctx.weather.condition === "rain" ? "🌧" : ctx.weather.condition === "heat" ? "🔥" : "☀"} ${ctx.weather.temp_c != null ? Math.round(ctx.weather.temp_c) + "°C" : ""} ${ctx.weather.condition}`
+            : "Weather unavailable"}
+        </span>
+        <span className="ctx-item">🚦 {ctx.traffic}</span>
+        <span className="ctx-item muted">{ctx.places_considered} places checked ({ctx.data_source})</span>
+        {ctx.profile_used && <span className="ctx-item">🧠 using your profile</span>}
+      </div>
+      {ctx.closed_now.length > 0 && (
+        <div className="ctx-closed">
+          <b>Closed right now:</b>
+          {ctx.closed_now.map((c) => (
+            <span key={c.experience_id} title={c.why}>
+              {c.title}{c.next_open ? ` (opens ${fmtWhen(c.next_open)}${c.hours_confirmed ? "" : ", typical hours"})` : ""}
+            </span>
+          ))}
+        </div>
+      )}
+      {ctx.assumptions.length > 0 && (
+        <ul className="ctx-assume">{ctx.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+      )}
+    </section>
   );
 }

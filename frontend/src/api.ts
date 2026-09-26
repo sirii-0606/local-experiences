@@ -75,15 +75,37 @@ export type WeatherRisk = { stop: string; condition: string; message: string };
 export type ContextCheck = { available: boolean; risks: WeatherRisk[]; proposed: ContextEvent | null };
 
 export type WeatherSummary = {
-  condition: "rain" | "heat" | "clear";
-  temp_c: number;
-  precip_mm: number;
-  precip_prob: number;
-  humidity_pct: number;
-  wind_kmh: number;
+  condition: "rain" | "heat" | "clear" | "unknown";
+  temp_c: number | null;
+  precip_mm: number | null;
+  precip_prob: number | null;
+  humidity_pct: number | null; // null = the provider didn't report it (never estimated)
+  wind_kmh: number | null;
   description: string;
   ai_guidance: string;
   available: boolean;
+};
+
+export type ReviewCheck = {
+  id: string;
+  at: string;
+  rating: number;
+  text: string;
+  verified: boolean; // tied to a booking made here
+  trust: number; // 0..1
+  counted: boolean; // feeds the trusted rating
+  flags: string[];
+};
+export type ReviewReport = {
+  total: number;
+  counted: number;
+  suspicious: number;
+  verified: number;
+  rating_all: number | null;
+  rating_trusted: number | null;
+  verdict: string;
+  bursts: string[];
+  reviews: ReviewCheck[];
 };
 
 export type SocialSignal = {
@@ -271,7 +293,8 @@ export async function call<T>(path: string, body?: unknown, method?: string, tok
 }
 
 export const api = {
-  catalog: () => call<Catalog>("/catalog"),
+  catalog: (lat?: number, lon?: number) =>
+    call<Catalog>(lat === undefined || lon === undefined ? "/catalog" : `/catalog?lat=${lat}&lon=${lon}`),
   chat: (text: string, state: TravelerState | null, now: string, lat?: number, lon?: number) =>
     call<ChatResponse>("/chat", { text, state, now, lat, lon }),
   calendar: (state: TravelerState, itinerary: Itinerary) =>
@@ -281,7 +304,15 @@ export const api = {
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
   event: (state: TravelerState, itinerary: Itinerary, event: ContextEvent) =>
     call<EventResponse>("/events", { state, itinerary, event }),
-  weather: (at: string) => call<{ available: boolean; hour: WeatherHour | null; summary?: WeatherSummary }>(`/weather?at=${encodeURIComponent(at)}`),
+  weather: (at: string, lat?: number, lon?: number) =>
+    call<{ available: boolean; hour: WeatherHour | null; summary?: WeatherSummary }>(
+      `/weather?at=${encodeURIComponent(at)}${lat === undefined || lon === undefined ? "" : `&lat=${lat}&lon=${lon}`}`,
+    ),
+  reviews: (experience_id: string) => call<ReviewReport>(`/reviews/${encodeURIComponent(experience_id)}`),
+  postReview: (r: { experience_id: string; rating: number; text: string; booking_code?: string; at?: string }) =>
+    call<{ review: ReviewCheck; report: ReviewReport }>("/reviews", r),
+  checkReviews: (reviews: { at: string; rating: number; text: string; verified?: boolean }[]) =>
+    call<ReviewReport>("/reviews/check", { reviews }),
   getSocialSignals: (params?: { condition?: string; lat?: number; lon?: number }) => {
     const q = new URLSearchParams();
     if (params?.condition) q.set("condition", params.condition);

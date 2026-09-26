@@ -49,7 +49,7 @@ export function RequireAuth({ role, children }: { role?: Role; children: ReactNo
         <div className="panel">
           <h2>Not available</h2>
           <p>This area is for {role}s. You're signed in as {user.display_name} ({user.role}).</p>
-          <Link to="/">Back to Explore</Link>
+          <Link to="/explore">Back to Explore</Link>
         </div>
       </section>
     );

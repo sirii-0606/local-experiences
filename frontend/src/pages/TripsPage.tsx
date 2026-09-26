@@ -135,7 +135,7 @@ export default function TripsPage() {
             <h2 className="display">No trips yet</h2>
             <p>Tell us when you're going, who's coming and what you'd hate to miss. Every suggestion is checked against opening hours, travel time and your budget first, and anything we're unsure about is flagged.</p>
             <Link className="button" to="/trips/new">Plan your first trip</Link>
-            <p className="muted small">Just have an afternoon? <Link to="/">Explore</Link> plans the next few hours around you.</p>
+            <p className="muted small">Just have an afternoon? <Link to="/explore">Explore</Link> plans the next few hours around you.</p>
           </div>
         </div>
       )}

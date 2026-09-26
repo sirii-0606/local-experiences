@@ -28,7 +28,7 @@ def cities():
     for name, (lat, lon) in {"pune": PUNE, "mumbai": MUMBAI}.items():
         data = json.loads((FIX / f"{name}_places.json").read_text(encoding="utf-8"))
         store.area_put(lat, lon, opendata.AREA_KM, data["source"], data["items"])
-        store.cache_put(f"geo:{name}", [name.title(), lat, lon])
+        store.cache_put(f"geo-in:{name}", [name.title(), lat, lon])
     opendata._area_seed.cache_clear()
 
 
@@ -351,3 +351,29 @@ def test_a_wikipedia_fallback_is_refreshed_from_wikidata_later():
     items, source = opendata.pois(19.0, 72.9, fetch={"wikidata": lambda *_: fresh})
     assert (source, items) == ("wikidata", fresh)
     assert opendata.pois(19.0, 72.9)[1] == "wikidata"  # cached now
+
+
+def test_geocoding_never_leaves_india():
+    asked = []
+    abroad = {
+        "results": [
+            {
+                "name": "Chrysanthio",
+                "latitude": 38.1,
+                "longitude": 22.3,
+                "feature_code": "PPL",
+                "country_code": "GR",
+            }
+        ]
+    }
+    assert opendata.geocode("versova", fetch=lambda url: asked.append(url) or abroad) is None
+    assert "countryCode=IN" in asked[0]
+
+
+def test_place_names_are_found_after_other_prepositions():
+    from app.intent import place_candidates
+
+    text = "our family cooks lunches at home in versova, mumbai for three generations"
+    assert place_candidates(text) == ["versova mumbai"]
+    store.cache_put("geo-in:mumbai", ["Mumbai", *MUMBAI])
+    assert opendata.geocode_phrase("versova mumbai") == ("Mumbai", *MUMBAI)

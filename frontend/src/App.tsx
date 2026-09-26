@@ -4,6 +4,9 @@ import { RequireAuth } from "./auth";
 import AdminPage from "./pages/AdminPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import ExplorePage from "./pages/ExplorePage";
+import LandingPage from "./pages/LandingPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import VerifyPage from "./pages/VerifyPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProviderPage from "./pages/ProviderPage";
 import TripItineraryPage from "./pages/TripItineraryPage";
@@ -13,12 +16,16 @@ import TripsPage from "./pages/TripsPage";
 
 import SpatialDiscoveryPage from "./webgl/pages/SpatialDiscoveryPage";
 
-// Explore and Provider stay open without an account (demo continuity); trips need one.
+// Landing, Explore, review check and Provider are open without an account; onboarding and trips
+// need one.
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<ExplorePage />} />
+        <Route index element={<LandingPage />} />
+        <Route path="explore" element={<ExplorePage />} />
+        <Route path="verify" element={<VerifyPage />} />
+        <Route path="onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
         <Route path="3d" element={<SpatialDiscoveryPage />} />
         <Route path="spatial" element={<SpatialDiscoveryPage />} />
         <Route path="provider" element={<ProviderPage />} />
@@ -32,7 +39,7 @@ export default function App() {
         <Route path="trips/:id/itinerary" element={<RequireAuth><TripItineraryPage /></RequireAuth>} />
         <Route path="trips/:id/plan" element={<RequireAuth><TripItineraryPage /></RequireAuth>} />
         <Route path="admin" element={<RequireAuth role="admin"><AdminPage /></RequireAuth>} />
-        <Route path="*" element={<section className="page narrow"><div className="panel"><h2>Page not found</h2><Link to="/">Back to Explore</Link></div></section>} />
+        <Route path="*" element={<section className="page narrow"><div className="panel"><h2>Page not found</h2><Link to="/explore">Back to Explore</Link></div></section>} />
       </Route>
     </Routes>
   );

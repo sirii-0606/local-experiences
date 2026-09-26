@@ -94,9 +94,17 @@ def draft_rules(text: str, seed: Seed) -> ListingDraft:
     own = r"\b(?:make|paint|print|cook|build) (?:your|their) own ([a-z ]{3,30}?)(?=[,.]| and|$)"
     if m := re.search(own, t):
         d.title = f"Make your own {m[1].strip()}"
-    else:  # first clause of the first sentence, e.g. "Sunset rooftop tea"
-        d.title = re.split(r"[,.!?]", text.strip())[0][:60]
-    if d.provider_name:
+    else:  # the first clause that isn't an introduction, e.g. "Sunset rooftop tea"
+        clauses = [c.strip() for c in re.split(r"[,.!?]", text.strip()) if c.strip()]
+        intro = re.compile(r"^(?:i am|i'm|we are|we're|this is|my name is)\b", re.I)
+        d.title = next((c for c in clauses if not intro.match(c)), clauses[0] if clauses else "")
+        if len(d.title) > 60:  # whole words only, and no dangling "in" / "at" / "the"
+            words = d.title[:60].split()[:-1]
+            while words and words[-1].lower() in {"in", "at", "on", "for", "of", "the", "a", "and"}:
+                words.pop()
+            d.title = " ".join(words)
+        d.title = d.title[:1].upper() + d.title[1:]
+    if d.provider_name and d.provider_name.lower() not in d.title.lower():
         d.title += f" with {d.provider_name}"
 
     price, t_no_money = money(t)

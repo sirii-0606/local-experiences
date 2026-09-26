@@ -1,7 +1,6 @@
 // High-resolution curated Unsplash photography for Jaipur attractions and cultural experiences
 
 export const EXPERIENCE_PHOTOS: Record<string, string> = {
-  "ex-hawa-mahal": "https://images.unsplash.com/photo-1609137144822-7935a8740c49?auto=format&fit=crop&w=800&q=80",
   "ex-city-palace": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80",
   "ex-jantar-mantar": "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
   "ex-albert-hall": "https://images.unsplash.com/photo-1597040663342-45b6af3d91a5?auto=format&fit=crop&w=800&q=80",
@@ -11,10 +10,9 @@ export const EXPERIENCE_PHOTOS: Record<string, string> = {
   "ex-galta-ji": "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=800&q=80",
   "ex-galta-aarti": "https://images.unsplash.com/photo-1567157577867-05ccb1388e66?auto=format&fit=crop&w=800&q=80",
   "ex-birla-mandir": "https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=800&q=80",
-  "ex-patrika-gate": "https://images.unsplash.com/photo-1622308644420-a92243d4f1eb?auto=format&fit=crop&w=800&q=80",
   "ex-sisodia-garden": "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80",
   "ex-old-city-walk": "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
-  "ex-street-food-walk": "https://images.unsplash.com/photo-1505253758473-96b3015f21c9?auto=format&fit=crop&w=800&q=80",
+  "ex-street-food-walk": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
   "ex-bazaar-evening-walk": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
   "ex-chandpole-market": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
   "ex-cooking-class": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80",
@@ -24,7 +22,7 @@ export const EXPERIENCE_PHOTOS: Record<string, string> = {
   "ex-block-print-workshop": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
   "ex-dye-lanes-walk": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80",
   "ex-pyaz-kachori": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
-  "ex-masala-chowk": "https://images.unsplash.com/photo-1505253758473-96b3015f21c9?auto=format&fit=crop&w=800&q=80",
+  "ex-masala-chowk": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
   "ex-johari-sweets": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
   "ex-lassi": "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=800&q=80",
   "ex-rooftop-dinner": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
@@ -67,7 +65,7 @@ export const EXPERIENCE_PHOTOS: Record<string, string> = {
 export const CATEGORY_FALLBACK_PHOTOS: Record<string, string> = {
   culture: "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80",
   art: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
-  food: "https://images.unsplash.com/photo-1505253758473-96b3015f21c9?auto=format&fit=crop&w=800&q=80",
+  food: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
   nature: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80",
   learning: "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
   shopping: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
@@ -77,8 +75,11 @@ export const CATEGORY_FALLBACK_PHOTOS: Record<string, string> = {
   community: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80",
 };
 
+// "" = no photo we can honestly show: callers draw a category placeholder instead. Open-data
+// places (ex-od-*) never borrow another place's photo.
 export function getExperiencePhoto(id: string, category?: string): string {
   if (EXPERIENCE_PHOTOS[id]) return EXPERIENCE_PHOTOS[id];
+  if (id.startsWith("ex-od-")) return "";
   if (category && CATEGORY_FALLBACK_PHOTOS[category]) return CATEGORY_FALLBACK_PHOTOS[category];
-  return "https://images.unsplash.com/photo-1609137144822-7935a8740c49?auto=format&fit=crop&w=800&q=80";
+  return "";
 }

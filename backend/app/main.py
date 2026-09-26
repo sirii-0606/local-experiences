@@ -263,10 +263,8 @@ def _locate(
     if parsed.near and (pl := next((x for x in s0.places.values() if x.name == parsed.near), None)):
         return pl.lat, pl.lon, pl.name, "text"
     if parsed.place_name:
-        words = parsed.place_name.split()
-        for n in range(len(words), 0, -1):  # "pune market road" -> ... -> "pune"
-            if found := opendata.geocode(" ".join(words[:n])):
-                return found[1], found[2], found[0], "text"
+        if found := opendata.geocode_phrase(parsed.place_name):  # "pune not any" -> "pune"
+            return found[1], found[2], found[0], "text"
         notes.append(f'Couldn\'t find a place called "{parsed.place_name}" in India.')
     if req.lat is not None and req.lon is not None:
         return req.lat, req.lon, "your location", "device"
@@ -647,9 +645,10 @@ def _require_owner(experience_id: str, token: str | None) -> None:
 def provider_draft(req: DraftRequest) -> DraftResponse:
     d, parser = provider.draft(req.text, seed())
     if not d.near and d.lat is None:  # outside the curated city: place it by the area it names
-        for name in place_candidates(req.text.lower()):
-            if found := opendata.geocode(name):
-                d.area, d.lat, d.lon = found
+        for phrase in place_candidates(req.text.lower()):
+            if found := opendata.geocode_phrase(phrase):
+                # their own words for the area; the pin is the town's centre until they move it
+                d.area, d.lat, d.lon = phrase.title(), found[1], found[2]
                 break
     return DraftResponse(parser=parser, draft=d, fits=provider.segments(d))
 

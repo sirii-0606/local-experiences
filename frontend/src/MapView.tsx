@@ -5,6 +5,11 @@ import { getExperiencePhoto } from "./photos";
 
 const JAIPUR: L.LatLngTuple = [26.9239, 75.8267];
 
+// Titles, report text and names reach popups as HTML; provider listings and social reports are
+// user-submitted, so everything interpolated into markup is escaped.
+const esc = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 function pin(label: string, kind: "you" | "rec" | "stop", isHighlighted = false, isVulnerable = false) {
   const vulnStyle = isVulnerable ? "border: 2px solid #b3261e; animation: pulse 1.5s infinite;" : "";
   const highlightStyle = isHighlighted
@@ -114,7 +119,7 @@ export default function MapView({
           weight: zone.severity === "extreme" ? 3 : 2,
           dashArray: zone.severity === "low" ? "4, 6" : undefined,
         });
-        circle.bindTooltip(`<b>${zone.name}</b><br/>${zone.description}`, { direction: "center", permanent: false });
+        circle.bindTooltip(`<b>${esc(zone.name)}</b><br/>${esc(zone.description)}`, { direction: "center", permanent: false });
         circle.addTo(g);
       });
     }
@@ -131,12 +136,12 @@ export default function MapView({
           <div style="font-family: inherit; max-width: 250px; font-size: 12px; line-height: 1.4;">
             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
               <span style="font-size: 16px;">${sig.avatar}</span>
-              <strong style="color: #1e131d;">${sig.author}</strong>
+              <strong style="color: #1e131d;">${esc(sig.author)}</strong>
               <span style="color: #6e5864; font-size: 11px;">(${sig.handle})</span>
             </div>
-            <p style="margin: 0 0 6px; color: #333;">${sig.content}</p>
+            <p style="margin: 0 0 6px; color: #333;">${esc(sig.content)}</p>
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #888;">
-              <span>📍 ${sig.location_name}</span>
+              <span>📍 ${esc(sig.location_name)}</span>
               <span style="text-transform: uppercase; font-weight: 700; color: ${sig.sentiment === "critical" ? "#b3261e" : "#d85c48"};">${sig.sentiment}</span>
             </div>
           </div>
@@ -161,15 +166,15 @@ export default function MapView({
           zIndexOffset: isHigh ? 500 : 0,
         });
 
-        marker.bindTooltip(`<b>${i + 1}. ${r.title}</b><br/>₹${r.cost_inr || "Free"}`, {
+        marker.bindTooltip(`<b>${i + 1}. ${esc(r.title)}</b><br/>₹${r.cost_inr || "Free"}`, {
           direction: "top",
           offset: [0, -14],
         });
 
         marker.bindPopup(`
           <div style="font-family: inherit; max-width: 230px; font-size: 13px; line-height: 1.4;">
-            <img src="${photoUrl}" alt="${r.title}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />
-            <strong style="color: #1e131d; display: block; font-size: 13px; margin-bottom: 3px;">${r.title}</strong>
+            ${photoUrl ? `<img src="${photoUrl}" alt="${esc(r.title)}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />` : ""}
+            <strong style="color: #1e131d; display: block; font-size: 13px; margin-bottom: 3px;">${esc(r.title)}</strong>
             <p style="margin: 0 0 6px; color: #6e5864; font-size: 12px;">
               🕓 ${r.start ? String(r.start).slice(11, 16) : ""}–${r.end ? String(r.end).slice(11, 16) : ""} · ₹${r.cost_inr || "Free"}
             </p>
@@ -208,17 +213,17 @@ export default function MapView({
         zIndexOffset: isHigh ? 600 : 100,
       });
 
-      marker.bindTooltip(`<b>${stopLabel}. ${s.title}</b><br/>${timeStr}–${endStr}`, {
+      marker.bindTooltip(`<b>${stopLabel}. ${esc(s.title)}</b><br/>${timeStr}–${endStr}`, {
         direction: "top",
         offset: [0, -14],
       });
 
       marker.bindPopup(`
         <div style="font-family: inherit; max-width: 240px; font-size: 13px; line-height: 1.4;">
-          ${photoUrl ? `<img src="${photoUrl}" alt="${s.title}" style="width: 100%; height: 115px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />` : ""}
+          ${photoUrl ? `<img src="${photoUrl}" alt="${esc(s.title)}" style="width: 100%; height: 115px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />` : ""}
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
             <span style="background: #d85c48; color: #ffffff; font-weight: 800; font-size: 11px; padding: 2px 6px; border-radius: 4px;">Stop ${stopLabel}</span>
-            <strong style="color: #1e131d; font-size: 13px;">${s.title}</strong>
+            <strong style="color: #1e131d; font-size: 13px;">${esc(s.title)}</strong>
           </div>
           <p style="margin: 0 0 6px; color: #6e5864; font-size: 12px;">
             🕒 <b>${timeStr} – ${endStr}</b> ${s.cost_inr ? `· ₹${s.cost_inr}` : "· Free"}

@@ -329,9 +329,9 @@ NOT_A_PLACE_WORD = {
     "right",
     "just",
 }
-PLACE_AFTER = (
-    r"\b(?:in|at|to|near|around|visiting|exploring|from)\s+"
-    r"([a-z][\w.'-]*(?:\s+[a-z][\w.'-]*){0,2})"
+PLACE_AFTER = (  # a lookahead, so "at home in versova" also yields the "in versova" inside it
+    r"(?=\b(?:in|at|to|near|around|visiting|exploring|from)\s+"
+    r"([a-z][\w.'-]*(?:,?\s+[a-z][\w.'-]*){0,2}))"
 )
 
 
@@ -341,7 +341,7 @@ def place_candidates(t: str) -> list[str]:
     out = []
     for m in re.finditer(PLACE_AFTER, t):
         words = []
-        for w in m[1].split():
+        for w in m[1].replace(",", " ").split():
             if w in NOT_A_PLACE_WORD or any(re.search(rx, w) for rx in KEYWORDS):
                 break
             words.append(w)

@@ -24,7 +24,7 @@ export function LoginPage() {
     <section className="page narrow">
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); submit(async () => {
         await signIn(email, password);
-        navigate(params.get("next") || "/");
+        navigate(params.get("next") || "/explore");
       }); }}>
         <h2>Sign in</h2>
         <label>Email<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
@@ -52,7 +52,7 @@ export function RegisterPage() {
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); submit(async () => {
         if (password !== confirm) throw new Error("passwords don't match");
         await signUp(email, password, name);
-        navigate(params.get("next") || "/profile");
+        navigate(params.get("next") || "/onboarding");
       }); }}>
         <h2>Create your account</h2>
         <label>Your name<input autoComplete="name" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>

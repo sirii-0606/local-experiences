@@ -281,9 +281,20 @@ def _get(
 # ---------------------------------------------------------------- geocoding
 
 
+def geocode_phrase(phrase: str) -> tuple[str, float, float] | None:
+    """The most specific place in a short phrase: "versova mumbai" tries the whole phrase, then
+    "versova", then "mumbai" (longest first, left to right). Each lookup is cached."""
+    words = phrase.split()[:4]
+    for n in range(len(words), 0, -1):
+        for i in range(len(words) - n + 1):
+            if found := geocode(" ".join(words[i : i + n])):
+                return found
+    return None
+
+
 def geocode(name: str, fetch=None) -> tuple[str, float, float] | None:
     """(display name, lat, lon) of a town, city or locality in India; None if unknown/offline."""
-    key = "geo:" + name.strip().lower()
+    key = "geo-in:" + name.strip().lower()  # "geo:" entries predate the India filter: ignored
     if (hit := store.cache_get(key, CACHE_DAYS)) is not None:
         return tuple(hit) if hit else None
     if fetch is None and not live():
@@ -292,16 +303,17 @@ def geocode(name: str, fetch=None) -> tuple[str, float, float] | None:
         raw = (fetch or _get)(
             "https://geocoding-api.open-meteo.com/v1/search?"
             + urllib.parse.urlencode(
-                {"name": name.strip(), "count": 1, "country_code": "IN", "language": "en"}
+                {"name": name.strip(), "count": 5, "countryCode": "IN", "language": "en"}
             )
         )
     except Exception as e:  # offline or rate-limited: location stays unknown
         log.warning("geocoding failed: %s", type(e).__name__)
         return None
-    hits = [
+    hits = [  # the API filters by country; checked again so a place abroad can never slip in
         r
         for r in raw.get("results", [])
-        if str(r.get("feature_code", "")).startswith(("PPL", "ADM"))
+        if r.get("country_code") == "IN"
+        and str(r.get("feature_code", "")).startswith(("PPL", "ADM"))
     ]
     found = (hits[0]["name"], hits[0]["latitude"], hits[0]["longitude"]) if hits else None
     store.cache_put(key, list(found) if found else [])

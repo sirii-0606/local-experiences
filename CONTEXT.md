@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-01-any-city-context.md](docs/context/2026-09-27-01-any-city-context.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-02-review-verification-and-ui.md](docs/context/2026-09-27-02-review-verification-and-ui.md)_
 
 **TrueLocal** — "Local Experiences, Intelligently Planned". A context-aware local experience discovery and planning platform (hackathon). Baseline: `docs/ideation/`. Decisions: `docs/ideation/decisions.md`. API: `docs/api.md` + `docs/openapi.json`.
 
@@ -37,6 +37,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-01-any-city-
 - **Accounts:** sessions, roles, admin (who never sees profile data), trips CRUD.
 - **Providers:** free text → draft → listing, anywhere (pin + area). Pause, edit token, demand insights, and the traveler segments each listing fits.
 - **Calendar:** `.ics` with travel-aware reminders, plus Google Calendar links per stop.
+- **Review verification:** every review gets a trust score and reasons (machine-written style, no specifics, bursts, near-copies, repeated claims; extremes weigh less; booking-verified visits trusted most). Only trusted reviews feed ratings. `/reviews`, `/reviews/check`.
 - **Social signals and digital twin** (teammate, [2026-09-27-21](docs/context/2026-09-27-21-additional-integration-tasks.md)): `/social/signals`, `/social/report`, `/simulation/presets`, `/simulation/what-if` (weather what-if with plan repair via `replan()`), plus map layers and modals in Explore. Jaipur-scoped. **The social feed is hardcoded sample posts**, some attributed to real-sounding accounts: label it as demo data or replace it before anyone treats it as live.
 
 ## Verified scenarios (live data, real server, rule parser)
@@ -48,32 +49,25 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-01-any-city-
   - Recommends Mahim Beach, Versova Beach and Bandstand Promenade.
   - The plan gets back to Bandra Terminus by 18:00 on a ₹600 budget.
 
-## Frontend (current UI, not yet updated for the above)
-- TrueLocal design with a Jaipur look: marquee header, cinematic hero with a quick planner, a map with a sliding AI chat drawer, and a 3D/WebGL monuments view.
-- Routes: `/` Explore, `/3d` (also `/spatial`), `/provider`, `/login`, `/register`, `/profile`, `/trips`, `/trips/new`, `/trips/:id`, `/trips/:id/shortlist`, `/trips/:id/itinerary`, `/admin`.
-- Types and the mock mirror the new contract; no screens use it yet.
+## Frontend
+- Current TrueLocal design kept. `/` is the product landing page (no city named). `/explore` is the planner: chat with location sharing, a context strip (where, weather, traffic, closed-now, assumptions), verified reviews per place, "Add to calendar". `/onboarding` after sign-up; `/profile` shows preferences and what we've learned (correctable); `/verify` checks any pasted reviews; the host form works anywhere (pin/area) and shows who a listing fits.
+- Other routes: `/3d` (also `/spatial`), `/provider`, `/login`, `/register`, `/trips`, `/trips/new`, `/trips/:id`, `/trips/:id/shortlist`, `/trips/:id/itinerary`, `/admin`.
+- Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 130 passed, 1 skipped (live LLM); runs offline with `LIVE_DATA=0`. Ruff is clean. Frontend `npm run build` is clean.
-- The latest work is **not committed yet** (on `main`); it's meant to go on a `feat/*` branch.
+- Backend: 144 passed, 1 skipped (live LLM); runs offline with `LIVE_DATA=0`. Ruff is clean. Frontend `npm run build` is clean.
+- `main` on GitHub = `a5373c0` (any-city work + teammate merge). The review engine and UI are on `feat/review-verification`, not pushed yet.
 
 ## Known gaps
 - Coverage and data quality are only as good as Wikidata, which is limited to about 1 query/min at times. Warm demo cities first.
 - Traffic is an estimate, not a live feed. Weather is one condition for the whole window.
 - There's no direct Google Calendar sync; that needs an OAuth client.
 - `/trips` (multi-day) is still Jaipur-only.
-- The review verification engine ("AI slop" filter) isn't built.
 - AR/3D is a presentation layer only.
 
 ## Next steps
-1. **Review verification engine:** waiting for the user's instructions.
-2. **UI phase**, keeping the current UI as the base:
-   - a product landing page that names no city
-   - onboarding screens
-   - a profile "context" section
-   - a chat context panel (closed-now, assumptions, weather, traffic)
-   - "Add to calendar"
-   - `/catalog?lat&lon` so non-Jaipur results render as cards
+1. Push `feat/review-verification` to `main` when the user says so.
+2. Polish: Escape closes modals; Explore's filters edit the chat state instead of demo groups; tie reviews to signed-in users.
 3. Later: Google Calendar OAuth, `/trips` for any city, P6 feedback loop, P7 interactive cards, P8 print/PDF.
 
 ## Run it
