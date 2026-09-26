@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "./auth";
 import { useClock } from "./clock";
 import { MOCK } from "./v2api";
@@ -10,17 +10,11 @@ export default function Layout() {
   const { user, signOut } = useAuth();
   const { clock, setClock, live } = useClock();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isExplorePage = location.pathname === "/";
 
   return (
-    <div className="app-shell">
-      {/* Top Infinite Marquee Ticker (Unmapped Reference Style) */}
-      <div className="top-marquee-bar" aria-label="Curated highlights ticker">
-        <div className="marquee-track">
-          <span>CURATED BY LOCALS <span className="marquee-dot">·</span> TRUELOCAL JAIPUR <span className="marquee-dot">·</span> 100% VERIFIED MASTERS <span className="marquee-dot">·</span> LOCAL EXPERIENCES, INTELLIGENTLY PLANNED <span className="marquee-dot">·</span> DIURNAL WEATHER ADAPTED <span className="marquee-dot">·</span> AUTHENTIC SANGAER CRAFT <span className="marquee-dot">·</span> HERITAGE BASTIONS</span>
-          <span>CURATED BY LOCALS <span className="marquee-dot">·</span> TRUELOCAL JAIPUR <span className="marquee-dot">·</span> 100% VERIFIED MASTERS <span className="marquee-dot">·</span> LOCAL EXPERIENCES, INTELLIGENTLY PLANNED <span className="marquee-dot">·</span> DIURNAL WEATHER ADAPTED <span className="marquee-dot">·</span> AUTHENTIC SANGAER CRAFT <span className="marquee-dot">·</span> HERITAGE BASTIONS</span>
-        </div>
-      </div>
-
+    <div className="app-shell" style={{ height: isExplorePage ? "100vh" : "auto", overflow: isExplorePage ? "hidden" : "visible" }}>
       {/* Floating Glassmorphic Header */}
       <header className="luxury-header">
         <Link to="/" className="brand-crest">
@@ -33,6 +27,7 @@ export default function Layout() {
 
         <nav className="nav-pill-group" aria-label="Main navigation">
           <NavLink to="/" end className={tab}>Explore</NavLink>
+          <NavLink to="/3d" className={tab}>3D Discovery 🏛️</NavLink>
           <NavLink to="/trips" className={tab}>Plan a Trip</NavLink>
           <NavLink to="/provider" className={tab}>For Hosts</NavLink>
           {user?.role === "admin" && <NavLink to="/admin" className={tab}>Admin</NavLink>}
@@ -63,12 +58,13 @@ export default function Layout() {
       </header>
 
       {/* Main Page Content */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: isExplorePage ? "hidden" : "visible" }}>
         <Outlet />
       </main>
 
-      {/* Multi-Column Heritage Luxury Footer */}
-      <footer className="luxury-footer">
+      {/* Multi-Column Heritage Luxury Footer (omitted on full-bleed dashboard) */}
+      {!isExplorePage && (
+        <footer className="luxury-footer">
         <div className="footer-inner">
           <div className="footer-main-grid">
             <div className="footer-brand">
@@ -132,6 +128,7 @@ export default function Layout() {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

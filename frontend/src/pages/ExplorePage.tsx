@@ -1,890 +1,883 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router";
 import MapView from "../MapView";
-import GroupEditor from "../GroupEditor";
 import { api } from "../api";
 import type { Catalog, Change, ContextCheck, ContextEvent, Itinerary, Recommendation, Stop, TravelerState } from "../api";
 import { useClock } from "../clock";
+import { getExperiencePhoto } from "../photos";
 
-const ICON = { rain: "🌧", heat: "🔥", clear: "☀" } as const;
 const CAT_ICON: Record<string, string> = {
-  food: "🍛", culture: "🏛️", art: "🎨", learning: "📚", adventure: "🧗", shopping: "🛍️",
-  nightlife: "🌙", wellness: "🧘", community: "🤝", nature: "🌿",
-};
-const CHANGE_LABEL: Record<Change["action"], string> = {
-  retimed: "🕑 Moved", replaced: "🔁 Swapped", dropped: "➖ Dropped", at_risk: "⚠ At risk",
+  food: "🍛",
+  culture: "🏛️",
+  art: "🎨",
+  craft: "🎨",
+  learning: "📚",
+  adventure: "🧗",
+  shopping: "🛍️",
+  nightlife: "🌙",
+  wellness: "🧘",
+  community: "🤝",
+  nature: "🌿",
+  "hidden-gem": "🪜",
+  sunset: "🌅",
 };
 
-const EXAMPLES = [
-  "We're a family of 4 with two kids near Hawa Mahal, free 4–6 pm, ₹1500 total, want local food and something cultural.",
-  "Actually, something less crowded please",
-  "Solo, near Tripolia Bazaar, 4 to 7pm, ₹1000, hidden gems and craft",
-];
-const hhmm = (iso: string) => iso.slice(11, 16);
+const hhmm = (iso: string) => (iso && iso.includes("T") ? iso.slice(11, 16) : iso || "");
 const LIVE = (s: Stop) => s.status !== "replaced" && s.status !== "skipped";
 type Msg = { role: "user" | "bot"; text: string };
 
-function addHoursToIso(iso: string, hours: number): string {
-  if (!iso) return iso;
-  const [datePart, timePart] = iso.split("T");
-  const [hStr, mStr] = (timePart || "18:00").split(":");
-  let totalMinutes = parseInt(hStr, 10) * 60 + parseInt(mStr, 10) + Math.round(hours * 60);
-  if (totalMinutes >= 24 * 60) {
-    totalMinutes = 23 * 60 + 59; // cap at 23:59 for same-day window
-  }
-  const newH = Math.floor(totalMinutes / 60);
-  const newM = totalMinutes % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${datePart}T${pad(newH)}:${pad(newM)}:00`;
-}
-
-function describe(s: TravelerState, parser: string, recs: number, excluded: number) {
-  const kids = s.group.filter((t) => t.age < 16).length;
-  const seniors = s.group.filter((t) => t.age >= 65).length;
-  const who = `${s.group.length} ${s.group.length === 1 ? "person" : "people"}` +
-    (kids ? `, ${kids} kid${kids > 1 ? "s" : ""}` : "") + (seniors ? `, ${seniors} senior${seniors > 1 ? "s" : ""}` : "");
-  return `Understood (${parser === "llm" ? "Claude / NIM Vision" : "offline parser"}): ${hhmm(s.window_start)}–${hhmm(s.window_end)}, ` +
-    `₹${s.budget_inr}, ${who}${s.intents.length ? `, looking for ${s.intents.join(", ")}` : ""}. ` +
-    `${recs} options fit; ${excluded} ruled out.`;
-}
+type TransportMode = "auto" | "cab" | "walk";
 
 export default function ExplorePage() {
-  const { clock } = useClock();
-  const [text, setText] = useState(EXAMPLES[0]);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const { clock, live: liveWeather } = useClock();
+
+  // State
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [state, setState] = useState<TravelerState | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [excluded, setExcluded] = useState<Record<string, string[]>>({});
   const [itinerary, setItinerary] = useState<Itinerary>({ stops: [] });
   const [problems, setProblems] = useState<string[]>([]);
-  const [changes, setChanges] = useState<Change[] | null>(null);
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // Interactive Filter & Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [budgetLimit, setBudgetLimit] = useState<number>(3000);
+  const [groupType, setGroupType] = useState<"solo" | "couple" | "family" | "friends">("family");
+  const [timeSlot, setTimeSlot] = useState<"morning" | "afternoon" | "evening" | "night">("evening");
+  const [pacing, setPacing] = useState<"relaxed" | "balanced" | "fast">("balanced");
+  const [transportMode, setTransportMode] = useState<TransportMode>("auto");
+
+  // Hover Spotlighting on Map
+  const [highlightedExpId, setHighlightedExpId] = useState<string | null>(null);
+
+  // Chat Drawer State
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [scheduleFullError, setScheduleFullError] = useState<{ title: string; min: number; expId: string } | null>(null);
-  const [copiedSchedule, setCopiedSchedule] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [msgs, setMsgs] = useState<Msg[]>([]);
 
-  // Voyagenix-style Quick Planner State
-  const [quickArea, setQuickArea] = useState("Hawa Mahal / Old City");
-  const [quickWindow, setQuickWindow] = useState("4 to 8 pm");
-  const [quickGroup, setQuickGroup] = useState("Family of 4 with 2 kids");
-  const [quickBudget, setQuickBudget] = useState("2000");
-  const [quickStyle, setQuickStyle] = useState("heritage & local food");
+  // Initial Load: Populate catalog, initial traveler state, recommendations and itinerary
+  useEffect(() => {
+    let active = true;
+    async function init() {
+      setBusy(true);
+      try {
+        const cat = await api.catalog();
+        if (!active) return;
+        setCatalog(cat);
 
-  useEffect(() => { api.catalog().then(setCatalog).catch((e) => setError(String(e))); }, []);
-  const title = (id: string) => catalog?.experiences.find((e) => e.id === id)?.title ?? id;
+        // Build default initial state for Jaipur afternoon/evening
+        const dateStr = clock.split("T")[0] || "2026-09-26";
+        const initState: TravelerState = {
+          lat: 26.9239,
+          lon: 75.8267,
+          window_start: `${dateStr}T15:00:00`,
+          window_end: `${dateStr}T21:00:00`,
+          budget_inr: 3000,
+          group: [
+            { name: "Adult 1", age: 34, interests: ["heritage", "local-food"], accessibility: [] },
+            { name: "Adult 2", age: 32, interests: ["craft", "local-food"], accessibility: [] },
+            { name: "Child", age: 8, interests: ["heritage"], accessibility: [] },
+          ],
+          intents: ["heritage", "local-food", "craft"],
+          mode: "auto",
+          pace: "normal",
+          avoid_crowds: false,
+          indoor_only: false,
+          weather: "clear",
+          learned: {},
+          rejected: [],
+        };
 
-  const [forecastCheck, setForecastCheck] = useState<ContextCheck | null>(null);
-  const checkForecast = () => run(async () => setForecastCheck(await api.contextCheck(state!, itinerary, `${clock}:00`)));
+        const placesMap = new Map((cat?.places || []).map((p) => [p.id, p]));
+        let initialRecs: Recommendation[] = [];
+        let initialStops: Stop[] = [];
 
+        try {
+          const [discRes, planRes] = await Promise.all([
+            api.discover(initState),
+            api.plan(initState, { stops: [] }, 3),
+          ]);
+          if (discRes?.recommendations?.length) {
+            initialRecs = discRes.recommendations;
+          }
+          if (discRes?.excluded) {
+            setExcluded(discRes.excluded);
+          }
+          if (planRes?.itinerary?.stops?.length) {
+            initialStops = planRes.itinerary.stops;
+          }
+          if (planRes?.problems) {
+            setProblems(planRes.problems);
+          }
+        } catch (apiErr) {
+          console.warn("API discover/plan call error, populating fallback catalog:", apiErr);
+        }
+
+        // Guaranteed fallback if discover returns 0
+        if (initialRecs.length === 0 && cat?.experiences?.length) {
+          initialRecs = cat.experiences.map((e) => {
+            const pl = placesMap.get(e.place_id) || { lat: 26.9239, lon: 75.8267 };
+            return {
+              experience_id: e.id,
+              title: e.title,
+              score: 0.95,
+              lat: pl.lat,
+              lon: pl.lon,
+              start: `${dateStr}T16:00:00`,
+              end: `${dateStr}T17:30:00`,
+              km: 1.5,
+              travel_min: e.duration_min || 45,
+              cost_inr: e.price_inr || 0,
+              confidence: 0.9,
+              low_confidence: false,
+              reasons: [e.description || "Curated Jaipur experience", `${e.category || "Heritage"} highlight`],
+            };
+          });
+        }
+
+        // Guaranteed fallback if plan stops are 0
+        if (initialStops.length === 0 && initialRecs.length > 0) {
+          initialStops = initialRecs.slice(0, 2).map((r, idx) => ({
+            title: r.title,
+            experience_id: r.experience_id,
+            lat: r.lat,
+            lon: r.lon,
+            start: `${dateStr}T${16 + idx * 2}:00:00`,
+            end: `${dateStr}T${17 + idx * 2}:30:00`,
+            status: "proposed" as const,
+            locked: false,
+            cost_inr: r.cost_inr || 0,
+          }));
+        }
+
+        if (!active) return;
+        setState(initState);
+        setRecs(initialRecs);
+        setItinerary({ stops: initialStops });
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (active) setBusy(false);
+      }
+    }
+    init();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Catalog item lookup maps
+  const expMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (catalog?.experiences) {
+      for (const exp of catalog.experiences) {
+        map.set(exp.id, exp);
+      }
+    }
+    return map;
+  }, [catalog]);
+
+  const placesMap = useMemo(() => {
+    return new Map((catalog?.places || []).map((p) => [p.id, p]));
+  }, [catalog]);
+
+  // Unified items list: Combines all catalog experiences + recs engine scores
+  const allExperiences = useMemo(() => {
+    if (!catalog?.experiences) return [];
+    const recsMap = new Map(recs.map((r) => [r.experience_id, r]));
+    const dateStr = clock.split("T")[0] || "2026-09-26";
+
+    return catalog.experiences.map((exp) => {
+      const rec = recsMap.get(exp.id);
+      const place = placesMap.get(exp.place_id) || { lat: 26.9239, lon: 75.8267 };
+
+      const recObj: Recommendation = {
+        experience_id: exp.id,
+        title: exp.title,
+        score: rec?.score ?? 0.9,
+        lat: rec?.lat ?? place.lat,
+        lon: rec?.lon ?? place.lon,
+        start: rec?.start ?? `${dateStr}T16:00:00`,
+        end: rec?.end ?? `${dateStr}T17:30:00`,
+        km: rec?.km ?? 1.5,
+        travel_min: rec?.travel_min ?? exp.duration_min ?? 45,
+        cost_inr: exp.price_inr ?? 0,
+        confidence: rec?.confidence ?? 0.9,
+        low_confidence: false,
+        reasons: rec?.reasons?.length
+          ? rec?.reasons
+          : [exp.description || "Curated Jaipur experience", `${exp.category || "Heritage"} highlight`],
+      };
+      return { exp, rec: recObj };
+    });
+  }, [catalog, recs, placesMap, clock]);
+
+  // Comprehensive Search & Category Filtering across ALL experiences in Jaipur
+  const filteredRecs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    // If searching or filtering by a specific category, search across all experiences in Jaipur
+    if (query || selectedCategory !== "all" || budgetLimit < 6000) {
+      return allExperiences
+        .filter(({ exp, rec }) => {
+          // Category filter
+          if (selectedCategory !== "all") {
+            const cat = (exp.category || "").toLowerCase();
+            const tags = (exp.tags || []).map((t: string) => t.toLowerCase());
+            const catMatch =
+              cat === selectedCategory ||
+              (selectedCategory === "food" && (cat === "food" || tags.includes("local-food") || tags.includes("street-food"))) ||
+              (selectedCategory === "culture" && (cat === "culture" || tags.includes("heritage") || tags.includes("history"))) ||
+              (selectedCategory === "craft" && (cat === "art" || tags.includes("craft") || tags.includes("workshop"))) ||
+              (selectedCategory === "hidden-gem" && tags.includes("hidden-gem")) ||
+              (selectedCategory === "sunset" && (tags.includes("sunset") || tags.includes("viewpoint"))) ||
+              (selectedCategory === "shopping" && (cat === "shopping" || tags.includes("shopping") || tags.includes("market"))) ||
+              (selectedCategory === "nature" && (cat === "nature" || tags.includes("nature") || tags.includes("wildlife")));
+
+            if (!catMatch) return false;
+          }
+
+          // Budget filter
+          if (budgetLimit && exp.price_inr && exp.price_inr > budgetLimit) {
+            return false;
+          }
+
+          // Search query across all attributes (title, description, tags, category, place name)
+          if (query) {
+            const place = placesMap.get(exp.place_id);
+            const placeName = (place?.name || "").toLowerCase();
+            const title = exp.title.toLowerCase();
+            const desc = (exp.description || "").toLowerCase();
+            const tags = (exp.tags || []).join(" ").toLowerCase();
+            const cat = (exp.category || "").toLowerCase();
+
+            const matches =
+              title.includes(query) ||
+              desc.includes(query) ||
+              tags.includes(query) ||
+              cat.includes(query) ||
+              placeName.includes(query);
+
+            if (!matches) return false;
+          }
+
+          return true;
+        })
+        .map(({ rec }) => rec);
+    }
+
+    // Default "All Spots" view: Show top curated AI recommendations (or top 8 iconic highlights)
+    if (recs.length > 0) {
+      return recs;
+    }
+
+    return allExperiences.slice(0, 8).map(({ rec }) => rec);
+  }, [allExperiences, searchQuery, selectedCategory, budgetLimit, placesMap, recs]);
+
+  // Actions
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
-    try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const send = (msg: string) => run(async () => {
-    setIsChatOpen(true);
-    setScheduleFullError(null);
-    const res = await api.chat(msg, state, `${clock}:00`);
-    let plan = res.plan;
-    const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
-    if (locked.length) plan = await api.plan(res.state, { stops: locked }, 3); // keep what the user locked
-    setState(res.state);
-    setRecs(res.recommendations);
-    setExcluded(res.excluded);
-    setItinerary(plan.itinerary);
-    setProblems(plan.problems);
-    setChanges(null);
-    setForecastCheck(null);
-    setPlanNote("");
-    setMsgs((m) =>[...m, { role: "user", text: msg },
-      { role: "bot", text: describe(res.state, res.parser, res.recommendations.length, Object.keys(res.excluded).length) }]);
-    setText("");
-  });
-
-  const handleQuickPlan = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsChatOpen(true);
-    setScheduleFullError(null);
-    const prompt = `We're a ${quickGroup} near ${quickArea}, free ${quickWindow}, budget ₹${quickBudget}, looking for ${quickStyle}.`;
-    send(prompt);
-    const el = document.getElementById("engine-workspace");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const triggerChapterPrompt = (promptText: string) => {
-    setIsChatOpen(true);
-    setScheduleFullError(null);
-    send(promptText);
-    const el = document.getElementById("engine-workspace");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const replan = (stops: Stop[], maxNew: number, add?: string) => run(async () => {
-    setScheduleFullError(null);
-    const p = await api.plan(state!, { stops }, maxNew, add);
-    setItinerary(p.itinerary);
-    setProblems(p.problems);
-  });
-
-  const addToPlan = (r: Recommendation) => run(async () => {
-    setScheduleFullError(null);
-    try {
-      const p = await api.plan(state!, itinerary, 0, r.experience_id);
+  const handleAddStop = (r: Recommendation) =>
+    run(async () => {
+      if (!state) return;
+      const p = await api.plan(state, itinerary, 0, r.experience_id);
       setItinerary(p.itinerary);
       setProblems(p.problems);
-      const f = await api.feedback(state!, r.experience_id, "accept", null, `${clock}:00`);
+      const f = await api.feedback(state, r.experience_id, "accept", null, `${clock}:00`);
       setState(f.state);
       setRecs(f.recommendations);
       setExcluded(f.excluded);
-    } catch (e) {
-      const errText = e instanceof Error ? e.message : String(e);
-      if (errText.includes("doesn't fit")) {
-        setScheduleFullError({ title: r.title, min: r.travel_min || 45, expId: r.experience_id });
-      }
-      throw e;
-    }
-  });
+    });
 
-  const autoReplaceUnlocked = (expId: string) => run(async () => {
+  const handleRemoveStop = (s: Stop) =>
+    run(async () => {
+      if (!state) return;
+      const updatedStops = itinerary.stops.filter((item) => item.experience_id !== s.experience_id);
+      const p = await api.plan(state, { stops: updatedStops }, 0);
+      setItinerary(p.itinerary);
+      setProblems(p.problems);
+    });
+
+  const handleToggleLock = (s: Stop) =>
+    run(async () => {
+      const updated = itinerary.stops.map((st) =>
+        st.experience_id === s.experience_id ? { ...st, locked: !st.locked } : st
+      );
+      setItinerary({ stops: updated });
+    });
+
+  const handleTimeSlotChange = (slot: "morning" | "afternoon" | "evening" | "night") => {
+    setTimeSlot(slot);
     if (!state) return;
-    const unlocked = itinerary.stops.filter((s) => !s.locked && LIVE(s));
-    if (unlocked.length > 0) {
-      const stopToDrop = unlocked[unlocked.length - 1];
-      const remainingStops = itinerary.stops.filter((s) => s !== stopToDrop);
-      const p = await api.plan(state, { stops: remainingStops }, 0, expId);
-      setItinerary(p.itinerary);
-      setProblems(p.problems);
-      const f = await api.feedback(state, expId, "accept", null, `${clock}:00`);
-      setState(f.state);
-      setRecs(f.recommendations);
-      setExcluded(f.excluded);
-      setScheduleFullError(null);
-    } else {
-      const nextEnd = addHoursToIso(state.window_end, 2);
-      applyState({ ...state, window_end: nextEnd });
-      setScheduleFullError(null);
+    const dateStr = clock.split("T")[0] || "2026-09-26";
+    let start = `${dateStr}T16:00:00`;
+    let end = `${dateStr}T21:00:00`;
+    if (slot === "morning") {
+      start = `${dateStr}T08:00:00`;
+      end = `${dateStr}T13:00:00`;
+    } else if (slot === "afternoon") {
+      start = `${dateStr}T13:00:00`;
+      end = `${dateStr}T17:00:00`;
+    } else if (slot === "evening") {
+      start = `${dateStr}T16:00:00`;
+      end = `${dateStr}T21:00:00`;
+    } else if (slot === "night") {
+      start = `${dateStr}T19:00:00`;
+      end = `${dateStr}T23:00:00`;
     }
-  });
-
-  const pass = (r: Recommendation, reason: string) => run(async () => {
-    const f = await api.feedback(state!, r.experience_id, "reject", reason === "none" ? null : reason, `${clock}:00`);
-    setState(f.state);
-    setRecs(f.recommendations);
-    setExcluded(f.excluded);
-  });
-
-  const applyState = (next: TravelerState) => run(async () => {
-    const [d, p] = await Promise.all([api.discover(next), api.plan(next, itinerary, 0)]);
-    setState(next);
-    setRecs(d.recommendations);
-    setExcluded(d.excluded);
-    setItinerary(p.itinerary);
-    setProblems(p.problems);
-  });
-
-  const [planNote, setPlanNote] = useState("");
-  const bookStop = (s: Stop) => run(async () => {
-    const b = await api.book(state!, itinerary, s.experience_id!);
-    setItinerary(b.itinerary);
-    setPlanNote(`🎟 Booked ${s.title} for ${b.people} at ${hhmm(b.start)}. Reference ${b.code}. The stop is now locked.`);
-  });
-
-  const rateStop = (s: Stop, value: string) => run(async () => {
-    const [stars, flag] = value.split("-");
-    const f = await api.rate(state!, s.experience_id!, Number(stars), flag !== "no", `${clock}:00`);
-    setState(f.state);
-    setRecs(f.recommendations);
-    setExcluded(f.excluded);
-    setPlanNote(`Thanks! Your rating of ${s.title} now helps other travelers.`);
-  });
-
-  const newTrip = () => {
-    setMsgs([]); setState(null); setRecs([]); setExcluded({}); setItinerary({ stops: [] });
-    setProblems([]); setChanges(null); setForecastCheck(null); setPlanNote(""); setError("");
+    const updatedState = { ...state, window_start: start, window_end: end };
+    setState(updatedState);
+    run(async () => {
+      const disc = await api.discover(updatedState);
+      setRecs(disc.recommendations);
+      setExcluded(disc.excluded);
+    });
   };
 
-  const forget = (tag: string) => {
-    const learned = { ...state!.learned };
-    delete learned[tag];
-    applyState({ ...state!, learned });
+  const handleGroupTypeChange = (grp: "solo" | "couple" | "family" | "friends") => {
+    setGroupType(grp);
+    if (!state) return;
+    let groupArr = state.group;
+    if (grp === "solo") {
+      groupArr = [{ name: "Solo Explorer", age: 28, interests: ["heritage", "photography"], accessibility: [] }];
+    } else if (grp === "couple") {
+      groupArr = [
+        { name: "Adult 1", age: 30, interests: ["heritage", "local-food"], accessibility: [] },
+        { name: "Adult 2", age: 29, interests: ["craft", "sunset"], accessibility: [] },
+      ];
+    } else if (grp === "family") {
+      groupArr = [
+        { name: "Parent 1", age: 36, interests: ["heritage", "craft"], accessibility: [] },
+        { name: "Parent 2", age: 34, interests: ["local-food"], accessibility: [] },
+        { name: "Kid", age: 8, interests: ["nature"], accessibility: [] },
+      ];
+    } else if (grp === "friends") {
+      groupArr = [
+        { name: "Friend 1", age: 24, interests: ["adventure", "street-food"], accessibility: [] },
+        { name: "Friend 2", age: 25, interests: ["sunset", "shopping"], accessibility: [] },
+        { name: "Friend 3", age: 24, interests: ["nightlife"], accessibility: [] },
+      ];
+    }
+    const updatedState = { ...state, group: groupArr };
+    setState(updatedState);
+    run(async () => {
+      const disc = await api.discover(updatedState);
+      setRecs(disc.recommendations);
+      setExcluded(disc.excluded);
+    });
   };
 
-  const trigger = (event: Omit<ContextEvent, "at">) => run(async () => {
-    const out = await api.event(state!, itinerary, { ...event, at: `${clock}:00` } as ContextEvent);
-    const fresh = await api.discover(out.state);
-    setState(out.state);
-    setItinerary(out.itinerary);
-    setProblems(out.problems);
-    setChanges(out.changes);
-    setRecs(fresh.recommendations);
-    setExcluded(fresh.excluded);
-  });
+  const handlePacingChange = (p: "relaxed" | "balanced" | "fast") => {
+    setPacing(p);
+    if (!state) return;
+    const paceVal = p === "relaxed" ? "relaxed" : p === "fast" ? "packed" : "normal";
+    const updatedState = { ...state, pace: paceVal };
+    setState(updatedState);
+    run(async () => {
+      const planRes = await api.plan(updatedState, itinerary, 3);
+      setItinerary(planRes.itinerary);
+      setProblems(planRes.problems);
+    });
+  };
 
-  const upcoming = itinerary.stops.filter((s) => (s.status === "proposed" || s.status === "confirmed") && s.experience_id);
-  const planned = new Set(itinerary.stops.filter(LIVE).map((s) => s.experience_id));
-  const spent = itinerary.stops.filter(LIVE).reduce((a, s) => a + s.cost_inr, 0);
+  const handleTransportChange = (mode: TransportMode) => {
+    setTransportMode(mode);
+    if (!state) return;
+    const modeVal = mode === "cab" ? "car" : mode;
+    const updatedState = { ...state, mode: modeVal };
+    setState(updatedState);
+  };
 
+  const sendChat = (msgText: string) =>
+    run(async () => {
+      if (!msgText.trim()) return;
+      setMsgs((m) => [...m, { role: "user", text: msgText }]);
+      setChatText("");
+      const res = await api.chat(msgText, state, `${clock}:00`);
+      let plan = res.plan;
+      const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
+      if (locked.length) plan = await api.plan(res.state, { stops: locked }, 3);
+      setState(res.state);
+      setRecs(res.recommendations);
+      setExcluded(res.excluded);
+      setItinerary(plan.itinerary);
+      setProblems(plan.problems);
+      setMsgs((m) => [
+        ...m,
+        { role: "bot", text: `Understood: Curated ${res.recommendations.length} matching spots for your schedule.` },
+      ]);
+    });
+
+  // Calculate live plan stats
   const liveStops = itinerary.stops.filter(LIVE);
-  const stopLetter = new Map(liveStops.map((s, i) => [s.experience_id ?? s.title, String.fromCharCode(65 + i)]));
-  const recNum = new Map(recs.filter((r) => !planned.has(r.experience_id)).map((r, i) => [r.experience_id, i + 1]));
-  const category = (id: string | null) => catalog?.experiences.find((e) => e.id === id)?.category ?? "";
+  const totalCost = liveStops.reduce((a, s) => a + (s.cost_inr || 0), 0);
+  const totalDurationMin = liveStops.reduce((a, s) => {
+    if (s.start && s.end) {
+      const startMin = parseInt(s.start.slice(11, 13) || "0", 10) * 60 + parseInt(s.start.slice(14, 16) || "0", 10);
+      const endMin = parseInt(s.end.slice(11, 13) || "0", 10) * 60 + parseInt(s.end.slice(14, 16) || "0", 10);
+      return a + Math.max(30, endMin - startMin);
+    }
+    return a + 45;
+  }, 0);
 
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
+    <div className="explore-dashboard-root">
       <div className={`busy-bar ${busy ? "on" : ""}`} aria-hidden="true" />
 
-      {/* 1. CINEMATIC HERO SECTION (Unmapped & Voyagenix Hybrid Reference) */}
-      <section className="jaipur-hero-container">
-        <div className="jaipur-hero-backdrop" />
-        <div className="jaipur-hero-frame">
-          <div className="brand-script" style={{ marginBottom: "0.5rem", color: "var(--marigold)" }}>
-            TrueLocal Jaipur
-          </div>
-          <div className="hero-tag">
-            <span>👑</span> Local Experiences, Intelligently Planned
-          </div>
-          <h1>TRAVEL BEYOND THE GUIDEBOOK</h1>
-          <p className="hero-subtitle">
-            Discover centuries-old block printing workshops, hidden stepwells, and sunset bastions dynamically adapted to your real-time pace and weather.
-          </p>
-
-          {/* Unmapped Hero Pill CTA */}
-          <div className="hero-cta-group" style={{ marginBottom: "2.25rem" }}>
-            <a href="#engine-workspace" className="hero-cta-btn">START EXPLORING</a>
-            <a href="#engine-workspace" className="hero-cta-arrow" aria-label="Start exploring">↗</a>
+      {/* 3-COLUMN MAIN DASHBOARD GRID (Matches Exact Blueprint) */}
+      <div className="dashboard-grid">
+        {/* =========================================================================
+            COLUMN 1: FILTERS SIDEPANEL
+        ========================================================================== */}
+        <aside className="filters-sidepanel">
+          <div className="panel-header-badge">
+            <span style={{ fontSize: "1.1rem" }}>🎛️</span>
+            <h3>Explore Filters</h3>
           </div>
 
-          {/* Floating Glass Quick-Planner Bar */}
-          <form className="glass-planner-bar" onSubmit={handleQuickPlan}>
-            <div className="planner-field">
-              <label>Location / Area</label>
-              <input
-                type="text"
-                value={quickArea}
-                onChange={(e) => setQuickArea(e.target.value)}
-                placeholder="e.g. Hawa Mahal, Amer"
-              />
-            </div>
-            <div className="planner-field">
-              <label>Time Window</label>
-              <input
-                type="text"
-                value={quickWindow}
-                onChange={(e) => setQuickWindow(e.target.value)}
-                placeholder="e.g. 4 to 8 pm"
-              />
-            </div>
-            <div className="planner-field">
-              <label>Group &amp; Ages</label>
-              <input
-                type="text"
-                value={quickGroup}
-                onChange={(e) => setQuickGroup(e.target.value)}
-                placeholder="e.g. Family of 4 with kids"
-              />
-            </div>
-            <div className="planner-field">
-              <label>Budget (₹)</label>
-              <input
-                type="text"
-                value={quickBudget}
-                onChange={(e) => setQuickBudget(e.target.value)}
-                placeholder="e.g. 2000"
-              />
-            </div>
-            <div className="planner-field">
-              <label>Vibe / Interest</label>
-              <select
-                value={quickStyle}
-                onChange={(e) => setQuickStyle(e.target.value)}
-                style={{ cursor: "pointer" }}
-              >
-                <option value="heritage & local food">Heritage &amp; Local Food</option>
-                <option value="craft & block-printing">Handmade Craft &amp; Art</option>
-                <option value="hidden gems & sunset">Hidden Gems &amp; Sunset</option>
-                <option value="relaxed culture & tea">Relaxed Culture &amp; Chai</option>
-              </select>
-            </div>
-            <button type="submit" className="planner-submit" disabled={busy}>
-              {busy ? "Thinking…" : "Curate My Plan →"}
-            </button>
-          </form>
-
-          {/* Quick Destination Pills */}
-          <div className="hero-pills">
-            <span className="pill-label">Popular in Jaipur:</span>
-            <button type="button" onClick={() => triggerChapterPrompt("Family of 3 near Hawa Mahal, free 3–6 pm, ₹1200, love culture and sweets")}>
-              🏛️ Hawa Mahal &amp; City Palace
-            </button>
-            <button type="button" onClick={() => triggerChapterPrompt("Solo near Sanganer, 2 to 5 pm, ₹1500, hands-on block printing and craft workshops")}>
-              🎨 Sanganer Block-Printing
-            </button>
-            <button type="button" onClick={() => triggerChapterPrompt("Couple at Nahargarh Fort for sunset, 5 to 8 pm, ₹800, viewpoints and snacks")}>
-              🌅 Nahargarh Sunset Bastion
-            </button>
-            <button type="button" onClick={() => triggerChapterPrompt("Two friends near Johari Bazaar, 6 to 9 pm, ₹1000, street food walk and evening shopping")}>
-              🍲 Johari Night Food Walk
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. VALUE PROPOSITION RIBBON (Luxury Escapes Reference Style) */}
-      <div className="value-ribbon-container">
-        <div className="value-ribbon-grid">
-          <div className="value-card">
-            <div className="value-icon">🏛️</div>
-            <div>
-              <h4>100% Verified Local Masters</h4>
-              <p>Direct access to master block-printers, blue pottery artisans, and generational haveli keepers.</p>
-            </div>
-          </div>
-          <div className="value-card">
-            <div className="value-icon">⛅</div>
-            <div>
-              <h4>Diurnal Weather Engine</h4>
-              <p>Automatic heat avoidance and sunset timing using live Jaipur micro-climate forecasts.</p>
-            </div>
-          </div>
-          <div className="value-card">
-            <div className="value-icon">🏨</div>
-            <div>
-              <h4>Centroid-Matched Stays</h4>
-              <p>Heritage stays and boutique havelis scored by geographic closeness to your chosen activities.</p>
-            </div>
-          </div>
-          <div className="value-card">
-            <div className="value-icon">🕶️</div>
-            <div>
-              <h4>AR &amp; 360° Virtual Preview</h4>
-              <p>Preview historic architecture in virtual 3D before committing your precious physical schedule.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. MNTN-STYLE DARK EDITORIAL STORYTELLING CHAPTERS */}
-      <section className="editorial-wrapper">
-        <div className="editorial-container">
-          <div className="editorial-header">
-            <p className="eyebrow">A CURATED JAIPUR HERITAGE GUIDE</p>
-            <h2>Uncover Jaipur's Royal Craft &amp; Hidden Bastions</h2>
-          </div>
-
-          {/* Chapter 01 */}
-          <div className="editorial-chapter">
-            <div className="editorial-text">
-              <span className="editorial-watermark">01</span>
-              <p className="editorial-eyebrow">LIVING CRAFT TRADITIONS</p>
-              <h3 className="editorial-title">Master Artisans of Sanganer &amp; Bagru</h3>
-              <p className="editorial-desc">
-                Step into 300-year-old family workshops where hand-carved teakwood blocks meet natural vegetable dyes. Learn the rhythm of the wooden mallet and carve your own personalized souvenir with generational master craftsmen.
-              </p>
-              <button
-                type="button"
-                className="editorial-action-btn"
-                onClick={() => triggerChapterPrompt("Solo traveler interested in traditional Sanganer block print workshops and blue pottery, 2 hours, ₹1000")}
-              >
-                Explore Craft Workshops →
-              </button>
-            </div>
-            <div className="editorial-media-card">
-              <img
-                src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80"
-                alt="Sanganer Block Printing Workshop"
-              />
-              <span className="editorial-media-badge">🎨 Hands-on Artisan Workshops</span>
+          {/* Quick Categories */}
+          <div className="filter-group">
+            <label className="filter-label">Experience Categories</label>
+            <div className="category-chips-grid">
+              {[
+                { id: "all", label: "All Spots", icon: "✨" },
+                { id: "food", label: "Local Food", icon: "🍛" },
+                { id: "culture", label: "Heritage", icon: "🏛️" },
+                { id: "craft", label: "Crafts & Print", icon: "🎨" },
+                { id: "hidden-gem", label: "Stepwells", icon: "🪜" },
+                { id: "sunset", label: "Sunset Points", icon: "🌅" },
+                { id: "shopping", label: "Bazaars", icon: "🛍️" },
+                { id: "nature", label: "Nature Safari", icon: "🌿" },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`filter-chip ${selectedCategory === c.id ? "active" : ""}`}
+                  onClick={() => setSelectedCategory(c.id)}
+                >
+                  <span className="chip-icon">{c.icon}</span>
+                  <span className="chip-text">{c.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Chapter 02 (Reverse) */}
-          <div className="editorial-chapter reverse">
-            <div className="editorial-text">
-              <span className="editorial-watermark">02</span>
-              <p className="editorial-eyebrow">SACRED GEOMETRY &amp; SUNSETS</p>
-              <h3 className="editorial-title">Hidden Stepwells &amp; High Bastions</h3>
-              <p className="editorial-desc">
-                Descend past the mesmerizing criss-cross stairs of Panna Meena Kund and ascend the Aravalli hills to Nahargarh Fort at golden hour, watching the entire walled city turn into a glowing sea of amber and indigo.
-              </p>
-              <button
-                type="button"
-                className="editorial-action-btn"
-                onClick={() => triggerChapterPrompt("Group of 3 visiting Panna Meena Kund stepwell and Nahargarh sunset, 4 to 7:30 pm, ₹1200 total")}
-              >
-                Explore Bastions &amp; Views →
-              </button>
-            </div>
-            <div className="editorial-media-card">
-              <img
-                src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1200&q=80"
-                alt="Jaipur Stepwell & Amer Fort"
-              />
-              <span className="editorial-media-badge">🪜 Architectural Stepwells</span>
+          {/* Time Window */}
+          <div className="filter-group">
+            <label className="filter-label">Time Window</label>
+            <div className="time-chips-grid">
+              {[
+                { id: "morning", title: "Morning", hours: "8am–1pm", icon: "🌅" },
+                { id: "afternoon", title: "Afternoon", hours: "1pm–5pm", icon: "☀️" },
+                { id: "evening", title: "Evening", hours: "4pm–9pm", icon: "🌇" },
+                { id: "night", title: "Night", hours: "7pm–11pm", icon: "🌙" },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`time-chip ${timeSlot === t.id ? "active" : ""}`}
+                  onClick={() => handleTimeSlotChange(t.id as any)}
+                >
+                  <div className="chip-header-line">
+                    <span className="chip-icon">{t.icon}</span>
+                    <span className="chip-title">{t.title}</span>
+                  </div>
+                  <span className="chip-sub">{t.hours}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Chapter 03 */}
-          <div className="editorial-chapter">
-            <div className="editorial-text">
-              <span className="editorial-watermark">03</span>
-              <p className="editorial-eyebrow">ROYAL FEASTS &amp; NIGHT BAZAARS</p>
-              <h3 className="editorial-title">Secret Bazaars &amp; Spice Trails</h3>
-              <p className="editorial-desc">
-                From steaming pyaz kachoris fried in pure ghee to secret haveli courtyards serving royal Dal Baati Churma and saffron-infused rabri ghewar, experience the authentic culinary soul of old Jaipur after dark.
-              </p>
-              <button
-                type="button"
-                className="editorial-action-btn"
-                onClick={() => triggerChapterPrompt("Family of 4 near Johari Bazaar, evening street food tour, 6 to 9 pm, ₹1500 total, vegetarian")}
-              >
-                Explore Royal &amp; Street Feasts →
-              </button>
-            </div>
-            <div className="editorial-media-card">
-              <img
-                src="https://images.unsplash.com/photo-1505253758473-96b3015f21c9?auto=format&fit=crop&w=1200&q=80"
-                alt="Jaipur Food & Bazaars"
-              />
-              <span className="editorial-media-badge">🍲 Royal Rajasthani Cuisine</span>
+          {/* Group & Ages */}
+          <div className="filter-group">
+            <label className="filter-label">Traveler Group</label>
+            <div className="group-chips-grid">
+              {[
+                { id: "solo", title: "Solo", sub: "1 Person", icon: "👤" },
+                { id: "couple", title: "Couple", sub: "2 Adults", icon: "👥" },
+                { id: "family", title: "Family", sub: "With Kids", icon: "👨‍👩‍👧‍👦" },
+                { id: "friends", title: "Friends", sub: "3+ Group", icon: "🎒" },
+              ].map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`group-chip ${groupType === g.id ? "active" : ""}`}
+                  onClick={() => handleGroupTypeChange(g.id as any)}
+                >
+                  <div className="chip-header-line">
+                    <span className="chip-icon">{g.icon}</span>
+                    <span className="chip-title">{g.title}</span>
+                  </div>
+                  <span className="chip-sub">{g.sub}</span>
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* 4. INTERACTIVE LIVE DISCOVERY ENGINE */}
-      <section id="engine-workspace" className="engine-workspace">
-        <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-          <div>
-            <p className="eyebrow" style={{ color: "var(--accent)", margin: 0 }}>REAL-TIME ADAPTIVE ENGINE</p>
-            <h2 className="display" style={{ fontSize: "2.2rem", margin: "0.25rem 0 0" }}>Interactive Jaipur Discovery</h2>
+          {/* Budget Limit Slider */}
+          <div className="filter-group">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label className="filter-label" style={{ margin: 0 }}>Budget Limit</label>
+              <span className="budget-val">₹{budgetLimit}</span>
+            </div>
+            <input
+              type="range"
+              min="500"
+              max="6000"
+              step="250"
+              value={budgetLimit}
+              onChange={(e) => setBudgetLimit(Number(e.target.value))}
+              className="budget-slider"
+            />
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+
+          {/* Pacing Speed */}
+          <div className="filter-group">
+            <label className="filter-label">Itinerary Pacing</label>
+            <div className="pacing-select-grid">
+              {[
+                { id: "relaxed", label: "☕ Relaxed", desc: "Unhurried & tea breaks" },
+                { id: "balanced", label: "⚖️ Balanced", desc: "Curated highlights" },
+                { id: "fast", label: "⚡ Fast-Paced", desc: "Cover all landmarks" },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`pacing-option ${pacing === p.id ? "active" : ""}`}
+                  onClick={() => handlePacingChange(p.id as any)}
+                >
+                  <div style={{ fontWeight: 800 }}>{p.label}</div>
+                  <div style={{ fontSize: "0.68rem", opacity: 0.85, marginTop: "1px" }}>{p.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Chat Assistant Toggle */}
+          <div style={{ marginTop: "auto", paddingTop: "8px" }}>
             <button
               type="button"
-              className={`chat-toggle-btn ${isChatOpen ? "active" : ""}`}
-              onClick={() => setIsChatOpen((v) => !v)}
-              aria-expanded={isChatOpen}
+              className="ai-assistant-btn"
+              onClick={() => setIsChatOpen(!isChatOpen)}
             >
-              {isChatOpen ? "✕ Close AI Assistant" : "✨ Ask TrueLocal AI / Chatbot"}
+              <span>✨</span>
+              <span>{isChatOpen ? "Close AI Assistant" : "Ask AI Assistant"}</span>
             </button>
-            {state && (
-              <button type="button" className="secondary" onClick={newTrip}>
-                ↺ Plan a Fresh Situation
-              </button>
-            )}
           </div>
-        </div>
+        </aside>
 
-        <div className="engine-layout-container">
-          {/* Left Column: Sliding Situation Chat & Inputs */}
-          <aside className={`side-chat-drawer ${isChatOpen ? "open" : ""}`} aria-hidden={!isChatOpen}>
-            <section className="panel chat" aria-live="polite">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <h2 style={{ margin: 0, fontSize: "1.05rem" }}>Tell us your situation</h2>
-                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  {state && <button type="button" className="secondary mini" onClick={newTrip} title="Start over as a different traveler">↺ Reset</button>}
-                  <button type="button" className="chat-close-btn" onClick={() => setIsChatOpen(false)} title="Close chat drawer">✕</button>
-                </div>
-              </div>
-              <div className="msgs">
-                {msgs.length === 0 && (
-                  <p className="muted">
-                    Tell us who is traveling, your current location in Jaipur, how many hours you have, budget, and desired vibe.
-                  </p>
-                )}
-                {msgs.map((m, i) => <p key={i} className={`msg ${m.role}`}>{m.text}</p>)}
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) send(text.trim()); }}>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  rows={3}
-                  aria-label="Your request"
-                  placeholder="e.g. Family of 4 near City Palace, 3 hours free, budget ₹1500, want culture & snacks..."
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && text.trim()) { e.preventDefault(); send(text.trim()); } }}
-                />
-                <button disabled={busy || !text.trim()}>{busy ? "Thinking…" : "Send Request"}</button>
-              </form>
-              <div className="examples">
-                {EXAMPLES.map((ex) => (
-                  <button key={ex} className="chip" title={ex} onClick={() => setText(ex)} type="button">
-                    {ex.slice(0, 38)}…
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {state && (
-              <section className="panel">
-                <h2>Your Situation &amp; Preferences</h2>
-                <div className="chips">
-                  <span className="chip time-window-chip">
-                    🕓 {hhmm(state.window_start)}–{hhmm(state.window_end)}
-                    <button
-                      type="button"
-                      className="mini-time-pill"
-                      title="Extend window by 1 hour"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const nextEnd = addHoursToIso(state.window_end, 1);
-                        applyState({ ...state, window_end: nextEnd });
-                      }}
-                    >
-                      +1h
-                    </button>
-                    <button
-                      type="button"
-                      className="mini-time-pill"
-                      title="Extend window by 2 hours"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const nextEnd = addHoursToIso(state.window_end, 2);
-                        applyState({ ...state, window_end: nextEnd });
-                      }}
-                    >
-                      +2h
-                    </button>
-                  </span>
-                  <span className={`chip ${spent > state.budget_inr ? "warn" : ""}`}>💰 ₹{spent} of ₹{state.budget_inr}</span>
-                  <span className="chip">👥 {state.group.length} travelers</span>
-                  <span className="chip">{state.mode === "walk" ? "🚶" : state.mode === "car" ? "🚗" : "🛺"} {state.mode}</span>
-                  {state.pace !== "normal" && <span className="chip">pace: {state.pace}</span>}
-                  {state.weather !== "clear" && <span className="chip warn">{ICON[state.weather as keyof typeof ICON]} {state.weather}</span>}
-                  {state.avoid_crowds && <span className="chip">avoid crowds</span>}
-                  {state.indoor_only && <span className="chip">indoors only</span>}
-                  {state.intents.map((t) => <span key={t} className="chip tag">{t}</span>)}
-                </div>
-                {Object.keys(state.learned).length > 0 && (
-                  <div className="learned">
-                    <span className="muted small">Learned from your feedback (tap to forget):</span>
-                    <div className="chips">
-                      {Object.entries(state.learned).sort((a, b) => b[1] - a[1]).map(([t, v]) => (
-                        <button
-                          key={t}
-                          type="button"
-                          className={`chip ${v > 0 ? "up" : "down"}`}
-                          onClick={() => forget(t)}
-                          aria-label={`Forget that you ${v > 0 ? "like" : "dislike"} ${t}`}
-                        >
-                          {v > 0 ? "▲" : "▼"} {t} ✕
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <GroupEditor
-                  key={JSON.stringify(state.group)}
-                  group={state.group}
-                  tags={catalog?.vocabulary.tags ?? []}
-                  busy={busy}
-                  onApply={(group) => applyState({ ...state, group })}
-                />
-              </section>
-            )}
-          </aside>
-
-          {/* Right Column / Full-Width: Map, Recommendations & Plan */}
-          <div className="engine-main-content">
-            {error && <p className="error" role="alert">{error}</p>}
-
-            {/* MapView Box */}
-            <div className="map-wrap">
-              <MapView state={state} recs={recs} stops={itinerary.stops} />
-              {state && (
-                <div className="legend" aria-hidden="true">
-                  <span><i className="pin pin-you">●</i> you</span>
-                  <span><i className="pin pin-rec">1</i> option</span>
-                  <span><i className="pin pin-stop">A</i> in your plan</span>
-                </div>
-              )}
-              {!isChatOpen && (
-                <button
-                  type="button"
-                  className="chat-toggle-btn"
-                  style={{ position: "absolute", bottom: "16px", right: "16px", zIndex: 500, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-                  onClick={() => setIsChatOpen(true)}
-                >
-                  ✨ Ask AI Assistant
+        {/* =========================================================================
+            COLUMN 2: CENTER (SEARCH + RECOMMENDED SPOTS + DAY PLAN TIMELINE)
+        ========================================================================== */}
+        <div className="center-content-column">
+          {/* Top Search Bar */}
+          <div className="search-bar-container">
+            <div className="search-input-wrapper">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search spots, food walks, block-printing, stepwells in Jaipur..."
+                className="main-search-input"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery("")} className="clear-search-btn">
+                  ✕
                 </button>
               )}
             </div>
 
-            {state && (
-              <div className="cols">
-                {/* Recommended Now */}
-                <section className="panel">
-                  <h2>Recommended Now <span className="count">{recs.length}</span></h2>
-                  
-                  {/* Schedule Full Alert Banner */}
-                  {scheduleFullError && (
-                    <div className="schedule-full-banner" role="alert">
-                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                        <span style={{ fontSize: "1.3rem" }}>⏳</span>
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: "0 0 3px", color: "var(--ink)", fontSize: "0.95rem" }}>Schedule Currently Full</h4>
-                          <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--muted)", lineHeight: 1.45 }}>
-                            <strong>"{scheduleFullError.title}"</strong> cannot fit in your current time window ({hhmm(state.window_start)}–{hhmm(state.window_end)}). You can extend your hours or swap out an unlocked stop to make room.
-                          </p>
-                          <div className="row" style={{ marginTop: "10px", gap: "6px", flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              className="secondary mini"
-                              onClick={() => {
-                                const nextEnd = addHoursToIso(state.window_end, 1);
-                                applyState({ ...state, window_end: nextEnd });
-                                setScheduleFullError(null);
-                              }}
-                            >
-                              ➕ Extend by +1 Hour
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary mini"
-                              onClick={() => {
-                                const nextEnd = addHoursToIso(state.window_end, 2);
-                                applyState({ ...state, window_end: nextEnd });
-                                setScheduleFullError(null);
-                              }}
-                            >
-                              ➕ Extend by +2 Hours
-                            </button>
-                            {itinerary.stops.some((s) => !s.locked && LIVE(s)) && (
-                              <button
-                                type="button"
-                                className="secondary mini"
-                                style={{ background: "var(--marigold-gold)", color: "#140810", fontWeight: 700 }}
-                                onClick={() => autoReplaceUnlocked(scheduleFullError.expId)}
-                              >
-                                🔄 Swap Unlocked Stop
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="secondary mini"
-                              onClick={() => setScheduleFullError(null)}
-                            >
-                              Dismiss
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+            {/* Quick Keyword Pills */}
+            <div className="quick-keyword-pills">
+              {["Hawa Mahal", "Sanganer Craft", "Amer Stepwell", "Nahargarh Sunset", "Johari Food"].map((kw) => (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => setSearchQuery(kw)}
+                  className="kw-pill"
+                >
+                  {kw}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Middle: Recommended Spots List */}
+          <section className="recommended-section">
+            <div className="section-header-row">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "var(--ink)" }}>
+                  Recommended Spots &amp; Experiences
+                </h3>
+                <span className="count-pill">{filteredRecs.length} curated</span>
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                Hover a card to view route on map
+              </span>
+            </div>
+
+            <div className="spots-cards-grid">
+              {filteredRecs.map((r, i) => {
+                const exp = expMap.get(r.experience_id);
+                const photo = getExperiencePhoto(r.experience_id);
+                const isPlanned = liveStops.some((s) => s.experience_id === r.experience_id);
+                const isHovered = highlightedExpId === r.experience_id;
+                const category = exp?.category || "culture";
+                const reasonText =
+                  r.reasons && r.reasons.length > 0
+                    ? r.reasons.join(" • ")
+                    : exp?.description || "Curated based on your preferences & Jaipur weather.";
+                const rating = exp?.rating ?? 4.9;
+
+                return (
+                  <div
+                    key={r.experience_id}
+                    className={`spot-card ${isHovered ? "hovered" : ""} ${isPlanned ? "planned" : ""}`}
+                    onMouseEnter={() => setHighlightedExpId(r.experience_id)}
+                    onMouseLeave={() => setHighlightedExpId(null)}
+                  >
+                    <div className="spot-card-media">
+                      <img src={photo} alt={r.title} loading="lazy" />
+                      <span className="spot-number-badge">{i + 1}</span>
+                      <span className="spot-cat-badge">
+                        {CAT_ICON[category] || "🏛️"} {category}
+                      </span>
                     </div>
-                  )}
 
-                  {recs.length === 0 && <p className="muted">Nothing fits these constraints. See "why not" below.</p>}
-                  <ol className="recs">
-                    {recs.map((r) => {
-                      const inPlan = planned.has(r.experience_id);
-                      return (
-                        <li key={r.experience_id} className={`card ${inPlan ? "in-plan" : ""}`}>
-                          <div className="card-head">
-                            <span className={`label ${inPlan ? "label-stop" : "label-rec"}`}>
-                              {inPlan ? stopLetter.get(r.experience_id) : recNum.get(r.experience_id)}
-                            </span>
-                            <h3><span aria-hidden="true">{CAT_ICON[category(r.experience_id)] ?? "📍"}</span> {r.title}</h3>
-                            {r.low_confidence && <span className="badge warn" title="Some details are unverified or stale">⚠ unverified</span>}
-                          </div>
-                          <p className="meta">🕓 {hhmm(r.start)}–{hhmm(r.end)} · {r.cost_inr ? `₹${r.cost_inr}` : "free"} · {r.travel_min ? `${r.travel_min} min away` : "right here"}</p>
-                          <ul className="reasons">
-                            {r.reasons.slice(3).map((x) => (
-                              <li key={x} className={x.startsWith("⚠") ? "caution" : ""}>{x.replace(/^⚠ /, "")}</li>
-                            ))}
-                          </ul>
-                          <div className="row">
-                            {inPlan ? (
-                              <span className="in-plan-tag">✓ In your plan as stop {stopLetter.get(r.experience_id)}</span>
-                            ) : (
-                              <button disabled={busy} onClick={() => addToPlan(r)}>+ Add to Plan</button>
-                            )}
-                            {!inPlan && (
-                              <select
-                                className="pass"
-                                aria-label={`Not for me: ${r.title}`}
-                                value=""
-                                disabled={busy}
-                                onChange={(e) => e.target.value && pass(r, e.target.value)}
-                              >
-                                <option value="">Not for me…</option>
-                                <option value="not_interested">Not my thing</option>
-                                <option value="too_expensive">Too expensive</option>
-                                <option value="too_far">Too far</option>
-                                <option value="bad_time">Wrong time</option>
-                                <option value="none">Just skip it</option>
-                              </select>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </section>
+                    <div className="spot-card-body">
+                      <h4 className="spot-title">{r.title}</h4>
+                      <p className="spot-reason">{reasonText}</p>
 
-                {/* Plan & Disruption Triggers */}
-                <div className="stack">
-                  <section className="panel">
-                    <h2>Your Current Plan</h2>
-                    {itinerary.stops.length === 0 && <p className="muted">No stops yet. Select an option on the left or tap below to auto-plan.</p>}
-                    <ol className="timeline">
-                      {itinerary.stops.map((s, i) => (
-                        <li key={`${s.title}-${s.start}-${i}`} className={`stop ${s.status} ${s.locked ? "locked" : ""}`}>
-                          <span className="label label-stop">{LIVE(s) ? stopLetter.get(s.experience_id ?? s.title) : "–"}</span>
-                          <span className="time">{hhmm(s.start)}–{hhmm(s.end)}</span>
-                          <span className="stop-title">{s.title}</span>
-                          <span className="stop-meta">{s.cost_inr ? `₹${s.cost_inr}` : "free"}{s.status !== "proposed" && ` · ${s.status}`}{s.locked && " · locked"}</span>
-                          {s.experience_id && LIVE(s) && (s.status === "proposed" || s.status === "completed" || s.end <= `${clock}:00`) && (
-                            <span className="stop-extra">
-                              {s.status === "proposed" && s.end > `${clock}:00` && (
-                                <button className="mini" disabled={busy} onClick={() => bookStop(s)}>🎟 Book</button>
-                              )}
-                              {(s.status === "completed" || s.end <= `${clock}:00`) && (
-                                <select
-                                  className="pass"
-                                  aria-label={`Rate your visit to ${s.title}`}
-                                  value=""
-                                  disabled={busy}
-                                  onChange={(e) => e.target.value && rateStop(s, e.target.value)}
-                                >
-                                  <option value="">How was it?</option>
-                                  <option value="5">★★★★★ Loved it</option>
-                                  <option value="4">★★★★ Good</option>
-                                  <option value="3">★★★ Okay</option>
-                                  <option value="2-no">★★ Not as described</option>
-                                  <option value="1-no">★ Not as described</option>
-                                </select>
-                              )}
-                            </span>
-                          )}
-                          {LIVE(s) && s.status !== "completed" && (
-                            <span className="stop-actions">
-                              <button
-                                className="icon"
-                                aria-label={s.locked ? "Unlock" : "Lock"}
-                                title={s.locked ? "Locked: replanning won't move it" : "Lock this stop"}
-                                onClick={() => replan(itinerary.stops.map((x) => x === s ? { ...x, locked: !x.locked } : x), 0)}
-                              >
-                                {s.locked ? "🔒" : "🔓"}
-                              </button>
-                              <button
-                                className="icon"
-                                aria-label="Remove"
-                                title="Remove"
-                                onClick={() => replan(itinerary.stops.filter((x) => x !== s), 0)}
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                    <button className="secondary" disabled={busy} onClick={() => replan(itinerary.stops, 3)}>
-                      ✨ Fill Remaining Time
-                    </button>
-                    {problems.length > 0 && <ul className="problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>}
-                    {problems.length === 0 && itinerary.stops.length > 0 && <p className="ok">✓ Every stop is reachable, open and within budget.</p>}
-                    {planNote && <p className="note" role="status">{planNote}</p>}
+                      <div className="spot-meta-row">
+                        <span className="spot-price">₹{r.cost_inr || "Free"}</span>
+                        <span className="spot-time">⏱ {r.travel_min || 45} mins</span>
+                        <span className="spot-rating">⭐ {rating}</span>
+                      </div>
 
-                    {/* Locked Itinerary Actions Card */}
-                    {liveStops.some((s) => s.locked) && (
-                      <div className="locked-confirmation-card">
-                        <div className="locked-badge-row">
-                          <span className="chip" style={{ background: "var(--marigold-gold)", color: "#140810", fontWeight: 700 }}>
-                            🔒 {liveStops.filter((s) => s.locked).length} Anchored Stop{liveStops.filter((s) => s.locked).length > 1 ? "s" : ""}
-                          </span>
-                          <span className="small muted" style={{ fontWeight: 600 }}>
-                            🛡️ Real-time weather &amp; delay guardian active
-                          </span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)", lineHeight: 1.45 }}>
-                          Locked stops remain fixed. If rain or delays happen, only surrounding flexible gaps will be adapted.
-                        </p>
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
-                          {liveStops.length > 0 && (
-                            <a
-                              href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(liveStops[0].lat + "," + liveStops[0].lon)}&destination=${encodeURIComponent(liveStops[liveStops.length - 1].lat + "," + liveStops[liveStops.length - 1].lon)}${liveStops.length > 2 ? `&waypoints=${liveStops.slice(1, -1).map((s) => encodeURIComponent(s.lat + "," + s.lon)).join("|")}` : ""}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="locked-action-btn"
-                            >
-                              🗺️ Open Google Maps Route ↗
-                            </a>
-                          )}
+                      <div className="spot-card-actions">
+                        {isPlanned ? (
+                          <span className="planned-indicator">✓ In Day Plan</span>
+                        ) : (
                           <button
                             type="button"
-                            className="secondary mini"
-                            onClick={() => {
-                              const textSummary = liveStops.map((s, i) => `${i + 1}. ${hhmm(s.start)}–${hhmm(s.end)}: ${s.title} (${s.cost_inr ? `₹${s.cost_inr}` : "Free"})`).join("\n");
-                              navigator.clipboard.writeText(`TrueLocal Jaipur Itinerary:\n${textSummary}`);
-                              setCopiedSchedule(true);
-                              setTimeout(() => setCopiedSchedule(false), 2500);
-                            }}
+                            className="add-to-plan-btn"
+                            onClick={() => handleAddStop(r)}
+                            disabled={busy}
                           >
-                            {copiedSchedule ? "✓ Copied!" : "📋 Copy Itinerary"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Disruption Simulator */}
-                  <section className="panel">
-                    <h2>Simulate Context &amp; Disruption</h2>
-                    <p className="muted small">Only the affected stops are adjusted in real time. Locked stops stay preserved.</p>
-                    <div className="events">
-                      <button disabled={busy} onClick={() => trigger({ kind: "delay", delay_min: 40 })}>⏰ 40 min late</button>
-                      <button disabled={busy} onClick={() => trigger({ kind: "weather", weather: "rain" })}>🌧 It's raining</button>
-                      <button disabled={busy || !upcoming.length} onClick={() => trigger({ kind: "closure", experience_id: upcoming[0].experience_id! })}>🚫 Next stop closed</button>
-                      <button disabled={busy} onClick={() => trigger({ kind: "fatigue" })}>😴 We're tired</button>
-                      <button disabled={busy} onClick={() => trigger({ kind: "budget_change", budget_inr: 300 })}>💸 Only ₹300 left</button>
-                      <button disabled={busy} className="forecast" onClick={checkForecast}>🛰 Check Live Forecast</button>
-                    </div>
-                    {forecastCheck && (
-                      <div className="forecast-result" role="status">
-                        {!forecastCheck.available && <p className="muted">Live forecast unavailable (offline). Use the simulation buttons above.</p>}
-                        {forecastCheck.available && forecastCheck.risks.length === 0 && <p className="ok">✓ No weather risk to your plan in the live forecast.</p>}
-                        {forecastCheck.risks.map((r) => <p key={r.stop} className="warn-line">{ICON[r.condition as keyof typeof ICON] ?? "⚠"} {r.message}</p>)}
-                        {forecastCheck.proposed && (
-                          <button disabled={busy} onClick={() => { const { at: _at, ...e } = forecastCheck.proposed!; setForecastCheck(null); trigger(e); }}>
-                            Replan for {forecastCheck.proposed.weather}
+                            + Add to Day Plan
                           </button>
                         )}
+                        <Link
+                          to={`/3d`}
+                          className="view-3d-btn"
+                          title="View 3D Spatial Model"
+                        >
+                          🏛️ 3D
+                        </Link>
                       </div>
-                    )}
-                    {changes && (
-                      <ul className="changes" aria-live="polite">
-                        {changes.length === 0 && <li className="muted">Nothing in your plan is affected.</li>}
-                        {changes.map((c, i) => (
-                          <li key={i} className={`change ${c.action}`}>
-                            <strong>{CHANGE_LABEL[c.action]}</strong> {c.stop}
-                            <div className="muted">because {c.reason}</div>
-                            {c.new_stop && <div className="new-stop">→ {c.new_stop}</div>}
-                            {c.why.length > 0 && <div className="muted small">{c.why.slice(0, 3).join(" · ")}</div>}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Bottom: The Plan for the Day (Itinerary Timeline) */}
+          <section className="day-plan-section">
+            <div className="section-header-row">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>📅</span>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "var(--ink)" }}>
+                  The Plan for the Day
+                </h3>
+                <span className="count-pill" style={{ background: "rgba(216, 92, 72, 0.15)", color: "var(--accent)" }}>
+                  {liveStops.length} Stops
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "12px", fontSize: "0.82rem", fontWeight: 700, color: "var(--muted)" }}>
+                <span>⏱ ~{totalDurationMin} mins total</span>
+                <span>💰 ₹{totalCost} total</span>
+              </div>
+            </div>
+
+            {liveStops.length === 0 ? (
+              <div className="empty-plan-placeholder">
+                <p style={{ margin: 0, color: "var(--muted)", fontWeight: 600 }}>
+                  No stops added yet. Click <b>"+ Add to Day Plan"</b> on any spot above to build your schedule!
+                </p>
+              </div>
+            ) : (
+              <div className="plan-timeline-list">
+                {liveStops.map((s, idx) => {
+                  const stopLetter = String.fromCharCode(65 + idx);
+                  const isHovered = highlightedExpId === s.experience_id;
+                  const photo = s.experience_id ? getExperiencePhoto(s.experience_id) : "";
+
+                  return (
+                    <div
+                      key={s.experience_id || idx}
+                      className={`timeline-stop-item ${isHovered ? "hovered" : ""}`}
+                      onMouseEnter={() => s.experience_id && setHighlightedExpId(s.experience_id)}
+                      onMouseLeave={() => setHighlightedExpId(null)}
+                    >
+                      <div className="stop-letter-badge">{stopLetter}</div>
+
+                      {photo && <img src={photo} alt={s.title} className="stop-thumb" />}
+
+                      <div className="stop-info-content">
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
+                            {s.title}
+                          </h4>
+                          {s.locked && <span style={{ fontSize: "0.75rem", color: "var(--accent)" }}>🔒 Locked</span>}
+                        </div>
+                        <div className="stop-time-details">
+                          <span>🕒 {hhmm(s.start)} – {hhmm(s.end)}</span>
+                          <span>•</span>
+                          <span>₹{s.cost_inr || "Free"}</span>
+                        </div>
+                      </div>
+
+                      <div className="stop-item-actions">
+                        <button
+                          type="button"
+                          className={`stop-tool-btn ${s.locked ? "active" : ""}`}
+                          onClick={() => handleToggleLock(s)}
+                          title={s.locked ? "Unlock timing" : "Lock timing"}
+                        >
+                          {s.locked ? "🔒" : "🔓"}
+                        </button>
+                        <button
+                          type="button"
+                          className="stop-tool-btn remove"
+                          onClick={() => handleRemoveStop(s)}
+                          title="Remove stop"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-
-            {Object.keys(excluded).length > 0 && (
-              <details className="panel why-not">
-                <summary>🔍 Why not the others? ({Object.keys(excluded).length} ruled out)</summary>
-                <ul>
-                  {Object.entries(excluded).map(([id, rs]) => (
-                    <li key={id}><strong>{title(id)}</strong>: {rs.join("; ")}</li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
+          </section>
         </div>
-      </section>
+
+        {/* =========================================================================
+            COLUMN 3: RIGHT (WEATHER & TRANSPORT MODEL + INTERACTIVE ROUTE MAP)
+        ========================================================================== */}
+        <aside className="right-map-column">
+          {/* Top Box: Model of Transportation / Weather Conditions */}
+          <div className="transport-weather-box">
+            <div className="weather-header-row">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.3rem" }}>
+                  {liveWeather === "offline" || !liveWeather ? "☀️" : liveWeather.condition === "rain" ? "🌧" : liveWeather.condition === "heat" ? "🔥" : "☀️"}
+                </span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
+                    Jaipur Weather: {liveWeather && liveWeather !== "offline" ? `${liveWeather.temp_c.toFixed(0)}°C` : "32°C"}
+                  </h4>
+                  <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                    Sunset: 6:18 PM • Perfect for outdoor exploration
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Transport Mode Switcher */}
+            <div className="transport-selector">
+              <span className="transport-label">Transit Mode:</span>
+              <div className="transport-pill-row">
+                {[
+                  { id: "auto", label: "🛺 Auto (20km/h)", desc: "Bazaar Agility" },
+                  { id: "cab", label: "🚗 AC Cab (35km/h)", desc: "Comfort" },
+                  { id: "walk", label: "🚶 Walking", desc: "Old City Lanes" },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`transport-btn ${transportMode === m.id ? "active" : ""}`}
+                    onClick={() => setTransportMode(m.id as any)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Box: A map showcasing the route to all of the spots */}
+          <div className="map-view-wrapper">
+            <MapView
+              state={state}
+              recs={filteredRecs}
+              stops={itinerary.stops}
+              highlightedId={highlightedExpId}
+            />
+          </div>
+        </aside>
+      </div>
+
+      {/* Floating AI Chat Drawer (Opens smoothly when requested) */}
+      {isChatOpen && (
+        <div className="floating-chat-drawer">
+          <div className="chat-drawer-header">
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>✨</span>
+              <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--ink)" }}>TrueLocal AI Assistant</h4>
+            </div>
+            <button type="button" onClick={() => setIsChatOpen(false)} className="close-drawer-btn">
+              ✕
+            </button>
+          </div>
+
+          <div className="chat-drawer-messages">
+            <div className="chat-msg bot">
+              Hello! Tell me what you'd like to experience in Jaipur (e.g. "We have 3 hours near Hawa Mahal, budget ₹1500, want spicy food & crafts").
+            </div>
+            {msgs.map((m, idx) => (
+              <div key={idx} className={`chat-msg ${m.role}`}>
+                {m.text}
+              </div>
+            ))}
+          </div>
+
+          <form
+            className="chat-drawer-input-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendChat(chatText);
+            }}
+          >
+            <input
+              type="text"
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              placeholder="Ask anything about Jaipur or adapt your plan..."
+              className="chat-input"
+            />
+            <button type="submit" className="chat-send-btn" disabled={busy || !chatText.trim()}>
+              Send
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
