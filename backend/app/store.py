@@ -17,6 +17,7 @@ from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from app.engine import reviews as review_engine
 from app.engine.confidence import with_ratings
 from app.models import Experience, Place, Provider, TravelerState
 from app.seed import Seed
@@ -40,6 +41,9 @@ create table if not exists ratings (
 create table if not exists bookings (
     code text primary key, at text not null, experience_id text not null,
     start text not null, people integer not null);
+create table if not exists reviews (
+    id integer primary key, experience_id text not null, at text not null,
+    rating integer not null, text text not null, booking_code text, verified integer not null);
 create table if not exists cache (key text primary key, at text not null, json text not null);
 create table if not exists areas (
     id integer primary key, lat real not null, lon real not null, km real not null,
@@ -216,9 +220,68 @@ def current_seed(base: Seed) -> Seed:
     for eid, rows in ratings().items():
         if eid in exps:
             exps[eid] = with_ratings(exps[eid], rows)
+    for eid, revs in reviews().items():  # only reviews that pass verification are evidence
+        if eid in exps:
+            report = review_engine.check(revs)
+            counted = [(c.at.date(), c.rating, None) for c in report.reviews if c.counted]
+            exps[eid] = with_ratings(exps[eid], counted)
     for eid in paused_ids() & exps.keys():
         exps[eid] = exps[eid].model_copy(update={"availability": []})
     return Seed(providers, places, exps, stays=dict(base.stays))
+
+
+# ---------------------------------------------------------------- reviews (engine/reviews.py)
+# Public review text and stars; no author, no location.
+
+
+def booking(code: str) -> tuple[str, datetime] | None:
+    """(experience id, booked start) for a booking code."""
+    rows = _run("select experience_id, start from bookings where code = ?", (code,))
+    return (rows[0][0], datetime.fromisoformat(rows[0][1])) if rows else None
+
+
+def booking_reviewed(code: str) -> bool:
+    return bool(_run("select 1 from reviews where booking_code = ?", (code,)))
+
+
+def add_review(
+    experience_id: str,
+    at: datetime,
+    rating: int,
+    text: str,
+    booking_code: str | None,
+    verified: bool,
+) -> str:
+    _run(
+        "insert into reviews (experience_id, at, rating, text, booking_code, verified)"
+        " values (?, ?, ?, ?, ?, ?)",
+        (
+            experience_id,
+            at.isoformat(timespec="seconds"),
+            rating,
+            text,
+            booking_code,
+            int(verified),
+        ),
+    )
+    return str(_run("select max(id) from reviews")[0][0])
+
+
+def reviews(experience_id: str | None = None) -> dict[str, list[review_engine.Review]]:
+    sql = "select id, experience_id, at, rating, text, verified from reviews"
+    rows = _run(sql + " where experience_id = ?", (experience_id,)) if experience_id else _run(sql)
+    out: dict[str, list[review_engine.Review]] = {}
+    for rid, eid, at, rating, text, verified in rows:
+        out.setdefault(eid, []).append(
+            review_engine.Review(
+                id=str(rid),
+                at=datetime.fromisoformat(at),
+                rating=rating,
+                text=text,
+                verified=bool(verified),
+            )
+        )
+    return out
 
 
 # ---------------------------------------------------------------- demand + feedback logs

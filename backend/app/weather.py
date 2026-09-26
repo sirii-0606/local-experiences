@@ -18,7 +18,8 @@ from app.seed import Seed
 CITY = (26.92, 75.82)  # Jaipur centre: the default when no location is known
 URL = (
     "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-    "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
+    "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code,"
+    "relative_humidity_2m,wind_speed_10m"
     "&timezone=Asia%2FKolkata&start_date={day}&end_date={day}"
 )
 RAIN_CODES = set(range(51, 68)) | set(range(80, 83)) | set(range(95, 100))  # WMO drizzle..storm
@@ -33,6 +34,8 @@ class Hour(BaseModel):
     temp_c: float
     precip_mm: float
     precip_prob: int | None
+    humidity_pct: int | None = None  # measured/forecast, never guessed; None if not provided
+    wind_kmh: float | None = None
 
 
 def classify(
@@ -258,9 +261,13 @@ def forecast(
     precips = h.get("precipitation", [])
     probs = h.get("precipitation_probability", [None] * len(times))
     codes = h.get("weather_code", [1] * len(times))
+    humid = h.get("relative_humidity_2m", [None] * len(times))
+    winds = h.get("wind_speed_10m", [None] * len(times))
 
     out: list[Hour] = []
-    for t, temp, mm, prob, code in zip(times, temps, precips, probs, codes, strict=False):
+    for t, temp, mm, prob, code, rh, wind in zip(
+        times, temps, precips, probs, codes, humid, winds, strict=False
+    ):
         t_dt = datetime.fromisoformat(t)
         safe_temp = 25.0 if temp is None else float(temp)
         safe_mm = 0.0 if mm is None else float(mm)
@@ -274,6 +281,8 @@ def forecast(
                 precip_mm=safe_mm,
                 precip_prob=safe_prob,
                 condition=cond,
+                humidity_pct=None if rh is None else int(rh),
+                wind_kmh=None if wind is None else float(wind),
             )
         )
     return out or None
@@ -321,71 +330,56 @@ def plan_risks(stops: list[Stop], seed: Seed, hours: list[Hour]) -> list[Risk]:
 
 
 class WeatherSummary(BaseModel):
-    condition: str  # "rain" | "heat" | "clear"
-    temp_c: float
-    precip_mm: float
-    precip_prob: int
-    humidity_pct: int
-    wind_kmh: float
+    """The weather at one place and hour, as a sentence plus the numbers behind it.
+    Only real values: a number the provider didn't give is None, never estimated."""
+
+    condition: str  # "rain" | "heat" | "clear" | "unknown"
+    temp_c: float | None = None
+    precip_mm: float | None = None
+    precip_prob: int | None = None
+    humidity_pct: int | None = None
+    wind_kmh: float | None = None
     description: str
-    ai_guidance: str
+    ai_guidance: str  # a plain-language tip for the traveler (the LLM parser never sees it)
     available: bool = True
 
 
-def current_weather_summary(when: datetime) -> WeatherSummary:
-    """Detailed meteorological summary with AI advisory instructions for prompt injection."""
-    hours = forecast(when.date())
+GUIDANCE = {
+    "rain": "Rain likely: indoor places are the safer bet; outdoor stops may be swapped.",
+    "heat": "Very hot: go outdoors early or late, and keep midday for indoor places.",
+    "clear": "Good conditions for outdoor and indoor plans alike.",
+}
+
+
+def current_weather_summary(
+    when: datetime, lat: float = CITY[0], lon: float = CITY[1]
+) -> WeatherSummary:
+    hours = forecast(when.date(), lat=lat, lon=lon)
     h = at_hour(hours, when) if hours else None
     if not h:
         return WeatherSummary(
-            condition="clear",
-            temp_c=28.0,
-            precip_mm=0.0,
-            precip_prob=5,
-            humidity_pct=45,
-            wind_kmh=12.0,
-            description="Clear & pleasant (28.0°C, mild breeze)",
-            ai_guidance="Standard outdoor & cultural heritage itineraries recommended.",
+            condition="unknown",
+            description="Live weather unavailable",
+            ai_guidance="",
             available=False,
         )
-
-    # Estimate humidity and wind from condition and temperature
-    if h.condition == "rain":
-        humidity = 88 if h.precip_mm > 2.0 else 74
-        wind = 24.0 if h.precip_mm > 5.0 else 16.0
-        desc = (
-            f"Precipitation & Rain Alert ({h.temp_c:.1f}°C, {h.precip_mm:.1f} mm rain, "
-            f"{h.precip_prob or 60}% rain probability)"
-        )
-        guidance = (
-            "CRITICAL: It is currently raining or high rain probability. "
-            "Strictly prioritize indoor sheltered experiences (City Palace museum galleries, "
-            "Sanganer block printing studios, indoor royal tea cafes). Avoid or flag outdoor "
-            "open-air ramparts and unpaved heritage trails (Amer ramparts, Jantar Mantar sundials)."
-        )
-    elif h.condition == "heat":
-        humidity = 28
-        wind = 18.0
-        desc = f"Extreme Afternoon Heatwave ({h.temp_c:.1f}°C, high solar radiation, dry heat)"
-        guidance = (
-            "ADVISORY: Extreme heat detected (>38°C). Warn against midday unshaded walking tours. "
-            "Recommend early morning outdoor exploration or climate-controlled museum / indoor "
-            "craft workshops and stepwells with natural subterranean cooling."
-        )
-    else:
-        humidity = 48
-        wind = 12.0
-        desc = f"Clear & Pleasant Weather ({h.temp_c:.1f}°C, 0 mm rain, gentle breeze)"
-        guidance = "Optimal conditions for both outdoor monuments and immersive walking tours."
-
+    parts = [f"{h.temp_c:.0f}°C"]
+    if h.precip_prob is not None:
+        parts.append(f"{h.precip_prob}% chance of rain")
+    if h.precip_mm:
+        parts.append(f"{h.precip_mm:.1f} mm")
+    if h.humidity_pct is not None:
+        parts.append(f"{h.humidity_pct}% humidity")
+    if h.wind_kmh is not None:
+        parts.append(f"wind {h.wind_kmh:.0f} km/h")
+    label = {"rain": "Rain", "heat": "Hot", "clear": "Clear"}[h.condition]
     return WeatherSummary(
         condition=h.condition,
         temp_c=h.temp_c,
         precip_mm=h.precip_mm,
-        precip_prob=h.precip_prob or 0,
-        humidity_pct=humidity,
-        wind_kmh=wind,
-        description=desc,
-        ai_guidance=guidance,
-        available=True,
+        precip_prob=h.precip_prob,
+        humidity_pct=h.humidity_pct,
+        wind_kmh=h.wind_kmh,
+        description=f"{label} ({', '.join(parts)})",
+        ai_guidance=GUIDANCE[h.condition],
     )

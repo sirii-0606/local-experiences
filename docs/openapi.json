@@ -1956,6 +1956,131 @@
           }
         }
       }
+    },
+    "/reviews": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Post Review",
+        "operationId": "post_review_reviews_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewPosted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/{experience_id}": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Reviews",
+        "operationId": "get_reviews_reviews__experience_id__get",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/check": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Check Batch",
+        "description": "Nothing is saved: paste reviews from anywhere and see which look fake, and why.",
+        "operationId": "check_batch_reviews_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5289,6 +5414,247 @@
           "display_name"
         ],
         "title": "RegisterRequest"
+      },
+      "ReviewBatch": {
+        "properties": {
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewDraft"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Reviews"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reviews"
+        ],
+        "title": "ReviewBatch"
+      },
+      "ReviewCheck": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "trust": {
+            "type": "number",
+            "title": "Trust"
+          },
+          "counted": {
+            "type": "boolean",
+            "title": "Counted"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "rating",
+          "text",
+          "verified",
+          "trust",
+          "counted",
+          "flags"
+        ],
+        "title": "ReviewCheck"
+      },
+      "ReviewDraft": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text",
+            "default": ""
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "rating"
+        ],
+        "title": "ReviewDraft"
+      },
+      "ReviewIn": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "pattern": "^ex-[\\w.-]{1,80}$",
+            "title": "Experience Id"
+          },
+          "rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text",
+            "default": ""
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "booking_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "rating"
+        ],
+        "title": "ReviewIn"
+      },
+      "ReviewPosted": {
+        "properties": {
+          "review": {
+            "$ref": "#/components/schemas/ReviewCheck"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ReviewReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review",
+          "report"
+        ],
+        "title": "ReviewPosted"
+      },
+      "ReviewReport": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "counted": {
+            "type": "integer",
+            "title": "Counted"
+          },
+          "suspicious": {
+            "type": "integer",
+            "title": "Suspicious"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "rating_all": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating All"
+          },
+          "rating_trusted": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Trusted"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "bursts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bursts",
+            "default": []
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewCheck"
+            },
+            "type": "array",
+            "title": "Reviews",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "counted",
+          "suspicious",
+          "verified",
+          "rating_all",
+          "rating_trusted",
+          "verdict"
+        ],
+        "title": "ReviewReport"
       },
       "Risk": {
         "properties": {

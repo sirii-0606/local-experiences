@@ -74,12 +74,13 @@ def test_publish_rejects_unusable_drafts(override, message):
 
 def test_pause_hides_from_discovery_and_resume_restores():
     state = chat("solo near Tripolia Bazaar, 10am to 1pm, ₹2000, craft workshops")["state"]
+
     def get_ids():
         return {
             x["experience_id"]
-            for x in client.post(
-                "/discover", json={"state": state, "k": 50}
-            ).json()["recommendations"]
+            for x in client.post("/discover", json={"state": state, "k": 50}).json()[
+                "recommendations"
+            ]
         }
 
     assert "ex-pottery-workshop" in get_ids()

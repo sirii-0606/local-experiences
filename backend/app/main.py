@@ -466,7 +466,11 @@ def weather_now(at: datetime, lat: float = weather.CITY[0], lon: float = weather
     """Live conditions for the hour `at` at a place (Jaipur centre by default).
     available=false when offline."""
     hours = weather.forecast(at.date(), lat=lat, lon=lon)
-    return {"available": hours is not None, "hour": hours and weather.at_hour(hours, at)}
+    return {
+        "available": hours is not None,
+        "hour": hours and weather.at_hour(hours, at),
+        "summary": weather.current_weather_summary(at, lat, lon).model_dump(),
+    }
 
 
 class ContextCheckRequest(BaseModel):
@@ -733,6 +737,7 @@ if os.environ.get("WEBSITE_V2", "1") == "1":
     from app.routes import auth as auth_routes
     from app.routes import calendar as calendar_routes
     from app.routes import me as me_routes
+    from app.routes import reviews as review_routes
     from app.routes import trips as trip_routes
 
     for _router in (
@@ -741,5 +746,6 @@ if os.environ.get("WEBSITE_V2", "1") == "1":
         admin_routes.router,
         trip_routes.router,
         calendar_routes.router,
+        review_routes.router,
     ):
         app.include_router(_router)
