@@ -10,7 +10,8 @@ from collections.abc import Callable
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
 
-from pydantic import BaseModel
+from typing import get_args
+from pydantic import BaseModel, field_validator
 
 from app.models import Access, Tag, Traveler, TravelerState
 from app.seed import Seed
@@ -19,6 +20,28 @@ log = logging.getLogger(__name__)
 IST = timezone(timedelta(hours=5, minutes=30))
 MODEL = "claude-opus-5"
 DEFAULT_PLACE = "pl-hawa-mahal"  # city centre when no location is given
+
+TAG_SYNONYMS: dict[str, list[Tag]] = {
+    "cultural": ["heritage", "performance"],
+    "culture": ["heritage"],
+    "food": ["local-food"],
+    "crafts": ["craft"],
+    "arts": ["art"],
+    "views": ["viewpoint"],
+    "view": ["viewpoint"],
+    "walks": ["walking-tour"],
+    "walking": ["walking-tour"],
+    "gem": ["hidden-gem"],
+    "gems": ["hidden-gem"],
+}
+
+ACCESS_SYNONYMS: dict[str, Access] = {
+    "wheelchair_ramp": "wheelchair",
+    "wheelchair_accessible": "wheelchair",
+    "wheelchair-access": "wheelchair",
+    "step-free": "step_free",
+    "step_free_access": "step_free",
+}
 
 
 class ParsedRequest(BaseModel):
@@ -41,6 +64,45 @@ class ParsedRequest(BaseModel):
     raining: bool | None = None
     pace: Literal["relaxed", "normal", "packed"] | None = None
     mode: Literal["walk", "auto", "car"] | None = None
+
+    @field_validator("child_ages", mode="before")
+    @classmethod
+    def _clean_child_ages(cls, v):
+        return v if isinstance(v, list) else []
+
+    @field_validator("intents", mode="before")
+    @classmethod
+    def _clean_intents(cls, v):
+        if not isinstance(v, list):
+            return []
+        valid_tags = set(get_args(Tag))
+        out: list[Tag] = []
+        for item in v:
+            if not isinstance(item, str):
+                continue
+            item_low = item.strip().lower()
+            if item_low in valid_tags:
+                out.append(item_low)  # type: ignore
+            elif item_low in TAG_SYNONYMS:
+                out.extend(TAG_SYNONYMS[item_low])
+        return list(dict.fromkeys(out))
+
+    @field_validator("accessibility", mode="before")
+    @classmethod
+    def _clean_accessibility(cls, v):
+        if not isinstance(v, list):
+            return []
+        valid_access = set(get_args(Access))
+        out: list[Access] = []
+        for item in v:
+            if not isinstance(item, str):
+                continue
+            item_low = item.strip().lower()
+            if item_low in valid_access:
+                out.append(item_low)  # type: ignore
+            elif item_low in ACCESS_SYNONYMS:
+                out.append(ACCESS_SYNONYMS[item_low])
+        return list(dict.fromkeys(out))
 
 
 def now_ist() -> datetime:
@@ -213,7 +275,7 @@ def _find_place(t: str, seed: Seed) -> tuple[str, str] | None:
     return None
 
 
-# ---------------------------------------------------------------- Claude parser
+# ---------------------------------------------------------------- LLM parser (NVIDIA NIM / Claude)
 
 SYSTEM = """You extract a traveler's request for a local-experience planner in Jaipur into JSON.
 Only record what the traveler actually said; leave everything else null or empty. Never guess
@@ -230,8 +292,76 @@ a budget, time or group size that was not stated.
 - raining: true only if the traveler says it is raining."""
 
 
+def _clean_json_str(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+
+def nim_parse[T: BaseModel](system: str, content: str, schema: type[T]) -> T:
+    """Structured JSON extraction via NVIDIA NIM (OpenAI-compatible chat completion endpoint)."""
+    import json
+    import urllib.request
+
+    api_key = os.environ.get("NVIDIA_API_KEY") or os.environ.get("NIM_API_KEY")
+    if not api_key:
+        raise ValueError("no NVIDIA API key configured")
+
+    base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1").rstrip("/")
+    model = (
+        os.environ.get("NVIDIA_MODEL")
+        or os.environ.get("NIM_MODEL")
+        or "meta/llama-3.2-11b-vision-instruct"
+    )
+
+    schema_json = json.dumps(schema.model_json_schema(), indent=2)
+    sys_prompt = (
+        f"{system}\n\n"
+        f"You must respond ONLY with a valid JSON object strictly matching this schema:\n"
+        f"{schema_json}\n"
+        f"Do not include any commentary, Markdown fences, or text outside the JSON object."
+    )
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": content},
+        ],
+        "temperature": 0.1,
+        "max_tokens": 4096,
+        "response_format": {"type": "json_object"},
+    }
+
+    req = urllib.request.Request(
+        f"{base_url}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "local-experiences/1.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        res_data = json.loads(resp.read().decode("utf-8"))
+
+    msg_content = res_data["choices"][0]["message"]["content"]
+    cleaned = _clean_json_str(msg_content)
+    return schema.model_validate_json(cleaned)
+
+
 def claude_parse[T: BaseModel](system: str, content: str, schema: type[T], client=None) -> T:
-    """One structured-output extraction call. Shared by traveler intents and provider drafts."""
+    """One structured-output extraction call. Routes to NVIDIA NIM if configured,
+    else Anthropic Claude."""
+    if client is None and (os.environ.get("NVIDIA_API_KEY") or os.environ.get("NIM_API_KEY")):
+        return nim_parse(system, content, schema)
+
     import anthropic
 
     client = client or anthropic.Anthropic(timeout=30, max_retries=1)
@@ -265,11 +395,13 @@ def _llm_enabled() -> bool:
     if mode != "auto":
         return mode == "llm"
     return any(os.environ.get(k) for k in
-               ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"))
+               ("NVIDIA_API_KEY", "NIM_API_KEY",
+                "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE",
+                "OPENAI_API_KEY"))
 
 
 def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, str]:
-    """Try Claude when enabled; any failure (auth, network, refusal) falls back to rules."""
+    """Try LLM when enabled; any failure (auth, network, refusal) falls back to rules."""
     if _llm_enabled():
         try:
             return llm(), "llm"

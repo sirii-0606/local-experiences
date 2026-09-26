@@ -5,6 +5,7 @@ export type Role = "traveler" | "provider" | "admin";
 export type Diet = "vegetarian" | "non_vegetarian" | "vegan" | "jain";
 export type Mode = "walk" | "auto" | "bus" | "car";
 export type Pace = "relaxed" | "normal" | "packed";
+export type ShortlistDecision = "in_person" | "ar" | "skip";
 
 export type User = {
   id: number;
@@ -63,15 +64,114 @@ export type AdminStats = {
 };
 
 export const emptyProfile = (display_name: string): Profile => ({
-  display_name, age: null, home_city: null, interests: [], dislikes: [], accessibility: [],
-  walking_limit_km: null, needs_rest_breaks: false, diet: null, pace: "normal", budget_style: null,
-  transport: [], languages: [], companions: [],
+  display_name,
+  age: null,
+  home_city: null,
+  interests: [],
+  dislikes: [],
+  accessibility: [],
+  walking_limit_km: null,
+  needs_rest_breaks: false,
+  diet: null,
+  pace: "normal",
+  budget_style: null,
+  transport: [],
+  languages: [],
+  companions: [],
 });
 
-// ---------- trips (P3)
-export type TripTraveler = Companion & { is_me: boolean };
+// ---------- stays & trips (P3-P5)
 export type StayType = "any" | "hotel" | "homestay" | "hostel";
 export type StayPref = { type: StayType; max_per_night_inr: number | null; area: string | null };
+
+export type Stay = {
+  id: string;
+  name: string;
+  type: "hotel" | "homestay" | "hostel";
+  area: string;
+  lat: number;
+  lon: number;
+  price_per_night_inr: number;
+  rating: number;
+  review_count: number;
+  accessibility: string[];
+  description: string;
+  phone: string;
+  website: string;
+  sample_contact: boolean;
+};
+
+export type Candidate = {
+  experience_id: string;
+  title: string;
+  score: number;
+  reasons: string[];
+  travel_by_mode: Record<string, number>;
+  duration_min: number;
+  cost_inr: number;
+  feasible_days: number[];
+  must_see: boolean;
+  along_route: number;
+};
+
+export type StayRecommendation = {
+  stay: Stay;
+  score: number;
+  distance_to_picks_km: number;
+  travel_to_centroid_min: number;
+  reasons: string[];
+};
+
+export type MealSuggestion = {
+  meal_type: string;
+  experience_id: string;
+  title: string;
+  place_name: string;
+  price_inr: number;
+  duration_min: number;
+  distance_km: number;
+  travel_min: number;
+  reason: string;
+};
+
+export type QuickStopSuggestion = {
+  experience_id: string;
+  title: string;
+  place_name: string;
+  duration_min: number;
+  distance_km: number;
+  reason: string;
+};
+
+export type GuideSuggestion = {
+  type: string;
+  title: string;
+  description: string;
+  estimated_cost_inr: number;
+  reason: string;
+};
+
+export type SplitSuggestion = {
+  day: string;
+  start_time: string;
+  end_time: string;
+  rejoin_name: string;
+  rejoin_place_id: string;
+  reason: string;
+  group_a: string[];
+  activity_a: string;
+  group_b: string[];
+  activity_b: string;
+};
+
+export type TripSuggestions = {
+  meals: MealSuggestion[];
+  quick_stops: QuickStopSuggestion[];
+  guides: GuideSuggestion[];
+  splits: SplitSuggestion[];
+};
+
+export type TripTraveler = Companion & { is_me: boolean };
 
 export type TripDraft = {
   title: string;
@@ -86,7 +186,32 @@ export type TripDraft = {
   travelers: TripTraveler[];
   use_my_prefs_for_all: boolean;
   must_see: string[];
+  shortlist?: Record<string, ShortlistDecision>;
+  stay_id?: string | null;
 };
 
-export type Trip = TripDraft & { id: number; created: string; updated: string };
+export type TripStop = {
+  title: string;
+  experience_id: string | null;
+  lat: number;
+  lon: number;
+  start: string;
+  end: string;
+  status: string;
+  locked: boolean;
+  cost_inr: number;
+  who?: string[];
+};
+
+export type TripItinerary = {
+  stops: TripStop[];
+};
+
+export type Trip = TripDraft & {
+  id: number;
+  created: string;
+  updated: string;
+  itinerary?: TripItinerary;
+};
+
 export const MAX_TRIP_DAYS = 7;

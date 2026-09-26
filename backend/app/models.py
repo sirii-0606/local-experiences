@@ -121,6 +121,23 @@ class TravelerState(BaseModel):
     end_lon: float | None = None
 
 
+class Stay(BaseModel):
+    id: str
+    name: str
+    type: Literal["hotel", "homestay", "hostel"]
+    area: str
+    lat: float
+    lon: float
+    price_per_night_inr: int
+    rating: float = 4.5
+    review_count: int = 0
+    accessibility: list[Access] = []
+    description: str = ""
+    phone: str = ""
+    website: str = ""
+    sample_contact: bool = True
+
+
 class Stop(BaseModel):
     """One itinerary entry. experience_id=None for the traveler's own commitments (train, hotel)."""
     title: str
@@ -134,10 +151,30 @@ class Stop(BaseModel):
     )
     locked: bool = False  # user-fixed: replanning must not touch it
     cost_inr: int = 0  # for the whole group
+    who: list[str] = []  # traveler names on this stop; empty means everyone
+
+
+class SplitLane(BaseModel):
+    traveler_names: list[str]
+    stops: list[Stop] = []
+
+
+class GroupSplit(BaseModel):
+    id: str
+    day: date
+    start_time: time
+    end_time: time
+    rejoin_place_id: str
+    rejoin_name: str
+    rejoin_lat: float
+    rejoin_lon: float
+    reason: str = ""
+    lanes: list[SplitLane] = []
 
 
 class Itinerary(BaseModel):
     stops: list[Stop] = []
+    splits: list[GroupSplit] = []
 
 
 class ContextEvent(BaseModel):

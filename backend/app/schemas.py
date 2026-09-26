@@ -126,6 +126,96 @@ class StayPref(BaseModel):
     area: str | None = Field(default=None, max_length=60)  # None = near the must-sees
 
 
+class Stay(BaseModel):
+    id: str
+    name: str
+    type: Literal["hotel", "homestay", "hostel"]
+    area: str
+    lat: float
+    lon: float
+    price_per_night_inr: int
+    rating: float = 4.5
+    review_count: int = 0
+    accessibility: list[Access] = []
+    description: str = ""
+    phone: str = ""
+    website: str = ""
+    sample_contact: bool = True
+
+
+class Candidate(BaseModel):
+    experience_id: str
+    title: str
+    score: float
+    reasons: list[str] = []
+    travel_by_mode: dict[str, int] = {}
+    duration_min: int
+    cost_inr: int
+    feasible_days: list[int] = []
+    must_see: bool = False
+    along_route: float = 0.0
+
+
+class StayRecommendation(BaseModel):
+    stay: Stay
+    score: float
+    distance_to_picks_km: float
+    travel_to_centroid_min: int
+    reasons: list[str] = []
+
+
+class MealSuggestion(BaseModel):
+    meal_type: str
+    experience_id: str
+    title: str
+    place_name: str
+    price_inr: int
+    duration_min: int
+    distance_km: float
+    travel_min: int
+    reason: str
+
+
+class QuickStopSuggestion(BaseModel):
+    experience_id: str
+    title: str
+    place_name: str
+    duration_min: int
+    distance_km: float
+    reason: str
+
+
+class GuideSuggestion(BaseModel):
+    type: str
+    title: str
+    description: str
+    estimated_cost_inr: int
+    reason: str
+
+
+class SplitSuggestion(BaseModel):
+    day: date
+    start_time: time
+    end_time: time
+    rejoin_name: str
+    rejoin_place_id: str
+    reason: str
+    group_a: list[str] = []
+    activity_a: str
+    group_b: list[str] = []
+    activity_b: str
+
+
+class TripSuggestions(BaseModel):
+    meals: list[MealSuggestion] = []
+    quick_stops: list[QuickStopSuggestion] = []
+    guides: list[GuideSuggestion] = []
+    splits: list[SplitSuggestion] = []
+
+
+ShortlistDecision = Literal["in_person", "ar", "skip"]
+
+
 class TripDraft(BaseModel):
     """What the "Plan a trip" wizard collects. Shortlist, stay pick, itinerary, splits and
     feedback are added as optional fields in P4-P6, so drafts saved now stay valid."""
@@ -141,6 +231,8 @@ class TripDraft(BaseModel):
     travelers: list[TripTraveler] = Field(min_length=1, max_length=12)
     use_my_prefs_for_all: bool = False
     must_see: list[str] = Field(default=[], max_length=20)  # experience ids
+    shortlist: dict[str, ShortlistDecision] = Field(default_factory=dict)
+    stay_id: str | None = None
 
     @model_validator(mode="after")
     def _dates(self) -> "TripDraft":

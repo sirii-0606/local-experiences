@@ -1098,6 +1098,31 @@
         }
       }
     },
+    "/trips/stays": {
+      "get": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "List Stays",
+        "operationId": "list_stays_trips_stays_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Stay"
+                  },
+                  "type": "array",
+                  "title": "Response List Stays Trips Stays Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/trips": {
       "get": {
         "tags": [
@@ -1273,6 +1298,182 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/candidates": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Get Trip Candidates",
+        "operationId": "get_trip_candidates_trips__trip_id__candidates_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Candidate"
+                  },
+                  "title": "Response Get Trip Candidates Trips  Trip Id  Candidates Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/stays/recommendations": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Get Stay Recommendations",
+        "operationId": "get_stay_recommendations_trips__trip_id__stays_recommendations_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StayRecommendation"
+                  },
+                  "title": "Response Get Stay Recommendations Trips  Trip Id  Stays Recommendations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/itinerary/generate": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Generate Trip Itinerary",
+        "operationId": "generate_trip_itinerary_trips__trip_id__itinerary_generate_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/suggestions": {
+      "get": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Get Trip Suggestions",
+        "operationId": "get_trip_suggestions_trips__trip_id__suggestions_get",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripSuggestions"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1552,6 +1753,73 @@
           "itinerary"
         ],
         "title": "BookingResponse"
+      },
+      "Candidate": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "default": []
+          },
+          "travel_by_mode": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Travel By Mode",
+            "default": {}
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "cost_inr": {
+            "type": "integer",
+            "title": "Cost Inr"
+          },
+          "feasible_days": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Feasible Days",
+            "default": []
+          },
+          "must_see": {
+            "type": "boolean",
+            "title": "Must See",
+            "default": false
+          },
+          "along_route": {
+            "type": "number",
+            "title": "Along Route",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "title",
+          "score",
+          "duration_min",
+          "cost_inr"
+        ],
+        "title": "Candidate"
       },
       "Change": {
         "properties": {
@@ -2465,6 +2733,103 @@
         ],
         "title": "FeedbackResponse"
       },
+      "GroupSplit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "rejoin_place_id": {
+            "type": "string",
+            "title": "Rejoin Place Id"
+          },
+          "rejoin_name": {
+            "type": "string",
+            "title": "Rejoin Name"
+          },
+          "rejoin_lat": {
+            "type": "number",
+            "title": "Rejoin Lat"
+          },
+          "rejoin_lon": {
+            "type": "number",
+            "title": "Rejoin Lon"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "lanes": {
+            "items": {
+              "$ref": "#/components/schemas/SplitLane"
+            },
+            "type": "array",
+            "title": "Lanes",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "day",
+          "start_time",
+          "end_time",
+          "rejoin_place_id",
+          "rejoin_name",
+          "rejoin_lat",
+          "rejoin_lon"
+        ],
+        "title": "GroupSplit"
+      },
+      "GuideSuggestion": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "estimated_cost_inr": {
+            "type": "integer",
+            "title": "Estimated Cost Inr"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "description",
+          "estimated_cost_inr",
+          "reason"
+        ],
+        "title": "GuideSuggestion"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2486,6 +2851,14 @@
             },
             "type": "array",
             "title": "Stops",
+            "default": []
+          },
+          "splits": {
+            "items": {
+              "$ref": "#/components/schemas/GroupSplit"
+            },
+            "type": "array",
+            "title": "Splits",
             "default": []
           }
         },
@@ -2738,6 +3111,59 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "MealSuggestion": {
+        "properties": {
+          "meal_type": {
+            "type": "string",
+            "title": "Meal Type"
+          },
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "place_name": {
+            "type": "string",
+            "title": "Place Name"
+          },
+          "price_inr": {
+            "type": "integer",
+            "title": "Price Inr"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "travel_min": {
+            "type": "integer",
+            "title": "Travel Min"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "meal_type",
+          "experience_id",
+          "title",
+          "place_name",
+          "price_inr",
+          "duration_min",
+          "distance_km",
+          "travel_min",
+          "reason"
+        ],
+        "title": "MealSuggestion"
       },
       "ParsedRequest": {
         "properties": {
@@ -3076,7 +3502,8 @@
           "itinerary": {
             "$ref": "#/components/schemas/Itinerary",
             "default": {
-              "stops": []
+              "stops": [],
+              "splits": []
             }
           },
           "max_new": {
@@ -3442,6 +3869,44 @@
         ],
         "title": "PublishRequest"
       },
+      "QuickStopSuggestion": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "place_name": {
+            "type": "string",
+            "title": "Place Name"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "title",
+          "place_name",
+          "duration_min",
+          "distance_km",
+          "reason"
+        ],
+        "title": "QuickStopSuggestion"
+      },
       "Recommendation": {
         "properties": {
           "experience_id": {
@@ -3578,6 +4043,189 @@
         ],
         "title": "Risk"
       },
+      "SplitLane": {
+        "properties": {
+          "traveler_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Traveler Names"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/Stop"
+            },
+            "type": "array",
+            "title": "Stops",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "traveler_names"
+        ],
+        "title": "SplitLane"
+      },
+      "SplitSuggestion": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "rejoin_name": {
+            "type": "string",
+            "title": "Rejoin Name"
+          },
+          "rejoin_place_id": {
+            "type": "string",
+            "title": "Rejoin Place Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "group_a": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Group A",
+            "default": []
+          },
+          "activity_a": {
+            "type": "string",
+            "title": "Activity A"
+          },
+          "group_b": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Group B",
+            "default": []
+          },
+          "activity_b": {
+            "type": "string",
+            "title": "Activity B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "start_time",
+          "end_time",
+          "rejoin_name",
+          "rejoin_place_id",
+          "reason",
+          "activity_a",
+          "activity_b"
+        ],
+        "title": "SplitSuggestion"
+      },
+      "Stay": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "hotel",
+              "homestay",
+              "hostel"
+            ],
+            "title": "Type"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "price_per_night_inr": {
+            "type": "integer",
+            "title": "Price Per Night Inr"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating",
+            "default": 4.5
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": ""
+          },
+          "website": {
+            "type": "string",
+            "title": "Website",
+            "default": ""
+          },
+          "sample_contact": {
+            "type": "boolean",
+            "title": "Sample Contact",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "area",
+          "lat",
+          "lon",
+          "price_per_night_inr"
+        ],
+        "title": "Stay"
+      },
       "StayPref": {
         "properties": {
           "type": {
@@ -3619,6 +4267,41 @@
         },
         "type": "object",
         "title": "StayPref"
+      },
+      "StayRecommendation": {
+        "properties": {
+          "stay": {
+            "$ref": "#/components/schemas/Stay"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "distance_to_picks_km": {
+            "type": "number",
+            "title": "Distance To Picks Km"
+          },
+          "travel_to_centroid_min": {
+            "type": "integer",
+            "title": "Travel To Centroid Min"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "stay",
+          "score",
+          "distance_to_picks_km",
+          "travel_to_centroid_min"
+        ],
+        "title": "StayRecommendation"
       },
       "Stop": {
         "properties": {
@@ -3677,6 +4360,14 @@
             "type": "integer",
             "title": "Cost Inr",
             "default": 0
+          },
+          "who": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Who",
+            "default": []
           }
         },
         "type": "object",
@@ -4097,6 +4788,29 @@
             "title": "Must See",
             "default": []
           },
+          "shortlist": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "in_person",
+                "ar",
+                "skip"
+              ]
+            },
+            "type": "object",
+            "title": "Shortlist"
+          },
+          "stay_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stay Id"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4207,6 +4921,29 @@
             "maxItems": 20,
             "title": "Must See",
             "default": []
+          },
+          "shortlist": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "in_person",
+                "ar",
+                "skip"
+              ]
+            },
+            "type": "object",
+            "title": "Shortlist"
+          },
+          "stay_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stay Id"
           }
         },
         "type": "object",
@@ -4219,6 +4956,44 @@
         ],
         "title": "TripDraft",
         "description": "What the \"Plan a trip\" wizard collects. Shortlist, stay pick, itinerary, splits and\nfeedback are added as optional fields in P4-P6, so drafts saved now stay valid."
+      },
+      "TripSuggestions": {
+        "properties": {
+          "meals": {
+            "items": {
+              "$ref": "#/components/schemas/MealSuggestion"
+            },
+            "type": "array",
+            "title": "Meals",
+            "default": []
+          },
+          "quick_stops": {
+            "items": {
+              "$ref": "#/components/schemas/QuickStopSuggestion"
+            },
+            "type": "array",
+            "title": "Quick Stops",
+            "default": []
+          },
+          "guides": {
+            "items": {
+              "$ref": "#/components/schemas/GuideSuggestion"
+            },
+            "type": "array",
+            "title": "Guides",
+            "default": []
+          },
+          "splits": {
+            "items": {
+              "$ref": "#/components/schemas/SplitSuggestion"
+            },
+            "type": "array",
+            "title": "Splits",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "TripSuggestions"
       },
       "TripTraveler": {
         "properties": {

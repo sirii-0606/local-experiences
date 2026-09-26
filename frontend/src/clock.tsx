@@ -11,7 +11,11 @@ export function ClockProvider({ children }: { children: ReactNode }) {
   const [clock, setClock] = useState("2026-09-26T15:30");
   const [live, setLive] = useState<WeatherHour | null | "offline">(null);
   useEffect(() => {
-    api.weather(`${clock}:00`).then((w) => setLive(w.available ? w.hour : "offline")).catch(() => setLive("offline"));
+    if (!clock || clock.length < 10) return;
+    const iso = clock.includes("T") && clock.split("T")[1].split(":").length === 2 ? `${clock}:00` : clock;
+    api.weather(iso)
+      .then((w) => setLive(w.available && w.hour ? w.hour : "offline"))
+      .catch(() => setLive("offline"));
   }, [clock]);
   return <ClockCtx.Provider value={{ clock, setClock, live }}>{children}</ClockCtx.Provider>;
 }

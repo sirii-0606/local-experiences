@@ -181,7 +181,7 @@ def current_seed(base: Seed) -> Seed:
             exps[eid] = with_ratings(exps[eid], rows)
     for eid in paused_ids() & exps.keys():
         exps[eid] = exps[eid].model_copy(update={"availability": []})
-    return Seed(providers, places, exps)
+    return Seed(providers, places, exps, stays=dict(base.stays))
 
 
 # ---------------------------------------------------------------- demand + feedback logs

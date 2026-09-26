@@ -22,6 +22,22 @@ NPM = "npm.cmd" if WINDOWS else "npm"
 APP_URL = "http://localhost:5173"
 
 
+# Load .env into os.environ if present
+for env_path in (ROOT / ".env", BACKEND / ".env"):
+    if env_path.is_file():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip()
+                if (v.startswith('"') and v.endswith('"')) or (
+                    v.startswith("'") and v.endswith("'")
+                ):
+                    v = v[1:-1]
+                if k and k not in os.environ:
+                    os.environ[k] = v
+
+
 def fail(msg: str) -> None:
     sys.exit(f"\n  ERROR: {msg}\n")
 

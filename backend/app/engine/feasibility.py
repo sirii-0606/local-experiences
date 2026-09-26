@@ -10,7 +10,8 @@ from app.engine.confidence import LOW_CONFIDENCE, attr_confidence
 from app.models import AvailabilityWindow, Experience, TravelerState
 from app.seed import Seed
 
-SPEED_KMH = {"walk": 4.5, "auto": 18, "car": 22}
+SPEED_KMH = {"walk": 4.5, "auto": 18, "bus": 14, "car": 22}
+MODE_WAIT = {"walk": 0, "auto": 3, "bus": 10, "car": 5}
 ROAD_FACTOR = 1.3  # straight line -> street distance
 BUFFER_MIN = 10  # finding the place, parking, getting in
 
@@ -21,11 +22,22 @@ def km_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * 6371 * asin(sqrt(a))
 
 
-def travel_min(km: float, mode: str) -> int:
+def travel_min(km: float, mode: str = "auto") -> int:
     # ponytail: straight line x road factor, no traffic; swap for OSRM if routes matter.
     if km < 0.1:
         return 0
-    return ceil(km * ROAD_FACTOR / SPEED_KMH[mode] * 60) + BUFFER_MIN
+    speed = SPEED_KMH.get(mode, 18)
+    return ceil(km * ROAD_FACTOR / speed * 60) + BUFFER_MIN
+
+
+def travel_times_by_mode(km: float) -> dict[str, int]:
+    """Travel time by each mode in minutes."""
+    if km < 0.1:
+        return {"walk": 0, "auto": 0, "bus": 0, "car": 0}
+    return {
+        mode: ceil(km * ROAD_FACTOR / SPEED_KMH[mode] * 60) + BUFFER_MIN + MODE_WAIT[mode]
+        for mode in ("walk", "auto", "bus", "car")
+    }
 
 
 def group_cost(exp: Experience, size: int) -> int:

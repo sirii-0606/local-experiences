@@ -6,6 +6,8 @@ import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import ExplorePage from "./pages/ExplorePage";
 import ProfilePage from "./pages/ProfilePage";
 import ProviderPage from "./pages/ProviderPage";
+import TripItineraryPage from "./pages/TripItineraryPage";
+import TripShortlist from "./pages/TripShortlist";
 import TripWizard from "./pages/TripWizard";
 import TripsPage from "./pages/TripsPage";
 
@@ -22,6 +24,9 @@ export default function App() {
         <Route path="trips" element={<RequireAuth><TripsPage /></RequireAuth>} />
         <Route path="trips/new" element={<RequireAuth><TripWizard /></RequireAuth>} />
         <Route path="trips/:id" element={<RequireAuth><TripWizard key="edit" /></RequireAuth>} />
+        <Route path="trips/:id/shortlist" element={<RequireAuth><TripShortlist /></RequireAuth>} />
+        <Route path="trips/:id/itinerary" element={<RequireAuth><TripItineraryPage /></RequireAuth>} />
+        <Route path="trips/:id/plan" element={<RequireAuth><TripItineraryPage /></RequireAuth>} />
         <Route path="admin" element={<RequireAuth role="admin"><AdminPage /></RequireAuth>} />
         <Route path="*" element={<section className="page narrow"><div className="panel"><h2>Page not found</h2><Link to="/">Back to Explore</Link></div></section>} />
       </Route>

@@ -156,7 +156,7 @@ export default function TripWizard() {
     setBusy(true); setError("");
     try {
       const t = editing ? await v2.updateTrip(Number(id), draft) : await v2.createTrip(draft);
-      navigate(`/trips?saved=${t.id}`);
+      navigate(`/trips/${t.id}/shortlist`);
     } catch (e) { setError(msg(e)); } finally { setBusy(false); }
   };
 

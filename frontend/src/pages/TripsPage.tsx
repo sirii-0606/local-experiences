@@ -76,9 +76,11 @@ function TripCard({ t, today, highlight, onChange, onDelete }: {
           <span className="muted small">{t.travelers.length} {t.travelers.length === 1 ? "traveler" : "travelers"}</span>
           <span className="trip-budget">{inr(t.budget_inr)}</span>
         </div>
-        {error && <p className="error small" role="alert">{error}</p>}
-        <div className="trip-actions">
-          <Link className="button mini" to={`/trips/${t.id}`}>Open</Link>
+        <div className="trip-actions" style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+          <Link className="button mini primary" to={t.itinerary?.stops?.length ? `/trips/${t.id}/itinerary` : `/trips/${t.id}/shortlist`}>
+            {t.itinerary?.stops?.length ? "View Plan" : "Shortlist"}
+          </Link>
+          <Link className="button mini secondary" to={`/trips/${t.id}`}>Edit</Link>
           <button type="button" className="secondary mini" onClick={() => setTitle(t.title)}>Rename</button>
           <button type="button" className="icon mini" aria-label={`Delete ${t.title}`}
             onClick={() => window.confirm(`Delete "${t.title}"? This can't be undone.`) && onDelete()}>Delete</button>
