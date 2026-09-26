@@ -12,8 +12,9 @@ Context-aware local experience discovery + planning platform (hackathon). Concep
 - Git: `main` protected; work on `feat/*` `fix/*` `docs/*`; conventional commits; PR + squash merge. Never push or create remotes without the user's go-ahead.
 
 ## Commands
-- Backend tests: `cd backend && python -m pytest`
-- Backend lint: `cd backend && ruff check .`
+- Backend setup: `cd backend && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"` (use `.venv/bin/` on macOS/Linux)
+- Backend tests: `cd backend && .venv/Scripts/python -m pytest`
+- Backend lint: `cd backend && .venv/Scripts/ruff check .`
 - Backend run (from M5): `cd backend && uvicorn app.main:app --reload`
 - Frontend (from M6): `cd frontend && npm run dev`
 - Context check: `python scripts/check_context.py <base-ref>`
