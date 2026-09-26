@@ -1,8 +1,9 @@
-// v2 website client (accounts, profile, admin). Real backend by default; VITE_API_MOCK=1 swaps in
+// v2 website client (accounts, profile, admin, trips). Real backend by default; VITE_API_MOCK=1 swaps in
 // the in-memory mock so pages can be built while the backend is still in development.
-import { call } from "./api";
+import { api, call } from "./api";
+import type { Catalog } from "./api";
 import { mockV2 } from "./mocks/v2";
-import type { AdminStats, AdminUserPatch, AdminUserRow, Profile, User } from "./types";
+import type { AdminStats, AdminUserPatch, AdminUserRow, Profile, Trip, TripDraft, User } from "./types";
 
 export type V2 = {
   register(email: string, password: string, display_name: string): Promise<User>;
@@ -17,6 +18,12 @@ export type V2 = {
   adminUsers(): Promise<AdminUserRow[]>;
   adminPatch(id: number, patch: AdminUserPatch): Promise<AdminUserRow>;
   adminStats(): Promise<AdminStats>;
+  trips(): Promise<Trip[]>;
+  trip(id: number): Promise<Trip>;
+  createTrip(d: TripDraft): Promise<Trip>;
+  updateTrip(id: number, d: TripDraft): Promise<Trip>;
+  deleteTrip(id: number): Promise<void>;
+  catalog(): Promise<Catalog>; // the existing /catalog; mocked so the wizard works without a backend
 };
 
 const realV2: V2 = {
@@ -35,6 +42,12 @@ const realV2: V2 = {
   adminUsers: () => call<AdminUserRow[]>("/admin/users"),
   adminPatch: (id, patch) => call<AdminUserRow>(`/admin/users/${id}`, patch, "PATCH"),
   adminStats: () => call<AdminStats>("/admin/stats"),
+  trips: () => call<Trip[]>("/trips"),
+  trip: (id) => call<Trip>(`/trips/${id}`),
+  createTrip: (d) => call<Trip>("/trips", d),
+  updateTrip: (id, d) => call<Trip>(`/trips/${id}`, d, "PUT"),
+  deleteTrip: (id) => call<void>(`/trips/${id}`, undefined, "DELETE"),
+  catalog: api.catalog,
 };
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
