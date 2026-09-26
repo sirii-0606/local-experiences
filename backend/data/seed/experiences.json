@@ -373,5 +373,71 @@
    "description": "Jaipur's largest park with a 5 km walking track, polo-ground views and a giant flag.",
    "duration_min": 45, "price_inr": 0, "price_model": "free", "accessibility": ["wheelchair", "step_free"], "weather_sensitive": true,
    "tourist_index": 0.15, "rating": 4.5, "review_count": 9500,
-   "availability": [{"start": "05:00", "end": "21:00"}]}
+   "availability": [{"start": "05:00", "end": "21:00"}]},
+
+  {"id": "ex-rawat-kachori", "title": "Rawat Mishthan: Legendary Mawa & Pyaz Kachori", "provider_id": "pv-rawat", "place_id": "pl-rawat",
+   "category": "food", "tags": ["street-food", "local-food", "chai", "sweets", "vegetarian", "family", "iconic"],
+   "description": "Crispy piping-hot Pyaz Kachori and rich sweet Mawa Kachori dipped in sugar syrup, world-famous since 1856.",
+   "duration_min": 30, "price_inr": 80, "tourist_index": 0.7, "rating": 4.6, "review_count": 28000,
+   "availability": [{"start": "06:30", "end": "22:00"}]},
+
+  {"id": "ex-lmb-thali", "title": "LMB Royal Rajasthani Thali in Johari Bazaar", "provider_id": "pv-lmb", "place_id": "pl-lmb",
+   "category": "food", "tags": ["local-food", "vegetarian", "heritage", "fine-dining", "iconic", "family"],
+   "description": "Sumptuous multi-course royal thali featuring Panchkuta, Gatte ki Sabzi, Dal Baati Churma, and freshly made Kesar Kulfi.",
+   "duration_min": 75, "price_inr": 850, "tourist_index": 0.8, "rating": 4.5, "review_count": 19500,
+   "availability": [{"start": "11:00", "end": "23:00"}]},
+
+  {"id": "ex-tapri-central", "title": "Tapri Central rooftop artisanal chai & snacks", "provider_id": "pv-tapri", "place_id": "pl-tapri",
+   "category": "food", "tags": ["chai", "relaxed", "viewpoint", "evening", "family", "social"],
+   "description": "Chic rooftop café overlooking Central Park greenery, serving cutting chai, sauteed mushroom toast, and Ishwarji maggi.",
+   "duration_min": 60, "price_inr": 350, "tourist_index": 0.6, "rating": 4.7, "review_count": 16000,
+   "availability": [{"start": "07:30", "end": "22:30"}]},
+
+  {"id": "ex-gulab-chai", "title": "Gulab Ji Chai: Butter bun-maska & spiced tea", "provider_id": "pv-gulab-chai", "place_id": "pl-gulab-chai",
+   "category": "food", "tags": ["chai", "sweets", "street-food", "local-food", "community"],
+   "description": "Jaipur's iconic morning gathering for steaming masala chai brewed in brass vessels with warm buttered pav.",
+   "duration_min": 25, "price_inr": 60, "tourist_index": 0.4, "rating": 4.6, "review_count": 6500,
+   "availability": [{"start": "06:00", "end": "12:30"}, {"start": "16:00", "end": "21:00"}]},
+
+  {"id": "ex-samrat-breakfast", "title": "Samrat hot jalebi & kachori breakfast", "provider_id": "pv-samrat", "place_id": "pl-samrat",
+   "category": "food", "tags": ["chai", "street-food", "sweets", "local-food", "vegetarian"],
+   "description": "Heritage old-city morning feast of saffron jalebis made live in desi ghee, served with spicy hing kachoris.",
+   "duration_min": 30, "price_inr": 90, "tourist_index": 0.35, "rating": 4.7, "review_count": 9200,
+   "availability": [{"start": "07:00", "end": "11:30"}]},
+
+  {"id": "ex-handi-dinner", "title": "Handi Restaurant: Royal Mughlai & Laal Maas", "provider_id": "pv-handi", "place_id": "pl-handi",
+   "category": "food", "tags": ["local-food", "fine-dining", "evening", "romantic"],
+   "description": "Award-winning clay pot slow-cooked mutton Handi, spicy Rajasthani Laal Maas, and fresh rumali rotis on MI Road.",
+   "duration_min": 75, "price_inr": 950, "tourist_index": 0.65, "rating": 4.4, "review_count": 12000,
+   "availability": [{"start": "12:30", "end": "15:30"}, {"start": "19:00", "end": "23:00"}]},
+
+  {"id": "ex-1135-ad", "title": "1135 AD: Royal Fine Dining inside Amer Fort", "provider_id": "pv-1135ad", "place_id": "pl-1135-ad",
+   "category": "food", "tags": ["fine-dining", "heritage", "romantic", "viewpoint", "evening"],
+   "description": "Opulent Rajput royal cuisine served in carved silver tableware under glittering chandeliers atop Amer Fort.",
+   "duration_min": 90, "start_model": "reservation", "price_inr": 2200, "tourist_index": 0.7, "rating": 4.7, "review_count": 4800,
+   "availability": [{"start": "12:00", "end": "15:30"}, {"start": "19:00", "end": "23:00"}]},
+
+  {"id": "ex-pandit-pavbhaji", "title": "Pandit Pav Bhaji & Tawa Pulao near Birla Mandir", "provider_id": "pv-pandit", "place_id": "pl-pandit-pav",
+   "category": "food", "tags": ["street-food", "local-food", "evening", "family", "kids"],
+   "description": "Extra-buttery spiced mashed bhaji served sizzling from giant cast-iron tawas with soft toasted pav.",
+   "duration_min": 30, "price_inr": 120, "tourist_index": 0.3, "rating": 4.5, "review_count": 8100,
+   "availability": [{"start": "17:00", "end": "23:30"}]},
+
+  {"id": "ex-sahu-chai", "title": "Sahu Chai wood-fired kettle tea on Chaura Rasta", "provider_id": "pv-sahu", "place_id": "pl-sahu-chai",
+   "category": "food", "tags": ["chai", "street-food", "local-food", "community"],
+   "description": "Slow-brewed thick cardamon tea simmered over coal coals in copper samovars for over seven decades.",
+   "duration_min": 20, "price_inr": 40, "tourist_index": 0.2, "rating": 4.8, "review_count": 4200,
+   "availability": [{"start": "06:00", "end": "22:00"}]},
+
+  {"id": "ex-sethi-bbq", "title": "Sethi Bar-Be-Que tandoori feast in Raja Park", "provider_id": "pv-sethi", "place_id": "pl-sethi-bbq",
+   "category": "food", "tags": ["street-food", "local-food", "evening", "nightlife"],
+   "description": "Smoky chicken tikka, paneer malai tikka, and roomali rolls served car-side in buzzing Raja Park.",
+   "duration_min": 45, "price_inr": 400, "tourist_index": 0.25, "rating": 4.6, "review_count": 5300,
+   "availability": [{"start": "18:00", "end": "23:45"}]},
+
+  {"id": "ex-anokhi-cafe", "title": "Anokhi Café organic garden lunch in C-Scheme", "provider_id": "pv-anokhi", "place_id": "pl-anokhi-cafe",
+   "category": "food", "tags": ["wellness", "relaxed", "fine-dining", "vegetarian"],
+   "description": "Peaceful courtyard café offering organic salads, artisanal sourdough sandwiches, iced teas, and carrot cake.",
+   "duration_min": 60, "price_inr": 550, "tourist_index": 0.4, "rating": 4.6, "review_count": 3400,
+   "availability": [{"start": "10:00", "end": "19:30"}]}
 ]

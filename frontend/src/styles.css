@@ -1554,3 +1554,222 @@ a.button.mini { padding: 5px 12px; font-size: 0.82rem; }
   transform: scale(1.08);
 }
 
+/* Enhanced Itinerary Editor & Cards */
+.itinerary-stop-card {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 1.2rem;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.itinerary-stop-card:hover {
+  border-color: var(--marigold);
+  box-shadow: var(--lift);
+}
+
+.itinerary-stop-card.locked {
+  border-left: 5px solid var(--marigold-gold);
+}
+
+.itinerary-thumb-wrap {
+  position: relative;
+  width: 105px;
+  min-width: 105px;
+  height: 95px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.itinerary-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.itinerary-stop-card:hover .itinerary-thumb-wrap img {
+  transform: scale(1.05);
+}
+
+.itinerary-stop-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: var(--gold-gradient);
+  color: #140810;
+  font-weight: 800;
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.itinerary-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.itinerary-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.itinerary-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.time-slider-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.pacing-feedback-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(229, 169, 60, 0.08) 0%, rgba(20, 23, 56, 0.04) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 1.2rem;
+}
+
+.pacing-btn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pacing-btn:hover {
+  background: var(--marigold);
+  color: #140810;
+  border-color: var(--marigold);
+  transform: translateY(-1px);
+}
+
+/* Info Modal */
+.info-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 30, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.18s ease;
+}
+
+.info-modal-card {
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  animation: modalPop 0.22s ease;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.info-modal-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.info-modal-content {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Driver & Guide Contact Card */
+.driver-guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.driver-person-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.contact-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.contact-call-btn {
+  background: var(--gold-gradient);
+  color: #140810;
+}
+
+.contact-whatsapp-btn {
+  background: #25D366;
+  color: #ffffff;
+}
+
+.contact-quick-btn:hover {
+  transform: translateY(-1px);
+}
+

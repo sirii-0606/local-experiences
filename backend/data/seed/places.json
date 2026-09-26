@@ -25,5 +25,16 @@
   {"id": "pl-jhalana", "name": "Jhalana Leopard Reserve gate", "neighbourhood": "Jhalana", "lat": 26.8630, "lon": 75.8340},
   {"id": "pl-sanganer", "name": "Sanganer printing lanes", "neighbourhood": "Sanganer", "lat": 26.8163, "lon": 75.7864},
   {"id": "pl-dhani-village", "name": "Dhani village resort, Tonk Road", "neighbourhood": "Tonk Road", "lat": 26.7682, "lon": 75.8339},
-  {"id": "pl-sisodia-garden", "name": "Sisodia Rani Garden", "neighbourhood": "Agra Road", "lat": 26.8960, "lon": 75.8720}
+  {"id": "pl-sisodia-garden", "name": "Sisodia Rani Garden", "neighbourhood": "Agra Road", "lat": 26.8960, "lon": 75.8720},
+  {"id": "pl-rawat", "name": "Rawat Mishthan Bhandar", "neighbourhood": "Sindhi Camp", "lat": 26.9218, "lon": 75.8012},
+  {"id": "pl-lmb", "name": "Laxmi Mishthan Bhandar (LMB)", "neighbourhood": "Johari Bazaar", "lat": 26.9202, "lon": 75.8262},
+  {"id": "pl-tapri", "name": "Tapri Central Tea Lounge", "neighbourhood": "C-Scheme", "lat": 26.9038, "lon": 75.8055},
+  {"id": "pl-gulab-chai", "name": "Gulab Ji Chai Wale", "neighbourhood": "MI Road", "lat": 26.9180, "lon": 75.8130},
+  {"id": "pl-samrat", "name": "Samrat Restaurant", "neighbourhood": "Tripolia Bazaar", "lat": 26.9230, "lon": 75.8215},
+  {"id": "pl-handi", "name": "Handi Restaurant", "neighbourhood": "MI Road", "lat": 26.9158, "lon": 75.8122},
+  {"id": "pl-1135-ad", "name": "1135 AD Amer Fort", "neighbourhood": "Amer", "lat": 26.9860, "lon": 75.8520},
+  {"id": "pl-pandit-pav", "name": "Pandit Pav Bhaji", "neighbourhood": "Tilak Nagar", "lat": 26.8925, "lon": 75.8160},
+  {"id": "pl-sahu-chai", "name": "Sahu Chai Stall", "neighbourhood": "Chaura Rasta", "lat": 26.9210, "lon": 75.8220},
+  {"id": "pl-sethi-bbq", "name": "Sethi Tikka & Bar-Be-Que", "neighbourhood": "Raja Park", "lat": 26.8950, "lon": 75.8280},
+  {"id": "pl-anokhi-cafe", "name": "Anokhi Café", "neighbourhood": "C-Scheme", "lat": 26.9065, "lon": 75.8040}
 ]

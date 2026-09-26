@@ -2818,6 +2818,26 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": ""
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating",
+            "default": 4.9
+          },
+          "languages": {
+            "type": "string",
+            "title": "Languages",
+            "default": ""
+          },
+          "contact_name": {
+            "type": "string",
+            "title": "Contact Name",
+            "default": ""
           }
         },
         "type": "object",
@@ -3149,6 +3169,38 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "day_index": {
+            "type": "integer",
+            "title": "Day Index",
+            "default": 1
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": ""
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating",
+            "default": 4.5
+          },
+          "best_time": {
+            "type": "string",
+            "title": "Best Time",
+            "default": ""
           }
         },
         "type": "object",

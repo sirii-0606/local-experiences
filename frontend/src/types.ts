@@ -132,6 +132,11 @@ export type MealSuggestion = {
   distance_km: number;
   travel_min: number;
   reason: string;
+  day?: string;
+  day_index?: number;
+  phone?: string;
+  rating?: number;
+  best_time?: string;
 };
 
 export type QuickStopSuggestion = {
@@ -149,6 +154,10 @@ export type GuideSuggestion = {
   description: string;
   estimated_cost_inr: number;
   reason: string;
+  phone?: string;
+  rating?: number;
+  languages?: string;
+  contact_name?: string;
 };
 
 export type SplitSuggestion = {

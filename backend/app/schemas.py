@@ -174,6 +174,11 @@ class MealSuggestion(BaseModel):
     distance_km: float
     travel_min: int
     reason: str
+    day: date | None = None
+    day_index: int = 1
+    phone: str = ""
+    rating: float = 4.5
+    best_time: str = ""
 
 
 class QuickStopSuggestion(BaseModel):
@@ -191,6 +196,10 @@ class GuideSuggestion(BaseModel):
     description: str
     estimated_cost_inr: int
     reason: str
+    phone: str = ""
+    rating: float = 4.9
+    languages: str = ""
+    contact_name: str = ""
 
 
 class SplitSuggestion(BaseModel):

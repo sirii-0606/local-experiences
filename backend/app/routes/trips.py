@@ -1,6 +1,6 @@
 """The signed-in user's trips (P3-P5): list, create, open, edit/rename, delete,
 candidates scoring, stay recommendations, multi-day itinerary generation, and nearby suggestions."""
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -146,12 +146,21 @@ def get_trip_suggestions(trip_id: int, user: dict = Depends(current_user)) -> Tr
         budget_inr=t.budget_inr,
         group=trip_engine._trip_group(t),
     )
-    meals = nearby_engine.meal_suggestions(it, t.start_date, state, s)
+    num_days = max(1, (t.end_date - t.start_date).days + 1)
+    all_meals = []
+    for d_idx in range(num_days):
+        day_date = t.start_date + timedelta(days=d_idx)
+        daily_meals = nearby_engine.meal_suggestions(it, day_date, state, s)
+        for m in daily_meals:
+            m.day = day_date
+            m.day_index = d_idx + 1
+        all_meals.extend(daily_meals)
+
     quicks = nearby_engine.quick_stops(it, state, s)
     guides = nearby_engine.guide_driver_suggestions(t, it, s)
     splits = nearby_engine.auto_suggest_splits(t, s)
     return TripSuggestions(
-        meals=[MealSuggestion(**m.__dict__) for m in meals],
+        meals=[MealSuggestion(**m.__dict__) for m in all_meals],
         quick_stops=[QuickStopSuggestion(**q.__dict__) for q in quicks],
         guides=[GuideSuggestion(**g.__dict__) for g in guides],
         splits=[
