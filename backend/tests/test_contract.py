@@ -1,6 +1,7 @@
 """The API contract (docs/openapi.json) must match the backend, so the frontend team always knows
 when an endpoint or schema moved. The backend is still evolving: changing it is fine, just
 regenerate the snapshot in the same commit and mention it in the context file."""
+
 import json
 from pathlib import Path
 

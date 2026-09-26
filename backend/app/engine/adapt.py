@@ -5,6 +5,7 @@ broken, unlocked stop try, in order: same experience at a later time, an alterna
 intent, or dropping it -> explain every change. Locked stops are never moved; if one is at risk
 it is reported instead. A provider cancellation or closure overrides the lock (it can't happen).
 """
+
 from datetime import timedelta
 from typing import Literal
 
@@ -49,7 +50,8 @@ def _new_state(state: TravelerState, event: ContextEvent, it: Itinerary, ongoing
     pos = (ongoing[-1].lat, ongoing[-1].lon) if ongoing else (state.lat, state.lon)
     # never before the traveler's own window: an early "we'll be late" pushes from window_start
     start = max([event.at, state.window_start] + [s.end for s in ongoing]) + timedelta(
-        minutes=event.delay_min or 0)
+        minutes=event.delay_min or 0
+    )
     update = {"lat": pos[0], "lon": pos[1], "window_start": start}
     if event.kind == "weather":
         update["weather"] = event.weather
@@ -57,15 +59,19 @@ def _new_state(state: TravelerState, event: ContextEvent, it: Itinerary, ongoing
         update["pace"] = "relaxed"
     if event.kind == "budget_change":
         # event.budget_inr = what's left for unlocked plans ahead; spent + locked bookings stay
-        committed = sum(s.cost_inr for s in it.stops
-                        if s.status in ("completed", "active") or (s.locked and s.status in
-                                                                  ("proposed", "confirmed")))
+        committed = sum(
+            s.cost_inr
+            for s in it.stops
+            if s.status in ("completed", "active")
+            or (s.locked and s.status in ("proposed", "confirmed"))
+        )
         update["budget_inr"] = committed + event.budget_inr
     return state.model_copy(update=update)
 
 
-def _problem(s: Stop, pos, t, spent: int, state: TravelerState, event: ContextEvent,
-             seed: Seed) -> str | None:
+def _problem(
+    s: Stop, pos, t, spent: int, state: TravelerState, event: ContextEvent, seed: Seed
+) -> str | None:
     exp = seed.experiences.get(s.experience_id) if s.experience_id else None
     if exp and exp.id == event.experience_id and event.kind in ("closure", "provider_cancel"):
         return "cancelled by the provider" if event.kind == "provider_cancel" else "closed today"
@@ -83,8 +89,9 @@ def _problem(s: Stop, pos, t, spent: int, state: TravelerState, event: ContextEv
     return None
 
 
-def _alternative(it: Itinerary, old: Stop, state: TravelerState, event: ContextEvent,
-                 seed: Seed) -> Recommendation | None:
+def _alternative(
+    it: Itinerary, old: Stop, state: TravelerState, event: ContextEvent, seed: Seed
+) -> Recommendation | None:
     """Smallest sensible change: same experience later, else something with the same intent."""
     gap = next((g for g in gaps(it, state, min_minutes=1) if g.end > old.start), None)
     orig = seed.experiences.get(old.experience_id) if old.experience_id else None
@@ -94,7 +101,8 @@ def _alternative(it: Itinerary, old: Stop, state: TravelerState, event: ContextE
     if event.kind == "fatigue":
         skip |= {e.id for e in seed.experiences.values() if is_strenuous(e)}
     keep_intent = state.model_copy(
-        update={"intents": [t for t in orig.tags if t in state.intents] or list(orig.tags)})
+        update={"intents": [t for t in orig.tags if t in state.intents] or list(orig.tags)}
+    )
     if orig.id not in skip:
         only_orig = Seed(seed.providers, seed.places, {orig.id: orig})
         if same := fill_gap(it, gap, keep_intent, only_orig, k=1):
@@ -118,7 +126,9 @@ def replan(it: Itinerary, state: TravelerState, event: ContextEvent, seed: Seed)
     for s in upcoming(it):
         problem = _problem(s, pos, t, spent, state, event, seed)
         cancelled = s.experience_id == event.experience_id and event.kind in (
-            "closure", "provider_cancel")
+            "closure",
+            "provider_cancel",
+        )
         if problem and s.locked and not cancelled:
             changes.append(Change(action="at_risk", stop=s.title, reason=problem))
         elif problem:
@@ -133,11 +143,22 @@ def replan(it: Itinerary, state: TravelerState, event: ContextEvent, seed: Seed)
             new = to_stop(alt)
             it.stops.append(new)
             same = alt.experience_id == old.experience_id
-            changes.append(Change(
-                action="retimed" if same else "replaced", stop=old.title, reason=problem,
-                new_stop=f"{new.title} at {new.start:%H:%M}", why=alt.reasons))
+            changes.append(
+                Change(
+                    action="retimed" if same else "replaced",
+                    stop=old.title,
+                    reason=problem,
+                    new_stop=f"{new.title} at {new.start:%H:%M}",
+                    why=alt.reasons,
+                )
+            )
         else:
-            changes.append(Change(action="dropped", stop=old.title,
-                                  reason=f"{problem}; nothing comparable fits that slot"))
+            changes.append(
+                Change(
+                    action="dropped",
+                    stop=old.title,
+                    reason=f"{problem}; nothing comparable fits that slot",
+                )
+            )
     it.stops.sort(key=lambda s: s.start)
     return Replan(itinerary=it, state=state, changes=changes)

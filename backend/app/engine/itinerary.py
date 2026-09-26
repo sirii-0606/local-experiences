@@ -2,6 +2,7 @@
 
 The existing itinerary is a first-class input: locked stops never move, new stops go in gaps.
 """
+
 from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -52,24 +53,39 @@ def gaps(it: Itinerary, state: TravelerState, min_minutes: int = MIN_GAP_MIN) ->
 
 
 def fill_gap(
-    it: Itinerary, gap: Gap, state: TravelerState, seed: Seed, k: int = 5,
+    it: Itinerary,
+    gap: Gap,
+    state: TravelerState,
+    seed: Seed,
+    k: int = 5,
     skip: Collection[str] = (),
 ) -> list[Recommendation]:
     """Experiences reachable from the previous stop and done in time for the next."""
-    narrowed = state.model_copy(update={
-        "lat": gap.origin[0], "lon": gap.origin[1],
-        "window_start": gap.start, "window_end": gap.end,
-        "end_lat": gap.dest[0] if gap.dest else None,
-        "end_lon": gap.dest[1] if gap.dest else None,
-        "budget_inr": remaining_budget(it, state),
-    })
+    narrowed = state.model_copy(
+        update={
+            "lat": gap.origin[0],
+            "lon": gap.origin[1],
+            "window_start": gap.start,
+            "window_end": gap.end,
+            "end_lat": gap.dest[0] if gap.dest else None,
+            "end_lon": gap.dest[1] if gap.dest else None,
+            "budget_inr": remaining_budget(it, state),
+        }
+    )
     used = {s.experience_id for s in active(it) if s.experience_id}
     return discover(narrowed, seed, k, skip=used | set(skip))[0]
 
 
 def to_stop(rec: Recommendation) -> Stop:
-    return Stop(title=rec.title, experience_id=rec.experience_id, lat=rec.lat, lon=rec.lon,
-                start=rec.start, end=rec.end, cost_inr=rec.cost_inr)
+    return Stop(
+        title=rec.title,
+        experience_id=rec.experience_id,
+        lat=rec.lat,
+        lon=rec.lon,
+        start=rec.start,
+        end=rec.end,
+        cost_inr=rec.cost_inr,
+    )
 
 
 def insert(it: Itinerary, experience_id: str, state: TravelerState, seed: Seed) -> Itinerary | None:
@@ -117,8 +133,9 @@ def validate(it: Itinerary, state: TravelerState, seed: Seed) -> list[str]:
     for s in upcoming(it):
         need = travel_min(km_between(*pos, s.lat, s.lon), state.mode, depart)
         if s.start < t + timedelta(minutes=need):
-            problems.append(f"can't reach {s.title} by {s.start:%H:%M} "
-                            f"(needs {need} min after {t:%H:%M})")
+            problems.append(
+                f"can't reach {s.title} by {s.start:%H:%M} (needs {need} min after {t:%H:%M})"
+            )
         if s.experience_id:
             exp = seed.experiences[s.experience_id]
             if s.end - s.start != timedelta(minutes=exp.duration_min):

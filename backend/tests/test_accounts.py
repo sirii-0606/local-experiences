@@ -1,4 +1,5 @@
 """Accounts, sessions, roles, profile, admin (v2 website, P1)."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -48,12 +49,26 @@ def test_register_signs_in_and_me_works():
 def test_duplicate_and_bad_input():
     signup()
     c = client()
-    assert c.post("/auth/register", json={"email": "asha@example.com", "password": PW,
-                                          "display_name": "X"}).status_code == 409
-    assert c.post("/auth/register", json={"email": "not-an-email", "password": PW,
-                                          "display_name": "X"}).status_code == 422
-    assert c.post("/auth/register", json={"email": "b@example.com", "password": "short",
-                                          "display_name": "X"}).status_code == 422
+    assert (
+        c.post(
+            "/auth/register",
+            json={"email": "asha@example.com", "password": PW, "display_name": "X"},
+        ).status_code
+        == 409
+    )
+    assert (
+        c.post(
+            "/auth/register", json={"email": "not-an-email", "password": PW, "display_name": "X"}
+        ).status_code
+        == 422
+    )
+    assert (
+        c.post(
+            "/auth/register",
+            json={"email": "b@example.com", "password": "short", "display_name": "X"},
+        ).status_code
+        == 422
+    )
 
 
 def test_login_logout_and_wrong_password():
@@ -88,8 +103,9 @@ def test_expired_and_forged_sessions_are_rejected():
 
 def test_csrf_header_required_for_writes():
     bare = TestClient(app)  # no X-Requested-With
-    r = bare.post("/auth/register",
-                  json={"email": "c@example.com", "password": PW, "display_name": "C"})
+    r = bare.post(
+        "/auth/register", json={"email": "c@example.com", "password": PW, "display_name": "C"}
+    )
     assert r.status_code == 403
 
 
@@ -97,10 +113,15 @@ def test_profile_round_trip_and_validation():
     c = signup()
     blank = c.get("/me/profile").json()
     assert blank["display_name"] == "Asha" and blank["interests"] == []
-    prof = blank | {"age": 34, "interests": ["craft", "local-food"], "dislikes": ["nightlife"],
-                    "accessibility": ["step_free"], "diet": "vegetarian",
-                    "transport": ["walk", "bus"],
-                    "companions": [{"name": "Ravi", "age": 8, "interests": ["kids"]}]}
+    prof = blank | {
+        "age": 34,
+        "interests": ["craft", "local-food"],
+        "dislikes": ["nightlife"],
+        "accessibility": ["step_free"],
+        "diet": "vegetarian",
+        "transport": ["walk", "bus"],
+        "companions": [{"name": "Ravi", "age": 8, "interests": ["kids"]}],
+    }
     assert c.put("/me/profile", json=prof).status_code == 200
     assert c.get("/me/profile").json()["companions"][0]["name"] == "Ravi"
     assert c.get("/auth/me").json()["onboarded"]
@@ -112,14 +133,26 @@ def test_password_change_signs_out_other_devices():
     laptop = signup()
     phone = client()
     phone.post("/auth/login", json={"email": "asha@example.com", "password": PW})
-    assert laptop.put("/me/password", json={"current_password": "wrong",
-                                            "new_password": "new password 1"}).status_code == 403
-    assert laptop.put("/me/password", json={"current_password": PW,
-                                            "new_password": "new password 1"}).status_code == 204
+    assert (
+        laptop.put(
+            "/me/password", json={"current_password": "wrong", "new_password": "new password 1"}
+        ).status_code
+        == 403
+    )
+    assert (
+        laptop.put(
+            "/me/password", json={"current_password": PW, "new_password": "new password 1"}
+        ).status_code
+        == 204
+    )
     assert laptop.get("/auth/me").status_code == 200
     assert phone.get("/auth/me").status_code == 401
-    assert client().post("/auth/login", json={"email": "asha@example.com",
-                                              "password": "new password 1"}).status_code == 200
+    assert (
+        client()
+        .post("/auth/login", json={"email": "asha@example.com", "password": "new password 1"})
+        .status_code
+        == 200
+    )
 
 
 def test_export_has_my_data_but_no_secrets_and_delete_wipes_it():
@@ -153,8 +186,10 @@ def test_roles_guard_admin_endpoints(monkeypatch):
 
 def test_admin_sees_account_facts_never_profile_data(monkeypatch):
     c = signup()
-    c.put("/me/profile", json={"display_name": "Asha", "age": 34, "accessibility": ["wheelchair"],
-                               "diet": "jain"})
+    c.put(
+        "/me/profile",
+        json={"display_name": "Asha", "age": 34, "accessibility": ["wheelchair"], "diet": "jain"},
+    )
     rows = admin_client(monkeypatch).get("/admin/users").json()
     asha = next(r for r in rows if r["email"] == "asha@example.com")
     assert set(asha) == {"id", "email", "role", "display_name", "disabled", "created", "last_login"}
@@ -168,11 +203,17 @@ def test_admin_disables_promotes_and_resets(monkeypatch):
     assert admin.patch(f"/admin/users/{uid}", json={"disabled": True}).json()["disabled"]
     assert user.get("/auth/me").status_code == 401  # sessions revoked
     assert login(client(), "asha@example.com", PW) == 403
-    admin.patch(f"/admin/users/{uid}", json={"disabled": False, "role": "provider",
-                                             "temp_password": "temporary 999"})
+    admin.patch(
+        f"/admin/users/{uid}",
+        json={"disabled": False, "role": "provider", "temp_password": "temporary 999"},
+    )
     c = client()
-    assert c.post("/auth/login", json={"email": "asha@example.com",
-                                       "password": "temporary 999"}).json()["role"] == "provider"
+    assert (
+        c.post(
+            "/auth/login", json={"email": "asha@example.com", "password": "temporary 999"}
+        ).json()["role"]
+        == "provider"
+    )
     stats = admin.get("/admin/stats").json()
     assert stats["users"] == 2 and stats["admins"] == 1 and stats["providers"] == 1
 

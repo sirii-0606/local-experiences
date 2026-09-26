@@ -2,6 +2,7 @@
 
 Run: uvicorn app.main:app --reload   (interactive schema at /docs)
 """
+
 import os
 import re
 from datetime import datetime
@@ -64,8 +65,11 @@ async def _prod_routing(request: Request, call_next):
         request.scope["path"] = path[4:] or "/"
         return await call_next(request)
     dist = _static_dir()
-    if dist and request.method in ("GET", "HEAD") and not path.startswith(
-            ("/docs", "/redoc", "/openapi.json", "/health")):
+    if (
+        dist
+        and request.method in ("GET", "HEAD")
+        and not path.startswith(("/docs", "/redoc", "/openapi.json", "/health"))
+    ):
         target = (dist / path.lstrip("/")).resolve()
         if target.is_relative_to(dist) and target.is_file():
             return FileResponse(target)
@@ -84,8 +88,9 @@ def area(lat: float, lon: float) -> tuple[Seed, str]:
     live_seed, source = opendata.area_seed(lat, lon)
     merged = opendata.merge_near(seed(), store.current_seed(live_seed), lat, lon)
     curated = any(not i.startswith("ex-od-") for i in merged.experiences)
-    return merged, "+".join(x for x in ("curated" if curated else "",
-                                        "" if source == "none" else source) if x) or "none"
+    return merged, "+".join(
+        x for x in ("curated" if curated else "", "" if source == "none" else source) if x
+    ) or "none"
 
 
 def seed_at(lat: float, lon: float) -> Seed:
@@ -196,8 +201,11 @@ def catalog(lat: float | None = None, lon: float | None = None) -> dict:
         "experiences": list(s.experiences.values()),
         "provider_listings": store.listing_ids(),
         "paused": sorted(store.paused_ids()),
-        "vocabulary": {"tags": get_args(Tag), "categories": get_args(Category),
-                       "accessibility": get_args(Access)},
+        "vocabulary": {
+            "tags": get_args(Tag),
+            "categories": get_args(Category),
+            "accessibility": get_args(Access),
+        },
     }
 
 
@@ -215,8 +223,11 @@ def plan_(req: PlanRequest) -> PlanResponse:
     if req.add:
         it = insert(it, req.add, req.state, s)
         if it is None:
-            raise HTTPException(409, f"{s.experiences[req.add].title} doesn't fit around your "
-                                     "current plan. Remove or unlock a stop to make room.")
+            raise HTTPException(
+                409,
+                f"{s.experiences[req.add].title} doesn't fit around your "
+                "current plan. Remove or unlock a stop to make room.",
+            )
     it = plan(it, req.state, s, req.max_new)
     return PlanResponse(itinerary=it, problems=validate(it, req.state, s))
 
@@ -232,18 +243,18 @@ def events(req: EventRequest) -> EventResponse:
 TIME_REASONS = ("no time left", "not running", "would end", "leaving too little")
 
 
-def _locate(req: ChatRequest, parsed: ParsedRequest, s0: Seed, profile,
-            notes: list[str]) -> tuple[float, float, str, str]:
+def _locate(
+    req: ChatRequest, parsed: ParsedRequest, s0: Seed, profile, notes: list[str]
+) -> tuple[float, float, str, str]:
     """(lat, lon, name, source). What they typed beats the device, which beats the last turn."""
-    if parsed.near and (pl := next((x for x in s0.places.values() if x.name == parsed.near),
-                                   None)):
+    if parsed.near and (pl := next((x for x in s0.places.values() if x.name == parsed.near), None)):
         return pl.lat, pl.lon, pl.name, "text"
     if parsed.place_name:
         words = parsed.place_name.split()
         for n in range(len(words), 0, -1):  # "pune market road" -> ... -> "pune"
             if found := opendata.geocode(" ".join(words[:n])):
                 return found[1], found[2], found[0], "text"
-        notes.append(f"Couldn't find a place called \"{parsed.place_name}\" in India.")
+        notes.append(f'Couldn\'t find a place called "{parsed.place_name}" in India.')
     if req.lat is not None and req.lon is not None:
         return req.lat, req.lon, "your location", "device"
     if req.state:
@@ -251,29 +262,50 @@ def _locate(req: ChatRequest, parsed: ParsedRequest, s0: Seed, profile,
     if profile and profile.home_city and (found := opendata.geocode(profile.home_city)):
         return found[1], found[2], found[0], "profile"
     home = SEED.places[DEFAULT_PLACE]
-    notes.append("No location given, so this is Jaipur (the demo city). Share your location or "
-                 "name the city you're in.")
+    notes.append(
+        "No location given, so this is Jaipur (the demo city). Share your location or "
+        "name the city you're in."
+    )
     return home.lat, home.lon, "Jaipur (demo city)", "default"
 
 
-def _end_point(kind: str, text: str, s: Seed, state: TravelerState, city: str,
-               notes: list[str]) -> TravelerState:
-    """"Before my train": be back at a station by the end of the window. A station named in
+def _end_point(
+    kind: str, text: str, s: Seed, state: TravelerState, city: str, notes: list[str]
+) -> TravelerState:
+    """ "Before my train": be back at a station by the end of the window. A station named in
     the text wins; else the best-known one within 12 km; else the nearest."""
     spots = opendata.landmarks(s, kind)
     if not spots:
         notes.append(f"Couldn't find a {kind} nearby, so the plan doesn't include getting there.")
         return state
     said = set(re.findall(r"[a-z]+", text.lower())) - set(re.findall(r"[a-z]+", city.lower()))
-    common = {"railway", "station", "junction", "terminus", "central", "road", "international",
-              "airport", "city", "west", "east", "north", "south"}
+    common = {
+        "railway",
+        "station",
+        "junction",
+        "terminus",
+        "central",
+        "road",
+        "international",
+        "airport",
+        "city",
+        "west",
+        "east",
+        "north",
+        "south",
+    }
     named = [p for p in spots if (opendata._words(p.name) - common) & said]
     close = [p for p in spots if km_between(state.lat, state.lon, p.lat, p.lon) <= 12]
-    pick = (named or close or sorted(
-        spots, key=lambda p: km_between(state.lat, state.lon, p.lat, p.lon)))[0]
+    pick = (
+        named
+        or close
+        or sorted(spots, key=lambda p: km_between(state.lat, state.lon, p.lat, p.lon))
+    )[0]
     if not named:
-        notes.append(f"Planned so you're back at {pick.name} by {state.window_end:%H:%M}. "
-                     f"Tell me if you leave from a different {kind}.")
+        notes.append(
+            f"Planned so you're back at {pick.name} by {state.window_end:%H:%M}. "
+            f"Tell me if you leave from a different {kind}."
+        )
     return state.model_copy(update={"end_lat": pick.lat, "end_lon": pick.lon})
 
 
@@ -291,15 +323,22 @@ def _live_weather(state: TravelerState, stated: bool) -> tuple[TravelerState, We
     cond = "rain" if rainy else "heat" if any(h.condition == "heat" for h in span) else "clear"
     if not stated:
         state = state.model_copy(update={"weather": cond})
-    return state, WeatherNow(available=True, condition=cond, temp_c=span[0].temp_c,
-                             rain_chance=max(h.precip_prob or 0 for h in span),
-                             applied=not stated and cond != "clear")
+    return state, WeatherNow(
+        available=True,
+        condition=cond,
+        temp_c=span[0].temp_c,
+        rain_chance=max(h.precip_prob or 0 for h in span),
+        applied=not stated and cond != "clear",
+    )
 
 
 def _closed_now(state: TravelerState, s: Seed, excluded: dict[str, list[str]]) -> list[ClosedNow]:
     """Good matches ruled out only by the clock, with when they next open."""
-    wanted = (set(state.intents) | {i for t in state.group for i in t.interests}
-              | {t for t, w in state.learned.items() if w > 0})
+    wanted = (
+        set(state.intents)
+        | {i for t in state.group for i in t.interests}
+        | {t for t, w in state.learned.items() if w > 0}
+    )
     hits = []
     for eid, reasons in excluded.items():
         exp = s.experiences.get(eid)
@@ -307,11 +346,17 @@ def _closed_now(state: TravelerState, s: Seed, excluded: dict[str, list[str]]) -
             if overlap := len(wanted & set(exp.tags)):
                 hits.append((overlap, exp.tourist_index, exp, reasons[0]))
     hits.sort(key=lambda h: (-h[0], -h[1]))
-    return [ClosedNow(experience_id=exp.id, title=exp.title, why=why,
-                      next_open=opendata.next_open(exp, state.window_start),
-                      hours_confirmed=getattr(exp.evidence.get("availability"), "source",
-                                              None) not in ("estimate", None))
-            for _, _, exp, why in hits[:3]]
+    return [
+        ClosedNow(
+            experience_id=exp.id,
+            title=exp.title,
+            why=why,
+            next_open=opendata.next_open(exp, state.window_start),
+            hours_confirmed=getattr(exp.evidence.get("availability"), "source", None)
+            not in ("estimate", None),
+        )
+        for _, _, exp, why in hits[:3]
+    ]
 
 
 @app.post("/chat")
@@ -336,8 +381,14 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
     if req.state:
         base = req.state.model_copy(update={"lat": lat, "lon": lon})
     elif profile:
-        base = personal.state(profile, learned, lat, lon, now,
-                              with_companions=bool(parsed.with_companions and profile.companions))
+        base = personal.state(
+            profile,
+            learned,
+            lat,
+            lon,
+            now,
+            with_companions=bool(parsed.with_companions and profile.companions),
+        )
     else:
         base = None
     state = to_state(parsed, now, s, base)
@@ -348,31 +399,52 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
     state, wx = _live_weather(state, stated=parsed.raining is not None)
 
     if not req.state:
-        if parsed.with_companions and len(state.group) == 3 and not (profile and
-                                                                     profile.companions):
+        if (
+            parsed.with_companions
+            and len(state.group) == 3
+            and not (profile and profile.companions)
+        ):
             notes.append("Assumed 3 of you in the family; tell me how many are with you.")
         if parsed.budget_inr is None:
             notes.append(f"Budget assumed ₹{state.budget_inr} for the group; tell me yours.")
         if not (parsed.start_time or parsed.end_time):
-            notes.append(f"Starting now ({state.window_start:%H:%M}) until "
-                         f"{state.window_end:%H:%M}.")
+            notes.append(
+                f"Starting now ({state.window_start:%H:%M}) until {state.window_end:%H:%M}."
+            )
 
     recs, excluded = discover(state, s)
     store.log_demand(state, [r.experience_id for r in recs], excluded)  # aggregates only
     it = plan(Itinerary(), state, s)
     if user:
-        accounts.bump_context(user["id"], personal.from_message(parsed.intents, parsed.avoid),
-                              "chat")
-    traffic = ("rush hour: travel times estimated 50% longer" if rush_hour(
-        state.window_start, state.mode) else "normal traffic") + " (time-of-day estimate)"
+        accounts.bump_context(
+            user["id"], personal.from_message(parsed.intents, parsed.avoid), "chat"
+        )
+    traffic = (
+        "rush hour: travel times estimated 50% longer"
+        if rush_hour(state.window_start, state.mode)
+        else "normal traffic"
+    ) + " (time-of-day estimate)"
     ctx = ChatContext(
-        location=where, location_source=source, lat=lat, lon=lon, data_source=data_source,
-        places_considered=len(s.experiences), weather=wx, traffic=traffic,
-        closed_now=_closed_now(state, s, excluded), assumptions=notes,
-        profile_used=profile is not None)
+        location=where,
+        location_source=source,
+        lat=lat,
+        lon=lon,
+        data_source=data_source,
+        places_considered=len(s.experiences),
+        weather=wx,
+        traffic=traffic,
+        closed_now=_closed_now(state, s, excluded),
+        assumptions=notes,
+        profile_used=profile is not None,
+    )
     return ChatResponse(
-        parser=parser, parsed=parsed, state=state, recommendations=recs, excluded=excluded,
-        plan=PlanResponse(itinerary=it, problems=validate(it, state, s)), context=ctx,
+        parser=parser,
+        parsed=parsed,
+        state=state,
+        recommendations=recs,
+        excluded=excluded,
+        plan=PlanResponse(itinerary=it, problems=validate(it, state, s)),
+        context=ctx,
     )
 
 
@@ -411,8 +483,6 @@ def context_check(req: ContextCheckRequest) -> ContextCheckResponse:
     return ContextCheckResponse(available=True, risks=risks, proposed=proposed)
 
 
-
-
 class FeedbackRequest(BaseModel):
     state: TravelerState
     feedback: Feedback
@@ -435,9 +505,13 @@ def feedback(req: FeedbackRequest, request: Request) -> FeedbackResponse:
         store.add_rating(fb.experience_id, fb.rating, fb.as_described, fb.at)
         s = seed_at(req.state.lat, req.state.lon)  # the rating is now evidence: re-rank with it
     state = learn(req.state, s.experiences[fb.experience_id], fb)
-    if (user := accounts.user_for(request.cookies.get(COOKIE))) and (deltas := {
-            t: w - req.state.learned.get(t, 0.0) for t, w in state.learned.items()
-            if w != req.state.learned.get(t, 0.0)}):
+    if (user := accounts.user_for(request.cookies.get(COOKIE))) and (
+        deltas := {
+            t: w - req.state.learned.get(t, 0.0)
+            for t, w in state.learned.items()
+            if w != req.state.learned.get(t, 0.0)
+        }
+    ):
         accounts.bump_context(user["id"], deltas, "feedback")
     store.log_feedback(fb.experience_id, fb.kind, fb.reason)
     recs, excluded = discover(state, s)
@@ -445,6 +519,7 @@ def feedback(req: FeedbackRequest, request: Request) -> FeedbackResponse:
 
 
 # ---------------------------------------------------------------- bookings (M9 stub)
+
 
 class BookingRequest(BaseModel):
     state: TravelerState
@@ -474,18 +549,22 @@ def book(req: BookingRequest) -> BookingResponse:
         raise HTTPException(422, "add it to your plan before booking")
     if problems := [p for p in validate(req.itinerary, req.state, s) if stop.title in p]:
         raise HTTPException(409, f"can't book yet: {problems[0]}")
-    people, left = len(req.state.group), s.experiences[stop.experience_id].capacity - store.booked(
-        stop.experience_id, stop.start)
+    people, left = (
+        len(req.state.group),
+        s.experiences[stop.experience_id].capacity - store.booked(stop.experience_id, stop.start),
+    )
     if people > left:
-        raise HTTPException(409, f"only {max(left, 0)} spots left at {stop.start:%H:%M} "
-                                 f"for {people} of you")
+        raise HTTPException(
+            409, f"only {max(left, 0)} spots left at {stop.start:%H:%M} for {people} of you"
+        )
     code = store.add_booking(stop.experience_id, stop.start, people)
     it = req.itinerary.model_copy(deep=True)
     for x in it.stops:
         if x.experience_id == stop.experience_id and x.start == stop.start:
             x.status, x.locked = "confirmed", True
-    return BookingResponse(code=code, experience_id=stop.experience_id, start=stop.start,
-                           people=people, itinerary=it)
+    return BookingResponse(
+        code=code, experience_id=stop.experience_id, start=stop.start, people=people, itinerary=it
+    )
 
 
 @app.delete("/bookings/{code}")
@@ -496,6 +575,7 @@ def cancel_booking(code: str) -> dict:
 
 
 # ---------------------------------------------------------------- provider side
+
 
 def _require_owner(experience_id: str, token: str | None) -> None:
     """Provider listings change only with their edit token. Seed (curated) experiences are open
@@ -539,15 +619,17 @@ def provider_listing(experience_id: str) -> DraftResponse:
 
 
 @app.put("/providers/listings/{experience_id}")
-def provider_update(experience_id: str, req: PublishRequest,
-                    x_provider_token: str | None = Header(default=None)) -> Listing:
+def provider_update(
+    experience_id: str, req: PublishRequest, x_provider_token: str | None = Header(default=None)
+) -> Listing:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
     _require_owner(experience_id, x_provider_token)
     today = (req.today or now_ist()).date()
     try:
-        pv, pl, exp = provider.to_listing(req.draft, seed(), today,
-                                          key=provider.listing_key(experience_id))
+        pv, pl, exp = provider.to_listing(
+            req.draft, seed(), today, key=provider.listing_key(experience_id)
+        )
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     store.update_listing(pv, pl, exp)
@@ -555,8 +637,9 @@ def provider_update(experience_id: str, req: PublishRequest,
 
 
 @app.delete("/providers/listings/{experience_id}")
-def provider_delete(experience_id: str,
-                    x_provider_token: str | None = Header(default=None)) -> dict:
+def provider_delete(
+    experience_id: str, x_provider_token: str | None = Header(default=None)
+) -> dict:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
     _require_owner(experience_id, x_provider_token)
@@ -565,8 +648,9 @@ def provider_delete(experience_id: str,
 
 
 @app.post("/providers/availability")
-def provider_availability(req: PauseRequest,
-                          x_provider_token: str | None = Header(default=None)) -> dict:
+def provider_availability(
+    req: PauseRequest, x_provider_token: str | None = Header(default=None)
+) -> dict:
     _check_ids(seed(), req.experience_id)
     _require_owner(req.experience_id, x_provider_token)
     store.set_paused(req.experience_id, req.paused)
@@ -578,11 +662,15 @@ def provider_insights(experience_id: str) -> dict:
     s = seed()
     _check_ids(s, experience_id)
     exp = s.experiences[experience_id]
-    return {"experience_id": experience_id, "paused": experience_id in store.paused_ids(),
-            "booked_people": store.booked_people(experience_id),
-            "rating": exp.rating, "review_count": exp.review_count,
-            "fits": provider.segments(exp),
-            **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id))}
+    return {
+        "experience_id": experience_id,
+        "paused": experience_id in store.paused_ids(),
+        "booked_people": store.booked_people(experience_id),
+        "rating": exp.rating,
+        "review_count": exp.review_count,
+        "fits": provider.segments(exp),
+        **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id)),
+    }
 
 
 # ---------------------------------------------------------------- v2 website (additive)
@@ -595,6 +683,11 @@ if os.environ.get("WEBSITE_V2", "1") == "1":
     from app.routes import me as me_routes
     from app.routes import trips as trip_routes
 
-    for _router in (auth_routes.router, me_routes.router, admin_routes.router, trip_routes.router,
-                    calendar_routes.router):
+    for _router in (
+        auth_routes.router,
+        me_routes.router,
+        admin_routes.router,
+        trip_routes.router,
+        calendar_routes.router,
+    ):
         app.include_router(_router)

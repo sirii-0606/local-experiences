@@ -1,12 +1,14 @@
 """Admin: users (account facts only, never profile data), roles, disabling, stats."""
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import accounts, store
 from app.routes.deps import csrf, require_role
 from app.schemas import AdminStats, AdminUserPatch, AdminUserRow
 
-router = APIRouter(prefix="/admin", tags=["admin"],
-                   dependencies=[Depends(csrf), Depends(require_role("admin"))])
+router = APIRouter(
+    prefix="/admin", tags=["admin"], dependencies=[Depends(csrf), Depends(require_role("admin"))]
+)
 
 
 @router.get("/users")
@@ -15,8 +17,9 @@ def users() -> list[AdminUserRow]:
 
 
 @router.patch("/users/{user_id}")
-def patch_user(user_id: int, patch: AdminUserPatch,
-               me: dict = Depends(require_role("admin"))) -> AdminUserRow:
+def patch_user(
+    user_id: int, patch: AdminUserPatch, me: dict = Depends(require_role("admin"))
+) -> AdminUserRow:
     u = accounts.get(user_id)
     if u is None:
         raise HTTPException(404, "no such user")

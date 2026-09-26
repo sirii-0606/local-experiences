@@ -1,5 +1,6 @@
 """The signed-in user's trips (P3-P5): list, create, open, edit/rename, delete,
 candidates scoring, stay recommendations, multi-day itinerary generation, and nearby suggestions."""
+
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/trips", tags=["trips"], dependencies=[Depends(csrf)]
 
 def _check_must_see(draft: TripDraft) -> None:
     from app.main import seed  # lazy: main mounts this router, so a top-level import would cycle
+
     unknown = sorted(set(draft.must_see) - set(seed().experiences))
     if unknown:
         raise HTTPException(422, f"unknown experiences: {', '.join(unknown)}")
@@ -39,6 +41,7 @@ def _found(trip: Trip | None) -> Trip:
 @router.get("/stays", response_model=list[Stay])
 def list_stays(user: dict = Depends(current_user)) -> list[Stay]:
     from app.main import seed
+
     return [Stay.model_validate(s.model_dump()) for s in seed().stays.values()]
 
 
@@ -75,6 +78,7 @@ def delete_trip(trip_id: int, user: dict = Depends(current_user)) -> None:
 def get_trip_candidates(trip_id: int, user: dict = Depends(current_user)) -> list[Candidate]:
     from app.engine import trip as trip_engine
     from app.main import seed
+
     t = _found(accounts.get_trip(user["id"], trip_id))
     candidates = trip_engine.score_candidates(t, seed())
     return [
@@ -100,10 +104,9 @@ def get_stay_recommendations(
 ) -> list[StayRecommendation]:
     from app.engine import trip as trip_engine
     from app.main import seed
+
     t = _found(accounts.get_trip(user["id"], trip_id))
-    in_person_ids = [
-        eid for eid, dec in t.shortlist.items() if dec == "in_person"
-    ]
+    in_person_ids = [eid for eid, dec in t.shortlist.items() if dec == "in_person"]
     recs = trip_engine.score_stays(t, seed(), in_person_ids)
     return [
         StayRecommendation(
@@ -121,6 +124,7 @@ def get_stay_recommendations(
 def generate_trip_itinerary(trip_id: int, user: dict = Depends(current_user)) -> Trip:
     from app.engine import trip as trip_engine
     from app.main import seed
+
     t = _found(accounts.get_trip(user["id"], trip_id))
     it = trip_engine.build_itinerary(t, seed())
     draft_dict = t.model_dump()
@@ -134,6 +138,7 @@ def get_trip_suggestions(trip_id: int, user: dict = Depends(current_user)) -> Tr
     from app.engine import nearby as nearby_engine
     from app.engine import trip as trip_engine
     from app.main import seed
+
     s = seed()
     t = _found(accounts.get_trip(user["id"], trip_id))
     it = trip_engine.build_itinerary(t, s)

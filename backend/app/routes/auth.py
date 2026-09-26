@@ -1,4 +1,5 @@
 """Sign up, sign in, sign out, who am I."""
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app import accounts

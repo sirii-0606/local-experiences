@@ -3,27 +3,71 @@
 Profile (Traveler) is kept separate from situation (TravelerState), per doc §5.1.
 Confidence is derived from Evidence in the engine, not stored.
 """
+
 from datetime import date, datetime, time
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 Category = Literal[
-    "food", "culture", "art", "learning", "adventure", "shopping",
-    "nightlife", "wellness", "community", "nature",
+    "food",
+    "culture",
+    "art",
+    "learning",
+    "adventure",
+    "shopping",
+    "nightlife",
+    "wellness",
+    "community",
+    "nature",
 ]
 # Closed vocabulary shared by experience tags and traveler intents/interests,
 # so intent parsing (rule-based or LLM) maps onto exactly these.
 Tag = Literal[
-    "local-food", "street-food", "fine-dining", "vegetarian", "sweets", "chai",
-    "heritage", "history", "architecture", "museum", "spiritual",
-    "craft", "art", "music", "dance", "performance", "workshop", "hands-on",
-    "shopping", "market", "textiles", "jewellery",
-    "nature", "wildlife", "beach", "sunset", "sunrise", "viewpoint", "photography",
-    "adventure", "active", "wellness", "relaxed",
-    "nightlife", "evening", "social", "romantic",
-    "family", "kids", "learning", "community", "walking-tour",
-    "hidden-gem", "iconic",
+    "local-food",
+    "street-food",
+    "fine-dining",
+    "vegetarian",
+    "sweets",
+    "chai",
+    "heritage",
+    "history",
+    "architecture",
+    "museum",
+    "spiritual",
+    "craft",
+    "art",
+    "music",
+    "dance",
+    "performance",
+    "workshop",
+    "hands-on",
+    "shopping",
+    "market",
+    "textiles",
+    "jewellery",
+    "nature",
+    "wildlife",
+    "beach",
+    "sunset",
+    "sunrise",
+    "viewpoint",
+    "photography",
+    "adventure",
+    "active",
+    "wellness",
+    "relaxed",
+    "nightlife",
+    "evening",
+    "social",
+    "romantic",
+    "family",
+    "kids",
+    "learning",
+    "community",
+    "walking-tour",
+    "hidden-gem",
+    "iconic",
 ]
 Access = Literal["wheelchair", "step_free", "seating", "quiet"]
 Weekday = Literal[0, 1, 2, 3, 4, 5, 6]  # Mon=0, matches date.weekday()
@@ -34,6 +78,7 @@ class Evidence(BaseModel):
 
     `estimate`: nobody confirmed it; it's the typical value for this kind of place (open data
     without hours/prices). Always flagged low confidence, never presented as fact."""
+
     source: Literal["provider", "traveler", "verified", "estimate"]
     updated_at: date
 
@@ -60,6 +105,7 @@ class AvailabilityWindow(BaseModel):
 
     `slots` set → fixed start times only. `on_date` set → one-off event (festival, show).
     """
+
     start: time
     end: time
     days: list[Weekday] = [0, 1, 2, 3, 4, 5, 6]
@@ -93,6 +139,7 @@ class Experience(BaseModel):
 
 class Traveler(BaseModel):
     """Stable-ish profile of one person in the group."""
+
     name: str = "me"
     age: int = 30
     interests: list[Tag] = []
@@ -101,6 +148,7 @@ class Traveler(BaseModel):
 
 class TravelerState(BaseModel):
     """The traveler/group situation right now (doc §5.1)."""
+
     lat: float
     lon: float
     window_start: datetime
@@ -144,6 +192,7 @@ class Stay(BaseModel):
 
 class Stop(BaseModel):
     """One itinerary entry. experience_id=None for the traveler's own commitments (train, hotel)."""
+
     title: str
     experience_id: str | None = None
     lat: float

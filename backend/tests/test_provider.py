@@ -9,10 +9,12 @@ from app.provider import draft_rules
 
 client = TestClient(app)
 NOW = "2026-09-26T11:30:00"
-SALIM = ("I'm Salim, a lac bangle maker in Maniharon ka Rasta near Tripolia Bazaar. Our family "
-         "has made bangles for five generations. Visitors can watch and make their own bangle, "
-         "45 minutes, ₹250 per person, open 11am to 7pm, closed on Friday. Kids welcome, up to "
-         "6 people.")
+SALIM = (
+    "I'm Salim, a lac bangle maker in Maniharon ka Rasta near Tripolia Bazaar. Our family "
+    "has made bangles for five generations. Visitors can watch and make their own bangle, "
+    "45 minutes, ₹250 per person, open 11am to 7pm, closed on Friday. Kids welcome, up to "
+    "6 people."
+)
 CRAFT_SEEKER = "Solo, near Tripolia Bazaar, 12 to 3pm, ₹1000, hidden gems and craft"
 
 
@@ -57,11 +59,14 @@ def test_scenario_c_new_provider_reaches_matching_traveler():
     assert new_id in client.get("/catalog").json()["provider_listings"]
 
 
-@pytest.mark.parametrize("override, message", [
-    ({"near": "Somewhere unknown"}, "nearest landmark"),
-    ({"open_time": "11:00", "close_time": "11:30"}, "shorter than"),
-    ({"tags": []}, "at least one tag"),
-])
+@pytest.mark.parametrize(
+    "override, message",
+    [
+        ({"near": "Somewhere unknown"}, "nearest landmark"),
+        ({"open_time": "11:00", "close_time": "11:30"}, "shorter than"),
+        ({"tags": []}, "at least one tag"),
+    ],
+)
 def test_publish_rejects_unusable_drafts(override, message):
     r = publish(**override)
     assert r.status_code == 422 and message in r.json()["detail"]
@@ -69,15 +74,21 @@ def test_publish_rejects_unusable_drafts(override, message):
 
 def test_pause_hides_from_discovery_and_resume_restores():
     state = chat("solo near Tripolia Bazaar, 10am to 1pm, ₹2000, craft workshops")["state"]
-    ids = lambda: {x["experience_id"] for x in client.post(  # noqa: E731
-        "/discover", json={"state": state, "k": 50}).json()["recommendations"]}
+    ids = lambda: {
+        x["experience_id"]
+        for x in client.post(  # noqa: E731
+            "/discover", json={"state": state, "k": 50}
+        ).json()["recommendations"]
+    }
     assert "ex-pottery-workshop" in ids()
-    client.post("/providers/availability", json={"experience_id": "ex-pottery-workshop",
-                                                 "paused": True})
+    client.post(
+        "/providers/availability", json={"experience_id": "ex-pottery-workshop", "paused": True}
+    )
     assert "ex-pottery-workshop" not in ids()
     assert client.get("/providers/insights/ex-pottery-workshop").json()["paused"] is True
-    client.post("/providers/availability", json={"experience_id": "ex-pottery-workshop",
-                                                 "paused": False})
+    client.post(
+        "/providers/availability", json={"experience_id": "ex-pottery-workshop", "paused": False}
+    )
     assert "ex-pottery-workshop" in ids()
 
 

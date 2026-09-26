@@ -2,6 +2,7 @@
 
 Times are naive local (Asia/Kolkata) datetimes; one traveler window = one calendar day.
 """
+
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from math import asin, ceil, cos, radians, sin, sqrt
@@ -83,9 +84,11 @@ def earliest_start(exp: Experience, not_before: datetime) -> datetime | None:
 
 def _hours(exp: Experience, day: date) -> str:
     return ", ".join(
-        "slots " + "/".join(f"{s:%H:%M}" for s in w.slots) if w.slots
+        "slots " + "/".join(f"{s:%H:%M}" for s in w.slots)
+        if w.slots
         else f"{w.start:%H:%M}–{w.end:%H:%M}"
-        for w in exp.availability if runs_on(w, day)
+        for w in exp.availability
+        if runs_on(w, day)
     )
 
 
@@ -124,9 +127,11 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
     needed = {a for t in state.group for a in t.accessibility}
     if missing := needed - set(exp.accessibility):
         r.append("lacks " + ", ".join(sorted(missing)) + " access")
-    elif needed and attr_confidence(
-        exp, provider, "accessibility", state.window_start.date()
-    ) < LOW_CONFIDENCE:
+    elif (
+        needed
+        and attr_confidence(exp, provider, "accessibility", state.window_start.date())
+        < LOW_CONFIDENCE
+    ):
         r.append("accessibility claim is unconfirmed")
     if skip := sorted(set(state.avoid) & set(exp.tags) - set(state.intents)):
         r.append("you'd rather skip " + ", ".join(skip))
@@ -143,17 +148,21 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
         if not any(runs_on(w, arrive.date()) for w in exp.availability):
             r.append(f"not running on {arrive:%A %d %b}")
         else:
-            r.append(f"no time left to fit its {exp.duration_min} min after you arrive at "
-                     f"{arrive:%H:%M} (open {_hours(exp, arrive.date())})")
+            r.append(
+                f"no time left to fit its {exp.duration_min} min after you arrive at "
+                f"{arrive:%H:%M} (open {_hours(exp, arrive.date())})"
+            )
     else:
         fit.start, fit.end = start, start + timedelta(minutes=exp.duration_min)
         if fit.end > state.window_end:
             r.append(f"would end at {fit.end:%H:%M}, after your {state.window_end:%H:%M} cutoff")
         elif state.end_lat is not None:
             onward = travel_min(
-                km_between(place.lat, place.lon, state.end_lat, state.end_lon), state.mode,
-                fit.end)
+                km_between(place.lat, place.lon, state.end_lat, state.end_lon), state.mode, fit.end
+            )
             if fit.end + timedelta(minutes=onward) > state.window_end:
-                r.append(f"ends {fit.end:%H:%M}, leaving too little time for the {onward} min "
-                         f"to your next stop by {state.window_end:%H:%M}")
+                r.append(
+                    f"ends {fit.end:%H:%M}, leaving too little time for the {onward} min "
+                    f"to your next stop by {state.window_end:%H:%M}"
+                )
     return fit

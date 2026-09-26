@@ -32,8 +32,11 @@ def test_reject_hides_it_and_teaches_taste():
 
 
 def test_practical_reasons_do_not_change_taste():
-    s = learn(EXPLORER, SEED.experiences["ex-kite-making"],
-              fb("ex-kite-making", "reject", "too_expensive"))
+    s = learn(
+        EXPLORER,
+        SEED.experiences["ex-kite-making"],
+        fb("ex-kite-making", "reject", "too_expensive"),
+    )
     assert s.learned == {} and s.rejected == ["ex-kite-making"]
 
 
@@ -67,8 +70,10 @@ def test_suitability_tags_are_not_taste():
 
 
 def test_group_reasons_name_who_it_is_for():
-    group = [Traveler(name="Asha", interests=["craft"]),
-             Traveler(name="Ravi", interests=["wildlife"])]
+    group = [
+        Traveler(name="Asha", interests=["craft"]),
+        Traveler(name="Ravi", interests=["wildlife"]),
+    ]
     s = state(HAWA_MAHAL, SAT, 10, 18, 4000, group)
     recs = discover(s, SEED, k=50)[0]
     kites = next(r for r in recs if r.experience_id == "ex-kite-making")
@@ -81,14 +86,30 @@ def offline(monkeypatch):
 
 
 def test_feedback_endpoint_round_trip_and_provider_sees_reasons(offline):
-    chat = client.post("/chat", json={"text": "solo near Tripolia Bazaar, 10am to 2pm, Rs 2000, "
-                                              "craft", "now": "2026-09-26T09:30:00"}).json()
+    chat = client.post(
+        "/chat",
+        json={
+            "text": "solo near Tripolia Bazaar, 10am to 2pm, Rs 2000, craft",
+            "now": "2026-09-26T09:30:00",
+        },
+    ).json()
     eid = chat["recommendations"][0]["experience_id"]
-    r = client.post("/feedback", json={"state": chat["state"], "feedback": {
-        "experience_id": eid, "kind": "reject", "reason": "too_far", "at": "2026-09-26T09:31:00"}})
+    r = client.post(
+        "/feedback",
+        json={
+            "state": chat["state"],
+            "feedback": {
+                "experience_id": eid,
+                "kind": "reject",
+                "reason": "too_far",
+                "at": "2026-09-26T09:31:00",
+            },
+        },
+    )
     assert r.status_code == 200, r.text
     out = r.json()
     assert eid in out["state"]["rejected"] and eid not in {
-        x["experience_id"] for x in out["recommendations"]}
+        x["experience_id"] for x in out["recommendations"]
+    }
     ins = client.get(f"/providers/insights/{eid}").json()
     assert ins["passed"] == 1 and ["too far from them", 1] in ins["why_not_chosen"]

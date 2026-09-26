@@ -3,6 +3,7 @@
 Two parsers produce the same ParsedRequest: Claude (structured output) and a rule-based
 fallback that works offline. `parse()` picks one and always falls back to rules on failure.
 """
+
 import logging
 import os
 import re
@@ -45,6 +46,7 @@ ACCESS_SYNONYMS: dict[str, Access] = {
 
 class ParsedRequest(BaseModel):
     """Only what the traveler said. None = not mentioned (keep previous value)."""
+
     near: str | None = None  # a place name from the known list
     place_name: str | None = None  # a town/city/area they are in, in their words ("Pune")
     my_age: int | None = None  # the speaker's own age ("I am 76")
@@ -116,8 +118,21 @@ def now_ist() -> datetime:
 
 # ---------------------------------------------------------------- rule-based parser
 
-NUM = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
-       "seven": 7, "eight": 8, "nine": 9, "ten": 10, "half": 0.5}
+NUM = {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "half": 0.5,
+}
 N = r"(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)"
 KEYWORDS: dict[str, list[str]] = {  # regex -> tags
     r"street[- ]?food|chaat|kachori": ["street-food", "local-food"],
@@ -127,8 +142,9 @@ KEYWORDS: dict[str, list[str]] = {  # regex -> tags
     r"cultur": ["heritage", "performance"],
     r"histor|heritage|\bforts?\b|palace|monument": ["heritage", "history"],
     r"museum": ["museum"],
-    r"temple|spiritual|aarti|church|cathedral|mosque|masjid|dargah|gurdwara|synagogue":
-        ["spiritual"],
+    r"temple|spiritual|aarti|church|cathedral|mosque|masjid|dargah|gurdwara|synagogue": [
+        "spiritual"
+    ],
     r"craft|artisan|pottery|block[- ]print": ["craft"],
     r"\bart\b|gallery|painting": ["art"],
     r"music|concert": ["music"],
@@ -201,19 +217,122 @@ def duration(t: str) -> int | None:
 
 
 NOT_A_PLACE_WORD = {
-    "the", "a", "an", "my", "our", "me", "us", "i", "iam", "im", "we", "you", "it", "its", "is",
-    "am", "are", "and", "or", "but", "with", "for", "of", "on", "by", "before", "after", "until",
-    "till", "now", "today", "tonight", "tomorrow", "this", "that", "there", "here", "some",
-    "something", "anything", "explore", "see", "visit", "go", "going", "do", "eat", "have", "get",
-    "find", "show", "plan", "use", "using", "back", "home", "hotel", "station", "airport", "work",
-    "office", "trip", "family", "friends", "hours", "hour", "minutes", "pm", "morning", "evening",
-    "night", "afternoon", "time", "place", "places", "city", "town", "sites", "site", "least",
-    "all", "more", "less", "car", "auto", "cab", "taxi", "train", "bus", "flight", "budget",
-    "historical", "historial", "cultural", "local", "old", "other", "nearby", "around", "want",
-    "not", "no", "any", "don't", "dont", "without", "please", "so", "then", "right", "just",
+    "the",
+    "a",
+    "an",
+    "my",
+    "our",
+    "me",
+    "us",
+    "i",
+    "iam",
+    "im",
+    "we",
+    "you",
+    "it",
+    "its",
+    "is",
+    "am",
+    "are",
+    "and",
+    "or",
+    "but",
+    "with",
+    "for",
+    "of",
+    "on",
+    "by",
+    "before",
+    "after",
+    "until",
+    "till",
+    "now",
+    "today",
+    "tonight",
+    "tomorrow",
+    "this",
+    "that",
+    "there",
+    "here",
+    "some",
+    "something",
+    "anything",
+    "explore",
+    "see",
+    "visit",
+    "go",
+    "going",
+    "do",
+    "eat",
+    "have",
+    "get",
+    "find",
+    "show",
+    "plan",
+    "use",
+    "using",
+    "back",
+    "home",
+    "hotel",
+    "station",
+    "airport",
+    "work",
+    "office",
+    "trip",
+    "family",
+    "friends",
+    "hours",
+    "hour",
+    "minutes",
+    "pm",
+    "morning",
+    "evening",
+    "night",
+    "afternoon",
+    "time",
+    "place",
+    "places",
+    "city",
+    "town",
+    "sites",
+    "site",
+    "least",
+    "all",
+    "more",
+    "less",
+    "car",
+    "auto",
+    "cab",
+    "taxi",
+    "train",
+    "bus",
+    "flight",
+    "budget",
+    "historical",
+    "historial",
+    "cultural",
+    "local",
+    "old",
+    "other",
+    "nearby",
+    "around",
+    "want",
+    "not",
+    "no",
+    "any",
+    "don't",
+    "dont",
+    "without",
+    "please",
+    "so",
+    "then",
+    "right",
+    "just",
 }
-PLACE_AFTER = (r"\b(?:in|at|to|near|around|visiting|exploring|from)\s+"
-               r"([a-z][\w.'-]*(?:\s+[a-z][\w.'-]*){0,2})")
+PLACE_AFTER = (
+    r"\b(?:in|at|to|near|around|visiting|exploring|from)\s+"
+    r"([a-z][\w.'-]*(?:\s+[a-z][\w.'-]*){0,2})"
+)
 
 
 def place_candidates(t: str) -> list[str]:
@@ -231,9 +350,11 @@ def place_candidates(t: str) -> list[str]:
     return out
 
 
-NEGATION = (r"\b(?:not|no|don't want|dont want|avoid(?:ed)?|rather than|instead of|except|"
-            r"skip(?:ped)?|didn't (?:like|enjoy)|did not (?:like|enjoy)|hated|not a fan of)\s+"
-            r"((?:\w+\s*){1,3})")
+NEGATION = (
+    r"\b(?:not|no|don't want|dont want|avoid(?:ed)?|rather than|instead of|except|"
+    r"skip(?:ped)?|didn't (?:like|enjoy)|did not (?:like|enjoy)|hated|not a fan of)\s+"
+    r"((?:\w+\s*){1,3})"
+)
 
 
 def parse_rules(text: str, seed: Seed) -> ParsedRequest:
@@ -250,12 +371,16 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
         p.start_time, p.end_time = span
     elif m := re.search(r"(?:until|till|by|before|back at)\s+" + CLOCK, t_no_money):
         p.end_time = _clock(m[1], m[2], m[3])
-    elif m := re.search(r"(?:it'?s|it is|now|right now|currently)\s+(?:about |around )?"
-                        r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)", t_no_money):
+    elif m := re.search(
+        r"(?:it'?s|it is|now|right now|currently)\s+(?:about |around )?"
+        r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)",
+        t_no_money,
+    ):
         p.start_time = _clock(m[1], m[2], m[3])  # "it's 6 pm": the window starts then
     p.duration_min = duration(t_no_money)
-    if m := re.search(r"\b(?:i am|i'm|iam|im|my age is)\s+(\d{2,3})\b(?!\s*(?:km|min|people))",
-                      t_no_money):
+    if m := re.search(
+        r"\b(?:i am|i'm|iam|im|my age is)\s+(\d{2,3})\b(?!\s*(?:km|min|people))", t_no_money
+    ):
         p.my_age = int(m[1])
 
     if m := re.search(r"family of " + N, t):
@@ -270,10 +395,16 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
         p.children = int(_num(m[1]))
     elif re.search(r"\b(?:a|my) (?:kid|child|son|daughter)\b|with (?:a )?(?:kid|child)\b", t):
         p.children = 1
-    p.child_ages = [a for a in map(int, re.findall(r"(\d{1,2})[- ]?(?:year|yr)s?[- ]old", t))
-                    if a < 16 and a != p.my_age]
-    if (re.search(r"\bwith (?:my |our )?(?:family|folks|friends|colleagues|family members)\b", t)
-            and p.group_size is None and p.adults is None):
+    p.child_ages = [
+        a
+        for a in map(int, re.findall(r"(\d{1,2})[- ]?(?:year|yr)s?[- ]old", t))
+        if a < 16 and a != p.my_age
+    ]
+    if (
+        re.search(r"\bwith (?:my |our )?(?:family|folks|friends|colleagues|family members)\b", t)
+        and p.group_size is None
+        and p.adults is None
+    ):
         p.with_companions = True
     if re.search(r"\btrain\b|\brailway\b", t):
         p.return_to = "station"
@@ -306,8 +437,13 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
         p.mode = "car"
 
     for m in re.finditer(NEGATION, t):  # "not any other park" is a dislike, not an intent
-        p.avoid += [x for pattern, tags in KEYWORDS.items() if re.search(pattern, m[1])
-                    for x in tags if x not in p.avoid]
+        p.avoid += [
+            x
+            for pattern, tags in KEYWORDS.items()
+            if re.search(pattern, m[1])
+            for x in tags
+            if x not in p.avoid
+        ]
     for pattern, tags in KEYWORDS.items():
         if re.search(pattern, t):
             p.intents += [x for x in tags if x not in p.intents and x not in p.avoid]
@@ -319,8 +455,11 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
     return p
 
 
-ALIASES = {"jkk": "Jawahar Kala Kendra", "railway station": "Station Road, Sindhi Camp",
-           "train station": "Station Road, Sindhi Camp"}
+ALIASES = {
+    "jkk": "Jawahar Kala Kendra",
+    "railway station": "Station Road, Sindhi Camp",
+    "train station": "Station Road, Sindhi Camp",
+}
 GENERIC = {"city", "central", "station", "old"}
 
 
@@ -336,8 +475,12 @@ def _find_place(t: str, seed: Seed) -> tuple[str, str] | None:
         first = low.split()[0]
         if full in t:
             return pl.name, full
-        if (first in words and len(first) > 3 and first not in GENERIC
-                and not pl.id.startswith("pl-od-")):  # "in pune" isn't "Pune Junction station"
+        if (
+            first in words
+            and len(first) > 3
+            and first not in GENERIC
+            and not pl.id.startswith("pl-od-")
+        ):  # "in pune" isn't "Pune Junction station"
             return pl.name, first
     return None
 
@@ -462,22 +605,34 @@ def known_places(seed: Seed) -> str:
     return ", ".join(sorted(p.name for p in seed.places.values()))
 
 
-def parse_llm(text: str, now: datetime, seed: Seed, client=None,
-              profile: str = "") -> ParsedRequest:
+def parse_llm(
+    text: str, now: datetime, seed: Seed, client=None, profile: str = ""
+) -> ParsedRequest:
     note = f"TRAVELER PROFILE: {profile}\n" if profile else ""
-    return claude_parse(SYSTEM, f"KNOWN PLACES: {known_places(seed)}\n{note}"
-                                f"CURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\nTRAVELER: {text}",
-                        ParsedRequest, client)
+    return claude_parse(
+        SYSTEM,
+        f"KNOWN PLACES: {known_places(seed)}\n{note}"
+        f"CURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\nTRAVELER: {text}",
+        ParsedRequest,
+        client,
+    )
 
 
 def _llm_enabled() -> bool:
     mode = os.environ.get("INTENT_PARSER", "auto")
     if mode != "auto":
         return mode == "llm"
-    return any(os.environ.get(k) for k in
-               ("NVIDIA_API_KEY", "NIM_API_KEY",
-                "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE",
-                "OPENAI_API_KEY"))
+    return any(
+        os.environ.get(k)
+        for k in (
+            "NVIDIA_API_KEY",
+            "NIM_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_PROFILE",
+            "OPENAI_API_KEY",
+        )
+    )
 
 
 def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, str]:
@@ -493,11 +648,13 @@ def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, st
 def parse(text: str, now: datetime, seed: Seed, profile: str = "") -> tuple[ParsedRequest, str]:
     """Returns (parsed request, which parser produced it: "llm" or "rules").
     `profile`: a short summary of the signed-in traveler's context, given to the LLM only."""
-    return llm_or_rules(lambda: parse_llm(text, now, seed, profile=profile),
-                        lambda: parse_rules(text, seed))
+    return llm_or_rules(
+        lambda: parse_llm(text, now, seed, profile=profile), lambda: parse_rules(text, seed)
+    )
 
 
 # ---------------------------------------------------------------- ParsedRequest -> state
+
 
 def _hhmm(day: date, s: str) -> datetime:
     return datetime.combine(day, time.fromisoformat(s))
@@ -506,16 +663,24 @@ def _hhmm(day: date, s: str) -> datetime:
 GENERATED = re.compile(r"^(?:me|adult|senior|child)\d*$")
 
 
-def to_state(p: ParsedRequest, now: datetime, seed: Seed,
-             base: TravelerState | None = None) -> TravelerState:
+def to_state(
+    p: ParsedRequest, now: datetime, seed: Seed, base: TravelerState | None = None
+) -> TravelerState:
     """Merge what was said into the previous state (conversational refinement).
     With no base, the location is the demo city centre; callers that know better override it."""
     home = seed.places.get(DEFAULT_PLACE)
-    s = base.model_dump() if base else {
-        "lat": home.lat if home else 0.0, "lon": home.lon if home else 0.0,
-        "budget_inr": 2000, "group": [Traveler().model_dump()],
-        "window_start": now, "window_end": now + timedelta(hours=3),
-    }
+    s = (
+        base.model_dump()
+        if base
+        else {
+            "lat": home.lat if home else 0.0,
+            "lon": home.lon if home else 0.0,
+            "budget_inr": 2000,
+            "group": [Traveler().model_dump()],
+            "window_start": now,
+            "window_end": now + timedelta(hours=3),
+        }
+    )
     day = s["window_start"].date() if base else now.date()
 
     if p.near and (place := next((x for x in seed.places.values() if x.name == p.near), None)):
@@ -534,27 +699,45 @@ def to_state(p: ParsedRequest, now: datetime, seed: Seed,
     if p.budget_inr is not None:
         s["budget_inr"] = p.budget_inr
 
-    if p.with_companions and not any(
-            v is not None for v in (p.group_size, p.children, p.seniors)) and len(s["group"]) < 2:
+    if (
+        p.with_companions
+        and not any(v is not None for v in (p.group_size, p.children, p.seniors))
+        and len(s["group"]) < 2
+    ):
         p = p.model_copy(update={"group_size": 3})  # ponytail: "with my family" = 3 of you
     if any(v is not None for v in (p.group_size, p.adults, p.children, p.seniors)) or p.child_ages:
         # "solo", "a couple", "family of 4" describe the WHOLE group: nobody carries over from
         # before. "actually with my parents" / "with a kid" only adds to the previous group.
-        prev = [] if (p.group_size is not None or p.adults is not None) else (
-            base.group if base else [])
-        children = p.children if p.children is not None else (
-            len(p.child_ages) or sum(t.age < 16 for t in prev))
+        prev = (
+            []
+            if (p.group_size is not None or p.adults is not None)
+            else (base.group if base else [])
+        )
+        children = (
+            p.children
+            if p.children is not None
+            else (len(p.child_ages) or sum(t.age < 16 for t in prev))
+        )
         seniors = p.seniors if p.seniors is not None else sum(t.age >= 65 for t in prev)
-        adults = p.adults if p.adults is not None else (
-            max(p.group_size - children - seniors, 0) if p.group_size
-            else sum(16 <= t.age < 65 for t in prev) or 1)
+        adults = (
+            p.adults
+            if p.adults is not None
+            else (
+                max(p.group_size - children - seniors, 0)
+                if p.group_size
+                else sum(16 <= t.age < 65 for t in prev) or 1
+            )
+        )
         ages = (p.child_ages + [8] * children)[:children]
         me = next((t for t in s["group"] if not GENERATED.match(t["name"])), None)
-        s["group"] = ([Traveler(name=f"adult{i + 1}").model_dump() for i in range(adults)]
-                      + [Traveler(name=f"senior{i + 1}", age=68).model_dump()
-                         for i in range(seniors)]
-                      + [Traveler(name=f"child{i + 1}", age=a, interests=["kids"]).model_dump()
-                         for i, a in enumerate(ages)])
+        s["group"] = (
+            [Traveler(name=f"adult{i + 1}").model_dump() for i in range(adults)]
+            + [Traveler(name=f"senior{i + 1}", age=68).model_dump() for i in range(seniors)]
+            + [
+                Traveler(name=f"child{i + 1}", age=a, interests=["kids"]).model_dump()
+                for i, a in enumerate(ages)
+            ]
+        )
         if me and s["group"]:  # the signed-in traveler stays themselves inside the new group
             s["group"][0] = me
     if p.my_age is not None:

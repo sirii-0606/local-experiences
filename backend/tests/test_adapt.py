@@ -7,11 +7,19 @@ from app.models import ContextEvent, Itinerary, Stop
 
 
 def exp_stop(eid, h, m=0, **kw):
-    e, = [SEED.experiences[eid]]
+    (e,) = [SEED.experiences[eid]]
     p = SEED.places[e.place_id]
     start = at(h, m)
-    return Stop(title=e.title, experience_id=eid, lat=p.lat, lon=p.lon, start=start,
-                end=start + (at(0, e.duration_min) - at(0)), cost_inr=e.price_inr, **kw)
+    return Stop(
+        title=e.title,
+        experience_id=eid,
+        lat=p.lat,
+        lon=p.lon,
+        start=start,
+        end=start + (at(0, e.duration_min) - at(0)),
+        cost_inr=e.price_inr,
+        **kw,
+    )
 
 
 KITES = exp_stop("ex-kite-making", 10)
@@ -115,5 +123,6 @@ def test_event_before_the_window_never_plans_before_it():
 def test_irrelevant_change_is_a_no_op():
     out = run("weather", 11, 30, weather="clear")
     assert out.changes == []
-    assert [key(s) for s in upcoming(out.itinerary)] == [key(s) for s in (LUNCH, JANTAR, PALACE,
-                                                                          PUPPETS)]
+    assert [key(s) for s in upcoming(out.itinerary)] == [
+        key(s) for s in (LUNCH, JANTAR, PALACE, PUPPETS)
+    ]

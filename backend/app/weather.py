@@ -16,9 +16,11 @@ from app.models import Stop
 from app.seed import Seed
 
 CITY = (26.92, 75.82)  # Jaipur centre: the default when no location is known
-URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-       "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
-       "&timezone=Asia%2FKolkata&start_date={day}&end_date={day}")
+URL = (
+    "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+    "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
+    "&timezone=Asia%2FKolkata&start_date={day}&end_date={day}"
+)
 RAIN_CODES = set(range(51, 68)) | set(range(80, 83)) | set(range(95, 100))  # WMO drizzle..storm
 HEAT_C = 38.0
 TTL_S = 1800
@@ -52,9 +54,18 @@ def jaipur_climatology(day: date) -> dict:
     """Jaipur monthly climatology (Tmin/Tmax) with 24-hour diurnal sine curve."""
     m = day.month
     monthly_stats = {
-        1: (8.5, 22.5), 2: (11.5, 26.0), 3: (16.5, 32.0), 4: (22.5, 38.0),
-        5: (26.5, 41.0), 6: (28.0, 40.0), 7: (26.0, 34.0), 8: (24.5, 32.5),
-        9: (23.5, 33.5), 10: (19.0, 33.5), 11: (13.5, 29.0), 12: (9.5, 24.5),
+        1: (8.5, 22.5),
+        2: (11.5, 26.0),
+        3: (16.5, 32.0),
+        4: (22.5, 38.0),
+        5: (26.5, 41.0),
+        6: (28.0, 40.0),
+        7: (26.0, 34.0),
+        8: (24.5, 32.5),
+        9: (23.5, 33.5),
+        10: (19.0, 33.5),
+        11: (13.5, 29.0),
+        12: (9.5, 24.5),
     }
     tmin, tmax = monthly_stats.get(m, (20.0, 32.0))
     tmean = (tmin + tmax) / 2.0
@@ -88,8 +99,9 @@ def _typical(day: date, lat: float, lon: float) -> dict:
     return jaipur_climatology(day)
 
 
-def _fetch_openmeteo(day: date, key: str | None = None, lat: float = CITY[0],
-                     lon: float = CITY[1]) -> dict:
+def _fetch_openmeteo(
+    day: date, key: str | None = None, lat: float = CITY[0], lon: float = CITY[1]
+) -> dict:
     if day < date.today():
         try:
             archive_url = (
@@ -152,8 +164,7 @@ def _fetch_weatherapi(day: date, key: str, lat: float = CITY[0], lon: float = CI
     }
 
 
-def _fetch_openweathermap(day: date, key: str, lat: float = CITY[0],
-                          lon: float = CITY[1]) -> dict:
+def _fetch_openweathermap(day: date, key: str, lat: float = CITY[0], lon: float = CITY[1]) -> dict:
     # OpenWeatherMap 5-day forecast covers only today to today + 5 days
     days_ahead = (day - date.today()).days
     if not (0 <= days_ahead <= 5):
@@ -223,8 +234,12 @@ def _fetch(day: date, lat: float = CITY[0], lon: float = CITY[1]) -> dict:
     return _fetch_openmeteo(day, lat=lat, lon=lon)
 
 
-def forecast(day: date, fetch: Callable[[date], dict] | None = None, lat: float = CITY[0],
-             lon: float = CITY[1]) -> list[Hour] | None:
+def forecast(
+    day: date,
+    fetch: Callable[[date], dict] | None = None,
+    lat: float = CITY[0],
+    lon: float = CITY[1],
+) -> list[Hour] | None:
     """Hourly conditions for one day at a place (~10 km cells), cached 30 min.
     None if the service can't be reached."""
     key = (day, round(lat, 1), round(lon, 1))
@@ -289,9 +304,17 @@ def plan_risks(stops: list[Stop], seed: Seed, hours: list[Hour]) -> list[Risk]:
         span = [h for h in hours if s.start.replace(minute=0) <= h.at < s.end]
         for cond in ("rain", "heat"):
             if bad := [h for h in span if h.condition == cond]:
-                what = (f"{max(h.precip_prob or 0 for h in bad)}% chance of rain" if cond == "rain"
-                        else f"{max(h.temp_c for h in bad):.0f}°C")
-                risks.append(Risk(stop=s.title, condition=cond,
-                                  message=f"{s.title} is outdoors at {s.start:%H:%M}: {what}"))
+                what = (
+                    f"{max(h.precip_prob or 0 for h in bad)}% chance of rain"
+                    if cond == "rain"
+                    else f"{max(h.temp_c for h in bad):.0f}°C"
+                )
+                risks.append(
+                    Risk(
+                        stop=s.title,
+                        condition=cond,
+                        message=f"{s.title} is outdoors at {s.start:%H:%M}: {what}",
+                    )
+                )
                 break
     return risks

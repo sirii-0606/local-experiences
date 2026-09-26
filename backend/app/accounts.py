@@ -4,6 +4,7 @@ Passwords: scrypt (n=2^14, r=8, p=1) with a random 16-byte salt, compared in con
 Sessions: random 32-byte tokens; only their sha256 is stored, 7-day expiry, revocable.
 Never log passwords, tokens or profile contents.
 """
+
 import hashlib
 import hmac
 import json
@@ -67,6 +68,7 @@ def _sha(token: str) -> str:
 
 # ---------------------------------------------------------------- passwords
 
+
 def hash_password(password: str) -> str:
     salt = os.urandom(16)
     digest = hashlib.scrypt(password.encode(), salt=salt, **SCRYPT)
@@ -88,8 +90,16 @@ COLS = "id, email, role, display_name, disabled, created, last_login, password_h
 
 
 def _row(r: tuple) -> dict:
-    keys = ["id", "email", "role", "display_name", "disabled", "created", "last_login",
-            "password_hash"]
+    keys = [
+        "id",
+        "email",
+        "role",
+        "display_name",
+        "disabled",
+        "created",
+        "last_login",
+        "password_hash",
+    ]
     return dict(zip(keys, r, strict=True))
 
 
@@ -104,9 +114,11 @@ def get(user_id: int) -> dict | None:
 
 
 def create(email: str, password: str, display_name: str, role: Role = "traveler") -> dict:
-    _, uid = _db("insert into users (email, password_hash, role, display_name, created)"
-                 " values (?, ?, ?, ?, ?)",
-                 (email, hash_password(password), role, display_name, _now().isoformat()))
+    _, uid = _db(
+        "insert into users (email, password_hash, role, display_name, created)"
+        " values (?, ?, ?, ?, ?)",
+        (email, hash_password(password), role, display_name, _now().isoformat()),
+    )
     return get(uid)
 
 
@@ -114,29 +126,44 @@ def update(user_id: int, **fields) -> None:
     allowed = {"role", "display_name", "disabled", "last_login", "password_hash"}
     sets = {k: v for k, v in fields.items() if k in allowed}
     if sets:
-        _db(f"update users set {', '.join(f'{k} = ?' for k in sets)} where id = ?",
-            (*sets.values(), user_id))
+        _db(
+            f"update users set {', '.join(f'{k} = ?' for k in sets)} where id = ?",
+            (*sets.values(), user_id),
+        )
 
 
 def delete(user_id: int) -> None:
-    for sql in ("delete from sessions where user_id = ?", "delete from profiles where user_id = ?",
-                "delete from trips where user_id = ?", "delete from user_context where user_id = ?",
-                "delete from users where id = ?"):
+    for sql in (
+        "delete from sessions where user_id = ?",
+        "delete from profiles where user_id = ?",
+        "delete from trips where user_id = ?",
+        "delete from user_context where user_id = ?",
+        "delete from users where id = ?",
+    ):
         _db(sql, (user_id,))
 
 
 def public(u: dict) -> User:
-    return User(id=u["id"], email=u["email"], role=u["role"], display_name=u["display_name"],
-                created=datetime.fromisoformat(u["created"]),
-                onboarded=get_profile(u["id"]) is not None)
+    return User(
+        id=u["id"],
+        email=u["email"],
+        role=u["role"],
+        display_name=u["display_name"],
+        created=datetime.fromisoformat(u["created"]),
+        onboarded=get_profile(u["id"]) is not None,
+    )
 
 
 def admin_row(u: dict) -> AdminUserRow:
-    return AdminUserRow(id=u["id"], email=u["email"], role=u["role"],
-                        display_name=u["display_name"], disabled=bool(u["disabled"]),
-                        created=datetime.fromisoformat(u["created"]),
-                        last_login=(datetime.fromisoformat(u["last_login"])
-                                    if u["last_login"] else None))
+    return AdminUserRow(
+        id=u["id"],
+        email=u["email"],
+        role=u["role"],
+        display_name=u["display_name"],
+        disabled=bool(u["disabled"]),
+        created=datetime.fromisoformat(u["created"]),
+        last_login=(datetime.fromisoformat(u["last_login"]) if u["last_login"] else None),
+    )
 
 
 def list_all() -> list[dict]:
@@ -151,8 +178,10 @@ def admin_count() -> int:
 def bootstrap_admin_from_env() -> None:
     """ADMIN_EMAIL + ADMIN_PASSWORD create the admin if missing (never a default in code).
     An existing account with that email is (re)made an enabled admin; its password is kept."""
-    email, password = os.environ.get("ADMIN_EMAIL", "").strip().lower(), os.environ.get(
-        "ADMIN_PASSWORD", "")
+    email, password = (
+        os.environ.get("ADMIN_EMAIL", "").strip().lower(),
+        os.environ.get("ADMIN_PASSWORD", ""),
+    )
     if not email or len(password) < 8:
         return
     u = get_by_email(email)
@@ -163,6 +192,7 @@ def bootstrap_admin_from_env() -> None:
 
 
 # ---------------------------------------------------------------- sessions
+
 
 def new_session(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
@@ -195,11 +225,14 @@ def end_all_sessions(user_id: int, keep: str | None = None) -> None:
 
 
 def expire_session_for_test(token: str) -> None:
-    _db("update sessions set expires = ? where token_hash = ?",
-        ((_now() - timedelta(seconds=1)).isoformat(), _sha(token)))
+    _db(
+        "update sessions set expires = ? where token_hash = ?",
+        ((_now() - timedelta(seconds=1)).isoformat(), _sha(token)),
+    )
 
 
 # ---------------------------------------------------------------- profiles
+
 
 def get_profile(user_id: int) -> Profile | None:
     rows, _ = _db("select json from profiles where user_id = ?", (user_id,))
@@ -207,9 +240,11 @@ def get_profile(user_id: int) -> Profile | None:
 
 
 def put_profile(user_id: int, profile: Profile) -> None:
-    _db("insert into profiles values (?, ?)"
+    _db(
+        "insert into profiles values (?, ?)"
         " on conflict(user_id) do update set json = excluded.json",
-        (user_id, profile.model_dump_json()))
+        (user_id, profile.model_dump_json()),
+    )
     update(user_id, display_name=profile.display_name)
 
 
@@ -217,15 +252,18 @@ def export(user_id: int) -> dict:
     """Everything we hold about this user (right of access). No password hash, no tokens."""
     u = get(user_id)
     p = get_profile(user_id)
-    return {"account": public(u).model_dump(mode="json"),
-            "profile": json.loads(p.model_dump_json()) if p else None,
-            "trips": [t.model_dump(mode="json") for t in list_trips(user_id)],
-            "context": [c.model_dump(mode="json") for c in get_context(user_id)]}
+    return {
+        "account": public(u).model_dump(mode="json"),
+        "profile": json.loads(p.model_dump_json()) if p else None,
+        "trips": [t.model_dump(mode="json") for t in list_trips(user_id)],
+        "context": [c.model_dump(mode="json") for c in get_context(user_id)],
+    }
 
 
 # ---------------------------------------------------------------- trips (P3)
 # Stored as the TripDraft JSON; id, owner and timestamps are columns. Every query is scoped to
 # the owner, so another user's trip id simply doesn't exist for you.
+
 
 def _trip(r: tuple) -> Trip:
     return Trip(id=r[0], created=r[1], updated=r[2], **json.loads(r[3]))
@@ -237,21 +275,27 @@ def list_trips(user_id: int) -> list[Trip]:
 
 
 def get_trip(user_id: int, trip_id: int) -> Trip | None:
-    rows, _ = _db("select id, created, updated, json from trips where id = ? and user_id = ?",
-                  (trip_id, user_id))
+    rows, _ = _db(
+        "select id, created, updated, json from trips where id = ? and user_id = ?",
+        (trip_id, user_id),
+    )
     return _trip(rows[0]) if rows else None
 
 
 def create_trip(user_id: int, draft: TripDraft) -> Trip:
     now = _now().isoformat()
-    _, tid = _db("insert into trips (user_id, created, updated, json) values (?, ?, ?, ?)",
-                 (user_id, now, now, draft.model_dump_json()))
+    _, tid = _db(
+        "insert into trips (user_id, created, updated, json) values (?, ?, ?, ?)",
+        (user_id, now, now, draft.model_dump_json()),
+    )
     return get_trip(user_id, tid)
 
 
 def update_trip(user_id: int, trip_id: int, draft: TripDraft) -> Trip | None:
-    _db("update trips set updated = ?, json = ? where id = ? and user_id = ?",
-        (_now().isoformat(), draft.model_dump_json(), trip_id, user_id))
+    _db(
+        "update trips set updated = ?, json = ? where id = ? and user_id = ?",
+        (_now().isoformat(), draft.model_dump_json(), trip_id, user_id),
+    )
     return get_trip(user_id, trip_id)
 
 
@@ -263,13 +307,18 @@ def delete_trip(user_id: int, trip_id: int) -> bool:
 
 # ---------------------------------------------------------------- stats + login throttle
 
+
 def stats(provider_listings: int) -> AdminStats:
     users = list_all()
     sessions = _db("select count(*) from sessions where expires > ?", (_now().isoformat(),))[0]
-    return AdminStats(users=len(users), admins=sum(u["role"] == "admin" for u in users),
-                      providers=sum(u["role"] == "provider" for u in users),
-                      disabled=sum(bool(u["disabled"]) for u in users),
-                      active_sessions=sessions[0][0], provider_listings=provider_listings)
+    return AdminStats(
+        users=len(users),
+        admins=sum(u["role"] == "admin" for u in users),
+        providers=sum(u["role"] == "provider" for u in users),
+        disabled=sum(bool(u["disabled"]) for u in users),
+        active_sessions=sessions[0][0],
+        provider_listings=provider_listings,
+    )
 
 
 MAX_FAILURES, WINDOW_S = 5, 15 * 60
@@ -297,11 +346,17 @@ def clear_failures(email: str, ip: str) -> None:
 # Tag weights -1..1 learned from chats, feedback and imported itineraries. Tags only: no text,
 # no locations. Shown to the traveler, who can remove any of it.
 
+
 def get_context(user_id: int) -> list[ContextEntry]:
-    rows, _ = _db("select tag, weight, source, updated from user_context where user_id = ?"
-                  " order by abs(weight) desc", (user_id,))
-    return [ContextEntry(tag=t, weight=w, source=src, updated=datetime.fromisoformat(u))
-            for t, w, src, u in rows]
+    rows, _ = _db(
+        "select tag, weight, source, updated from user_context where user_id = ?"
+        " order by abs(weight) desc",
+        (user_id,),
+    )
+    return [
+        ContextEntry(tag=t, weight=w, source=src, updated=datetime.fromisoformat(u))
+        for t, w, src, u in rows
+    ]
 
 
 def bump_context(user_id: int, deltas: dict[str, float], source: str) -> None:
@@ -309,9 +364,11 @@ def bump_context(user_id: int, deltas: dict[str, float], source: str) -> None:
     current = {c.tag: c.weight for c in get_context(user_id)}
     for tag, d in deltas.items():
         w = round(max(-1.0, min(1.0, current.get(tag, 0.0) + d)), 2)
-        _db("insert into user_context values (?, ?, ?, ?, ?) on conflict(user_id, tag) do update"
+        _db(
+            "insert into user_context values (?, ?, ?, ?, ?) on conflict(user_id, tag) do update"
             " set weight = excluded.weight, source = excluded.source, updated = excluded.updated",
-            (user_id, tag, w, source, _now().isoformat()))
+            (user_id, tag, w, source, _now().isoformat()),
+        )
 
 
 def forget_context(user_id: int, tag: str | None = None) -> None:

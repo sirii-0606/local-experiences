@@ -1,4 +1,5 @@
 """M9 backend: post-visit ratings as evidence, provider ownership + edits, booking stub."""
+
 from datetime import date
 
 import pytest
@@ -10,10 +11,14 @@ from app.models import Evidence
 
 client = TestClient(app)
 NOW = "2026-09-26T15:30:00"
-FAMILY = ("We're a family of 4 with two kids near Hawa Mahal, free 4–6 pm, ₹1500 total, "
-          "want local food and something cultural.")
-SALIM = ("I'm Salim, a lac bangle maker near Tripolia Bazaar. Visitors can make their own bangle, "
-         "45 minutes, ₹250 per person, open 11am to 7pm. Kids welcome, up to 6 people.")
+FAMILY = (
+    "We're a family of 4 with two kids near Hawa Mahal, free 4–6 pm, ₹1500 total, "
+    "want local food and something cultural."
+)
+SALIM = (
+    "I'm Salim, a lac bangle maker near Tripolia Bazaar. Visitors can make their own bangle, "
+    "45 minutes, ₹250 per person, open 11am to 7pm. Kids welcome, up to 6 people."
+)
 TODAY = date(2026, 9, 26)
 
 
@@ -34,6 +39,7 @@ def rec(out, eid):
 
 
 # ---------------------------------------------------------------- ratings -> evidence
+
 
 def test_good_visits_become_traveler_evidence():
     puppets = SEED.experiences["ex-puppet-show"]  # price is only a provider claim today
@@ -56,9 +62,19 @@ def test_ratings_through_the_api_clear_the_unverified_badge():
     assert rec(chat(), "ex-puppet-show")["low_confidence"]
     state = chat()["state"]
     for stars in (5, 4, 5):
-        r = client.post("/feedback", json={"state": state, "feedback": {
-            "experience_id": "ex-puppet-show", "kind": "rating", "rating": stars,
-            "as_described": True, "at": NOW}})
+        r = client.post(
+            "/feedback",
+            json={
+                "state": state,
+                "feedback": {
+                    "experience_id": "ex-puppet-show",
+                    "kind": "rating",
+                    "rating": stars,
+                    "as_described": True,
+                    "at": NOW,
+                },
+            },
+        )
         assert r.status_code == 200, r.text
     assert not rec(chat(), "ex-puppet-show")["low_confidence"]
     ins = client.get("/providers/insights/ex-puppet-show").json()
@@ -66,12 +82,18 @@ def test_ratings_through_the_api_clear_the_unverified_badge():
 
 
 def test_rating_needs_stars():
-    r = client.post("/feedback", json={"state": chat()["state"], "feedback": {
-        "experience_id": "ex-puppet-show", "kind": "rating", "at": NOW}})
+    r = client.post(
+        "/feedback",
+        json={
+            "state": chat()["state"],
+            "feedback": {"experience_id": "ex-puppet-show", "kind": "rating", "at": NOW},
+        },
+    )
     assert r.status_code == 422
 
 
 # ---------------------------------------------------------------- provider ownership + edits
+
 
 def publish():
     d = client.post("/providers/draft", json={"text": SALIM}).json()["draft"]
@@ -86,10 +108,18 @@ def test_only_the_owner_can_pause_edit_or_delete():
     assert token
     pause = {"experience_id": eid, "paused": True}
     assert client.post("/providers/availability", json=pause).status_code == 403
-    assert client.post("/providers/availability", json=pause,
-                       headers={"x-provider-token": "guess"}).status_code == 403
-    assert client.post("/providers/availability", json=pause,
-                       headers={"x-provider-token": token}).status_code == 200
+    assert (
+        client.post(
+            "/providers/availability", json=pause, headers={"x-provider-token": "guess"}
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/providers/availability", json=pause, headers={"x-provider-token": token}
+        ).status_code
+        == 200
+    )
     assert client.delete(f"/providers/listings/{eid}").status_code == 403
 
 
@@ -98,13 +128,18 @@ def test_owner_edits_keep_the_same_listing():
     eid, token = listing["experience"]["id"], listing["edit_token"]
     draft = client.get(f"/providers/listings/{eid}").json()["draft"]
     assert draft["near"] == "Tripolia Bazaar" and draft["price_inr"] == 250
-    r = client.put(f"/providers/listings/{eid}", json={"draft": draft | {"price_inr": 200}},
-                   headers={"x-provider-token": token})
+    r = client.put(
+        f"/providers/listings/{eid}",
+        json={"draft": draft | {"price_inr": 200}},
+        headers={"x-provider-token": token},
+    )
     assert r.status_code == 200, r.text
     assert r.json()["experience"]["id"] == eid and r.json()["experience"]["price_inr"] == 200
     assert client.put(f"/providers/listings/{eid}", json={"draft": draft}).status_code == 403
-    assert client.delete(f"/providers/listings/{eid}",
-                         headers={"x-provider-token": token}).status_code == 200
+    assert (
+        client.delete(f"/providers/listings/{eid}", headers={"x-provider-token": token}).status_code
+        == 200
+    )
     assert eid not in {e["id"] for e in client.get("/catalog").json()["experiences"]}
 
 
@@ -113,11 +148,16 @@ def test_seed_experiences_can_be_locked_with_an_admin_token(monkeypatch):
     assert client.post("/providers/availability", json=pause).status_code == 200  # demo: open
     monkeypatch.setenv("SEED_ADMIN_TOKEN", "s3cret")
     assert client.post("/providers/availability", json=pause).status_code == 403
-    assert client.post("/providers/availability", json=pause,
-                       headers={"x-provider-token": "s3cret"}).status_code == 200
+    assert (
+        client.post(
+            "/providers/availability", json=pause, headers={"x-provider-token": "s3cret"}
+        ).status_code
+        == 200
+    )
 
 
 # ---------------------------------------------------------------- bookings
+
 
 def planned_with_kites():
     state = chat()["state"]
@@ -174,4 +214,3 @@ def test_prod_api_prefix_and_static_spa(tmp_path, monkeypatch):
     assert "console.log('ok')" in client.get("/assets/app.js").text
     assert client.get("/api/health").json()["ok"] is True
     assert client.get("/health").json()["ok"] is True
-

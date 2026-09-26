@@ -5,6 +5,7 @@ The reminder is context-aware: travel time from the previous stop (or where they
 time of day, plus 15 minutes. No Google account connection is needed; see decisions.md for the
 direct-sync upgrade (needs an OAuth client).
 """
+
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
@@ -31,8 +32,7 @@ def _utc(t: datetime) -> str:
 
 
 def _esc(text: str) -> str:
-    return (text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
-            .replace("\n", "\\n"))
+    return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
 
 def _fold(line: str) -> list[str]:
@@ -47,15 +47,29 @@ def _fold(line: str) -> list[str]:
 
 
 def ics(events: list[CalendarEvent], stamp: datetime) -> str:
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrueLocal//Plan//EN",
-             "CALSCALE:GREGORIAN", "METHOD:PUBLISH"]
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//TrueLocal//Plan//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
     for i, e in enumerate(events):
-        lines += ["BEGIN:VEVENT", f"UID:{_utc(e.start)}-{i}@truelocal",
-                  f"DTSTAMP:{stamp:%Y%m%dT%H%M%SZ}",
-                  f"DTSTART:{_utc(e.start)}", f"DTEND:{_utc(e.end)}",
-                  f"SUMMARY:{_esc(e.title)}", f"DESCRIPTION:{_esc(e.reminder)}",
-                  "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{_esc(e.reminder)}",
-                  f"TRIGGER:-PT{e.remind_min}M", "END:VALARM", "END:VEVENT"]
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{_utc(e.start)}-{i}@truelocal",
+            f"DTSTAMP:{stamp:%Y%m%dT%H%M%SZ}",
+            f"DTSTART:{_utc(e.start)}",
+            f"DTEND:{_utc(e.end)}",
+            f"SUMMARY:{_esc(e.title)}",
+            f"DESCRIPTION:{_esc(e.reminder)}",
+            "BEGIN:VALARM",
+            "ACTION:DISPLAY",
+            f"DESCRIPTION:{_esc(e.reminder)}",
+            f"TRIGGER:-PT{e.remind_min}M",
+            "END:VALARM",
+            "END:VEVENT",
+        ]
     lines.append("END:VCALENDAR")
     return "\r\n".join(x for line in lines for x in _fold(line)) + "\r\n"
 
@@ -69,15 +83,31 @@ def export(req: CalendarRequest) -> CalendarExport:
         leave = stop.start - timedelta(minutes=travel)
         where = f"{stop.lat:.5f},{stop.lon:.5f}"
         maps = f"https://www.google.com/maps/dir/?api=1&destination={where}"
-        reminder = (f"Leave by {leave:%H:%M} for {stop.title} (~{travel} min by {state.mode})."
-                    if travel else f"{stop.title} starts at {stop.start:%H:%M}.")
+        reminder = (
+            f"Leave by {leave:%H:%M} for {stop.title} (~{travel} min by {state.mode})."
+            if travel
+            else f"{stop.title} starts at {stop.start:%H:%M}."
+        )
         details = f"{reminder}\nDirections: {maps}"
-        google = "https://calendar.google.com/calendar/render?" + urlencode({
-            "action": "TEMPLATE", "text": stop.title,
-            "dates": f"{_utc(stop.start)}/{_utc(stop.end)}", "details": details,
-            "location": where, "ctz": "Asia/Kolkata"})
-        events.append(CalendarEvent(title=stop.title, start=stop.start, end=stop.end,
-                                    remind_min=travel + LEAD_MIN, reminder=details,
-                                    google_url=google))
+        google = "https://calendar.google.com/calendar/render?" + urlencode(
+            {
+                "action": "TEMPLATE",
+                "text": stop.title,
+                "dates": f"{_utc(stop.start)}/{_utc(stop.end)}",
+                "details": details,
+                "location": where,
+                "ctz": "Asia/Kolkata",
+            }
+        )
+        events.append(
+            CalendarEvent(
+                title=stop.title,
+                start=stop.start,
+                end=stop.end,
+                remind_min=travel + LEAD_MIN,
+                reminder=details,
+                google_url=google,
+            )
+        )
         pos = (stop.lat, stop.lon)
     return CalendarExport(ics=ics(events, datetime.now(UTC)), events=events)
