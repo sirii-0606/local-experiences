@@ -12,7 +12,6 @@ from app.engine.feasibility import (
     travel_min,
     travel_times_by_mode,
 )
-from app.engine.itinerary import plan, validate
 from app.engine.rank import discover
 from app.models import (
     Experience,
@@ -311,13 +310,13 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
         exp = seed.experiences[eid]
         place = seed.places[exp.place_id]
         dist = km_between(origin_lat, origin_lon, place.lat, place.lon)
-        return (not (eid in must_see_set), dist)
+        return (eid not in must_see_set, dist)
 
     ordered_eids = sorted(in_person_ids, key=sort_key)
 
     # Balanced target of activities per day (2-3 per day)
-    per_day_target = max(1, len(ordered_eids) // num_days + (1 if len(ordered_eids) % num_days else 0))
-    per_day_target = min(4, per_day_target)
+    remainder = 1 if len(ordered_eids) % num_days else 0
+    per_day_target = min(4, max(1, len(ordered_eids) // num_days + remainder))
 
     all_stops: list[Stop] = []
     remaining_eids = list(ordered_eids)

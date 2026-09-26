@@ -8,9 +8,8 @@ import os
 import re
 from collections.abc import Callable
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Literal
+from typing import Literal, get_args
 
-from typing import get_args
 from pydantic import BaseModel, field_validator
 
 from app.models import Access, Tag, Traveler, TravelerState

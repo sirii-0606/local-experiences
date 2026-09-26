@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 import urllib.request
@@ -30,7 +31,12 @@ class Hour(BaseModel):
     precip_prob: int | None
 
 
-def classify(temp_c: float | None, precip_mm: float | None, prob: int | None, code: int | None) -> str:
+def classify(
+    temp_c: float | None,
+    precip_mm: float | None,
+    prob: int | None,
+    code: int | None,
+) -> str:
     c = 1 if code is None else int(code)
     mm = 0.0 if precip_mm is None else float(precip_mm)
     p = 0 if prob is None else int(prob)
@@ -39,8 +45,6 @@ def classify(temp_c: float | None, precip_mm: float | None, prob: int | None, co
         return "rain"
     return "heat" if t >= HEAT_C else "clear"
 
-
-import math
 
 def jaipur_climatology(day: date) -> dict:
     """Jaipur monthly climatology (Tmin/Tmax) with 24-hour diurnal sine curve."""
@@ -227,14 +231,22 @@ def forecast(day: date, fetch: Callable[[date], dict] | None = None) -> list[Hou
     codes = h.get("weather_code", [1] * len(times))
 
     out: list[Hour] = []
-    for t, temp, mm, prob, code in zip(times, temps, precips, probs, codes):
+    for t, temp, mm, prob, code in zip(times, temps, precips, probs, codes, strict=False):
         t_dt = datetime.fromisoformat(t)
         safe_temp = 25.0 if temp is None else float(temp)
         safe_mm = 0.0 if mm is None else float(mm)
         safe_prob = None if prob is None else int(prob)
         safe_code = 1 if code is None else int(code)
         cond = classify(safe_temp, safe_mm, safe_prob, safe_code)
-        out.append(Hour(at=t_dt, temp_c=safe_temp, precip_mm=safe_mm, precip_prob=safe_prob, condition=cond))
+        out.append(
+            Hour(
+                at=t_dt,
+                temp_c=safe_temp,
+                precip_mm=safe_mm,
+                precip_prob=safe_prob,
+                condition=cond,
+            )
+        )
     return out or None
 
 

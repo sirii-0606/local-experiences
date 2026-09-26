@@ -1,6 +1,6 @@
+"""Environment variable loader. Reads .env from the project root, backend folder, or cwd."""
 from __future__ import annotations
 
-"""Environment variable loader. Reads .env from the project root, backend folder, or cwd."""
 import os
 from pathlib import Path
 
