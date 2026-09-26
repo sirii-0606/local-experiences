@@ -15,7 +15,16 @@ from collections import defaultdict, deque
 from contextlib import closing
 from datetime import datetime, timedelta
 
-from app.schemas import AdminStats, AdminUserRow, Profile, Role, Trip, TripDraft, User
+from app.schemas import (
+    AdminStats,
+    AdminUserRow,
+    ContextEntry,
+    Profile,
+    Role,
+    Trip,
+    TripDraft,
+    User,
+)
 from app.store import db_path
 
 SCHEMA = """
@@ -29,6 +38,9 @@ create table if not exists profiles (user_id integer primary key, json text not 
 create table if not exists trips (
     id integer primary key autoincrement, user_id integer not null,
     created text not null, updated text not null, json text not null);
+create table if not exists user_context (
+    user_id integer not null, tag text not null, weight real not null, source text not null,
+    updated text not null, primary key (user_id, tag));
 """
 SESSION_DAYS = 7
 SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -108,7 +120,8 @@ def update(user_id: int, **fields) -> None:
 
 def delete(user_id: int) -> None:
     for sql in ("delete from sessions where user_id = ?", "delete from profiles where user_id = ?",
-                "delete from trips where user_id = ?", "delete from users where id = ?"):
+                "delete from trips where user_id = ?", "delete from user_context where user_id = ?",
+                "delete from users where id = ?"):
         _db(sql, (user_id,))
 
 
@@ -206,7 +219,8 @@ def export(user_id: int) -> dict:
     p = get_profile(user_id)
     return {"account": public(u).model_dump(mode="json"),
             "profile": json.loads(p.model_dump_json()) if p else None,
-            "trips": [t.model_dump(mode="json") for t in list_trips(user_id)]}
+            "trips": [t.model_dump(mode="json") for t in list_trips(user_id)],
+            "context": [c.model_dump(mode="json") for c in get_context(user_id)]}
 
 
 # ---------------------------------------------------------------- trips (P3)
@@ -277,3 +291,31 @@ def record_failure(email: str, ip: str) -> None:
 
 def clear_failures(email: str, ip: str) -> None:
     _failures.pop((email, ip), None)
+
+
+# ---------------------------------------------------------------- learned context (owner-only)
+# Tag weights -1..1 learned from chats, feedback and imported itineraries. Tags only: no text,
+# no locations. Shown to the traveler, who can remove any of it.
+
+def get_context(user_id: int) -> list[ContextEntry]:
+    rows, _ = _db("select tag, weight, source, updated from user_context where user_id = ?"
+                  " order by abs(weight) desc", (user_id,))
+    return [ContextEntry(tag=t, weight=w, source=src, updated=datetime.fromisoformat(u))
+            for t, w, src, u in rows]
+
+
+def bump_context(user_id: int, deltas: dict[str, float], source: str) -> None:
+    """Add to each tag's weight (clamped to -1..1); the latest source is kept."""
+    current = {c.tag: c.weight for c in get_context(user_id)}
+    for tag, d in deltas.items():
+        w = round(max(-1.0, min(1.0, current.get(tag, 0.0) + d)), 2)
+        _db("insert into user_context values (?, ?, ?, ?, ?) on conflict(user_id, tag) do update"
+            " set weight = excluded.weight, source = excluded.source, updated = excluded.updated",
+            (user_id, tag, w, source, _now().isoformat()))
+
+
+def forget_context(user_id: int, tag: str | None = None) -> None:
+    if tag is None:
+        _db("delete from user_context where user_id = ?", (user_id,))
+    else:
+        _db("delete from user_context where user_id = ? and tag = ?", (user_id, tag))

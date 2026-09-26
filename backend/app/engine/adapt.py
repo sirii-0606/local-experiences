@@ -73,7 +73,7 @@ def _problem(s: Stop, pos, t, spent: int, state: TravelerState, event: ContextEv
         return "outdoors, and it's raining"
     if exp and event.kind == "fatigue" and is_strenuous(exp):
         return "too strenuous while you're tired"
-    arrive = t + timedelta(minutes=travel_min(km_between(*pos, s.lat, s.lon), state.mode))
+    arrive = t + timedelta(minutes=travel_min(km_between(*pos, s.lat, s.lon), state.mode, t))
     if s.start < arrive:
         return f"you can't make {s.start:%H:%M} any more (earliest arrival {arrive:%H:%M})"
     if spent + s.cost_inr > state.budget_inr:

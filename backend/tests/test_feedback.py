@@ -18,9 +18,8 @@ def fb(eid, kind, reason=None):
     return Feedback(experience_id=eid, kind=kind, reason=reason, at=AT)
 
 
-def rank_of(eid, s):
-    recs, _ = discover(s, SEED, k=50)
-    return [r.experience_id for r in recs].index(eid)
+def score_of(eid, s):
+    return next(r.score for r in discover(s, SEED, k=50)[0] if r.experience_id == eid)
 
 
 def test_reject_hides_it_and_teaches_taste():
@@ -39,11 +38,12 @@ def test_practical_reasons_do_not_change_taste():
 
 
 def test_accepting_boosts_similar_experiences_and_says_so():
-    before = rank_of("ex-pottery-workshop", EXPLORER)
+    # the score, not the list position: MMR diversity may still space similar crafts apart
+    before = score_of("ex-pottery-workshop", EXPLORER)
     s = EXPLORER
     for eid in ("ex-kite-making", "ex-block-print-workshop"):  # two hands-on craft picks
         s = learn(s, SEED.experiences[eid], fb(eid, "accept"))
-    assert rank_of("ex-pottery-workshop", s) < before
+    assert score_of("ex-pottery-workshop", s) > before
     recs = {r.experience_id: r for r in discover(s, SEED, k=50)[0]}
     assert "similar to things you liked" in recs["ex-pottery-workshop"].reasons
     # sharing one generic tag ("hidden-gem") is not "similar"

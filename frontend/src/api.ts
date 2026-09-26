@@ -1,4 +1,5 @@
 // Types mirror backend/app/{models,main}.py — contract in docs/api.md. Only fields the UI reads.
+import type { CalendarExport, ChatContext } from "./types";
 
 export type TravelerState = {
   lat: number;
@@ -8,6 +9,7 @@ export type TravelerState = {
   budget_inr: number;
   group: { name: string; age: number; interests: string[]; accessibility: string[] }[];
   intents: string[];
+  avoid?: string[];
   mode: string;
   pace: string;
   avoid_crowds: boolean;
@@ -79,6 +81,7 @@ export type ChatResponse = DiscoverResponse & {
   parsed: Record<string, unknown>;
   state: TravelerState;
   plan: PlanResponse;
+  context?: ChatContext;
 };
 export type EventResponse = { itinerary: Itinerary; state: TravelerState; changes: Change[]; problems: string[] };
 export type ExperienceItem = {
@@ -111,6 +114,9 @@ export type ListingDraft = {
   category: string;
   tags: string[];
   near: string | null;
+  lat?: number | null;
+  lon?: number | null;
+  area?: string;
   duration_min: number;
   price_inr: number;
   price_model: "per_person" | "per_group" | "free" | "donation";
@@ -180,8 +186,10 @@ export async function call<T>(path: string, body?: unknown, method?: string, tok
 
 export const api = {
   catalog: () => call<Catalog>("/catalog"),
-  chat: (text: string, state: TravelerState | null, now: string) =>
-    call<ChatResponse>("/chat", { text, state, now }),
+  chat: (text: string, state: TravelerState | null, now: string, lat?: number, lon?: number) =>
+    call<ChatResponse>("/chat", { text, state, now, lat, lon }),
+  calendar: (state: TravelerState, itinerary: Itinerary) =>
+    call<CalendarExport>("/calendar/export", { state, itinerary }),
   discover: (state: TravelerState) => call<DiscoverResponse>("/discover", { state }),
   plan: (state: TravelerState, itinerary: Itinerary, max_new: number, add?: string) =>
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
@@ -192,7 +200,8 @@ export const api = {
     call<ContextCheck>("/context/check", { state, itinerary, now }),
   feedback: (state: TravelerState, experience_id: string, kind: FeedbackKind, reason: string | null, at: string) =>
     call<DiscoverResponse & { state: TravelerState }>("/feedback", { state, feedback: { experience_id, kind, reason, at } }),
-  draft: (text: string) => call<{ parser: string; draft: ListingDraft }>("/providers/draft", { text }),
+  draft: (text: string) =>
+    call<{ parser: string; draft: ListingDraft; fits?: string[] }>("/providers/draft", { text }),
   publish: (draft: ListingDraft, today: string) =>
     call<{ experience: { id: string; title: string }; edit_token: string }>("/providers/listings", { draft, today }),
   listing: (id: string) => call<{ draft: ListingDraft }>(`/providers/listings/${encodeURIComponent(id)}`),

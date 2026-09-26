@@ -40,6 +40,8 @@ export type Profile = {
   transport: Mode[];
   languages: string[];
   companions: Companion[];
+  avoid_crowds: boolean;
+  hidden_gems: boolean;
 };
 
 export type AdminUserRow = {
@@ -78,7 +80,60 @@ export const emptyProfile = (display_name: string): Profile => ({
   transport: [],
   languages: [],
   companions: [],
+  avoid_crowds: false,
+  hidden_gems: false,
 });
+
+// ---------- onboarding + learned profile context
+export type Question = {
+  id: string; // the Profile field the answer is saved to
+  text: string;
+  kind: "number" | "text" | "single" | "multi" | "bool" | "companions";
+  options: string[];
+  max_choices: number | null;
+  why: string;
+};
+
+export type ContextEntry = { tag: string; weight: number; source: string; updated: string | null };
+export type ProfileContext = { entries: ContextEntry[]; from_trips: ContextEntry[]; summary: string };
+
+// ---------- chat context + calendar
+export type WeatherNow = {
+  available: boolean;
+  condition: "rain" | "heat" | "clear" | null;
+  temp_c: number | null;
+  rain_chance: number | null;
+  applied: boolean;
+};
+export type ClosedNow = {
+  experience_id: string;
+  title: string;
+  why: string;
+  next_open: string | null;
+  hours_confirmed: boolean;
+};
+export type ChatContext = {
+  location: string;
+  location_source: "text" | "device" | "previous" | "profile" | "default";
+  lat: number;
+  lon: number;
+  data_source: string;
+  places_considered: number;
+  weather: WeatherNow;
+  traffic: string;
+  closed_now: ClosedNow[];
+  assumptions: string[];
+  profile_used: boolean;
+};
+export type CalendarEvent = {
+  title: string;
+  start: string;
+  end: string;
+  remind_min: number;
+  reminder: string;
+  google_url: string;
+};
+export type CalendarExport = { ics: string; events: CalendarEvent[] };
 
 // ---------- stays & trips (P3-P5)
 export type StayType = "any" | "hotel" | "homestay" | "hostel";

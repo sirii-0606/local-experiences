@@ -8,6 +8,8 @@ import type {
   AdminUserRow,
   Candidate,
   Profile,
+  ProfileContext,
+  Question,
   Stay,
   StayRecommendation,
   Trip,
@@ -40,6 +42,10 @@ export type V2 = {
   generateItinerary(tripId: number): Promise<Trip>;
   suggestions(tripId: number): Promise<TripSuggestions>;
   catalog(): Promise<Catalog>;
+  onboarding(): Promise<Question[]>;
+  context(): Promise<ProfileContext>;
+  importContext(text: string): Promise<ProfileContext>;
+  forgetContext(tag?: string): Promise<void>; // no tag = forget everything
 };
 
 const realV2: V2 = {
@@ -73,6 +79,11 @@ const realV2: V2 = {
     call<Trip>(`/trips/${id}/itinerary/generate`, undefined, "POST"),
   suggestions: (id) => call<TripSuggestions>(`/trips/${id}/suggestions`),
   catalog: api.catalog,
+  onboarding: () => call<Question[]>("/me/onboarding"),
+  context: () => call<ProfileContext>("/me/context"),
+  importContext: (text) => call<ProfileContext>("/me/context/import", { text }),
+  forgetContext: (tag) =>
+    call<void>(tag ? `/me/context/${encodeURIComponent(tag)}` : "/me/context", undefined, "DELETE"),
 };
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";

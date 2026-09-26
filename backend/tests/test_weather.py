@@ -29,7 +29,7 @@ def fresh_cache():
 
 
 def use(monkeypatch, data):
-    def fake(day):
+    def fake(day, **_):
         if isinstance(data, Exception):
             raise data
         return data
@@ -46,7 +46,8 @@ def test_classify(temp, mm, prob, code, expected):
 
 def test_forecast_is_cached_and_survives_outages(monkeypatch):
     calls = []
-    monkeypatch.setattr(weather, "_fetch", lambda d: calls.append(d) or payload(rain_hours={14}))
+    monkeypatch.setattr(weather, "_fetch",
+                        lambda d, **_: calls.append(d) or payload(rain_hours={14}))
     hours = weather.forecast(SAT)
     assert hours[14].condition == "rain" and hours[10].condition == "clear"
     weather.forecast(SAT)

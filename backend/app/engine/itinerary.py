@@ -111,9 +111,11 @@ def plan(it: Itinerary, state: TravelerState, seed: Seed, max_new: int = 3) -> I
 def validate(it: Itinerary, state: TravelerState, seed: Seed) -> list[str]:
     """Whole-sequence feasibility (doc §8.2). Empty list = the plan holds up."""
     problems = []
+    slack = timedelta(minutes=PACE_SLACK_MIN[state.pace])
     pos, t = (state.lat, state.lon), state.window_start
+    depart = t  # when the planner leaves for the next stop (after the pace slack, like gaps())
     for s in upcoming(it):
-        need = travel_min(km_between(*pos, s.lat, s.lon), state.mode)
+        need = travel_min(km_between(*pos, s.lat, s.lon), state.mode, depart)
         if s.start < t + timedelta(minutes=need):
             problems.append(f"can't reach {s.title} by {s.start:%H:%M} "
                             f"(needs {need} min after {t:%H:%M})")
@@ -127,9 +129,9 @@ def validate(it: Itinerary, state: TravelerState, seed: Seed) -> list[str]:
                 problems.append(f"{s.title} is outdoors in the rain")
         if not s.locked and s.end > state.window_end:
             problems.append(f"{s.title} ends after your {state.window_end:%H:%M} cutoff")
-        pos, t = (s.lat, s.lon), max(t, s.end)
+        pos, t, depart = (s.lat, s.lon), max(t, s.end), max(depart, s.end + slack)
     if state.end_lat is not None:
-        need = travel_min(km_between(*pos, state.end_lat, state.end_lon), state.mode)
+        need = travel_min(km_between(*pos, state.end_lat, state.end_lon), state.mode, t)
         if t + timedelta(minutes=need) > state.window_end:
             problems.append(f"can't get to your end point by {state.window_end:%H:%M}")
     if (left := remaining_budget(it, state)) < 0:

@@ -10,7 +10,7 @@ from statistics import mean
 from pydantic import BaseModel
 
 from app.engine.confidence import LOW_CONFIDENCE, attr_confidence
-from app.engine.feasibility import Fit, check
+from app.engine.feasibility import Fit, check, rush_hour
 from app.engine.learn import NOT_TASTE
 from app.models import Experience, TravelerState
 from app.seed import Seed
@@ -94,6 +94,7 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
     size = len(state.group)
     out = [
         f"{fit.km:.1f} km away, ~{fit.travel_min} min by {state.mode}"
+        + (" (rush-hour estimate)" if rush_hour(state.window_start, state.mode) else "")
         if fit.travel_min else "right where you are",
         f"{fit.start:%H:%M}–{fit.end:%H:%M}, "
         + (f"in time for your next stop at {state.window_end:%H:%M}" if state.end_lat is not None
@@ -113,8 +114,11 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
         out.append("similar to things you liked")
     elif f["learned"] < -0.1:
         out.append("similar to things you passed on")
-    if seed.providers[exp.provider_id].community_led:
+    provider = seed.providers[exp.provider_id]
+    if provider.community_led:
         out.append("run by a local community host")
+    if provider.id.startswith("pv-gov-"):
+        out.append(f"protected heritage site ({provider.name})")
     if exp.tourist_index <= 0.2:
         out.append("mostly locals, few tourists")
     if size > 1 and exp.min_age:
@@ -124,7 +128,9 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
     for attr, ev in low.items():
         label = CONFIDENCE_ATTRS[attr]
         out.append(
-            f"⚠ {label} last confirmed {ev.updated_at:%d %b %Y} ({ev.source})" if ev
+            f"⚠ {label}: typical for this kind of place, not confirmed (check before going)"
+            if ev and ev.source == "estimate"
+            else f"⚠ {label} last confirmed {ev.updated_at:%d %b %Y} ({ev.source})" if ev
             else f"⚠ {label} not independently confirmed"
         )
     return out
@@ -172,10 +178,13 @@ def discover(
         scored.append((rec, set(exp.tags) | {exp.category, exp.provider_id}))
 
     # MMR: trade score against similarity to what's already picked (no five near-identical options).
+    # What they asked for comes first: diversity reorders matches, it never lifts a non-match
+    # above one (decisions.md).
     picked: list[tuple[Recommendation, set]] = []
     while scored and len(picked) < k:
-        best = max(scored, key=lambda it: MMR_LAMBDA * it[0].score - (1 - MMR_LAMBDA) * max(
-            (_jaccard(it[1], p[1]) for p in picked), default=0.0))
+        matches = [it for it in scored if it[0].factors["intent"] > 0] if state.intents else []
+        best = max(matches or scored, key=lambda it: MMR_LAMBDA * it[0].score - (
+            1 - MMR_LAMBDA) * max((_jaccard(it[1], p[1]) for p in picked), default=0.0))
         picked.append(best)
         scored.remove(best)
     return [r for r, _ in picked], excluded

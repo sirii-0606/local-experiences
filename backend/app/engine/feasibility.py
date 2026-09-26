@@ -22,12 +22,25 @@ def km_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * 6371 * asin(sqrt(a))
 
 
-def travel_min(km: float, mode: str = "auto") -> int:
-    # ponytail: straight line x road factor, no traffic; swap for OSRM if routes matter.
+RUSH_HOURS = {8, 9, 10, 17, 18, 19, 20}  # Indian city rush, Mon-Sat
+RUSH_FACTOR = 1.5
+
+
+def rush_hour(at: datetime | None, mode: str) -> bool:
+    return at is not None and mode != "walk" and at.weekday() < 6 and at.hour in RUSH_HOURS
+
+
+def travel_min(km: float, mode: str = "auto", at: datetime | None = None) -> int:
+    """Door-to-door minutes, leaving at `at` (None = no traffic adjustment).
+
+    ponytail: straight line x road factor, and traffic is a time-of-day estimate, not a live feed;
+    swap in a routing/traffic API (OSRM, TomTom) if accuracy matters.
+    """
     if km < 0.1:
         return 0
     speed = SPEED_KMH.get(mode, 18)
-    return ceil(km * ROAD_FACTOR / speed * 60) + BUFFER_MIN
+    rush = RUSH_FACTOR if rush_hour(at, mode) else 1
+    return ceil(km * ROAD_FACTOR / speed * 60 * rush) + BUFFER_MIN
 
 
 def travel_times_by_mode(km: float) -> dict[str, int]:
@@ -99,7 +112,7 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
     place, provider = seed.places[exp.place_id], seed.providers[exp.provider_id]
     size = len(state.group)
     km = km_between(state.lat, state.lon, place.lat, place.lon)
-    fit = Fit(round(km, 2), travel_min(km, state.mode), group_cost(exp, size))
+    fit = Fit(round(km, 2), travel_min(km, state.mode, state.window_start), group_cost(exp, size))
     r = fit.reasons
 
     if fit.cost_inr > state.budget_inr:
@@ -115,6 +128,8 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
         exp, provider, "accessibility", state.window_start.date()
     ) < LOW_CONFIDENCE:
         r.append("accessibility claim is unconfirmed")
+    if skip := sorted(set(state.avoid) & set(exp.tags) - set(state.intents)):
+        r.append("you'd rather skip " + ", ".join(skip))
     if state.indoor_only and not exp.indoor:
         r.append("not indoors")
     if rained_out(exp, state):
@@ -136,8 +151,8 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
             r.append(f"would end at {fit.end:%H:%M}, after your {state.window_end:%H:%M} cutoff")
         elif state.end_lat is not None:
             onward = travel_min(
-                km_between(place.lat, place.lon, state.end_lat, state.end_lon), state.mode
-            )
+                km_between(place.lat, place.lon, state.end_lat, state.end_lon), state.mode,
+                fit.end)
             if fit.end + timedelta(minutes=onward) > state.window_end:
                 r.append(f"ends {fit.end:%H:%M}, leaving too little time for the {onward} min "
                          f"to your next stop by {state.window_end:%H:%M}")

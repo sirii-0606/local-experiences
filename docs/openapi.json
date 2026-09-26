@@ -28,17 +28,61 @@
     "/catalog": {
       "get": {
         "summary": "Catalog",
-        "description": "Everything the map and provider views need to render names and pins.",
+        "description": "Everything the map and provider views need to render names and pins.\nWith lat/lon: what's offered around that point (any city), not just the curated seed.",
         "operationId": "catalog_catalog_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lon"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Catalog Catalog Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -163,6 +207,7 @@
     "/chat": {
       "post": {
         "summary": "Chat",
+        "description": "Message -> traveler state (+ profile, location, live weather) -> ranked, feasible plan.\nSigned in: the profile and learned context shape the starting state, and each message\nnudges that context. Everything assumed is listed in `context.assumptions`.",
         "operationId": "chat_chat_post",
         "requestBody": {
           "content": {
@@ -201,7 +246,7 @@
     "/weather": {
       "get": {
         "summary": "Weather Now",
-        "description": "Live conditions for the hour `at` (Jaipur centre). available=false when offline.",
+        "description": "Live conditions for the hour `at` at a place (Jaipur centre by default).\navailable=false when offline.",
         "operationId": "weather_now_weather_get",
         "parameters": [
           {
@@ -212,6 +257,26 @@
               "type": "string",
               "format": "date-time",
               "title": "At"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 26.92,
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 75.82,
+              "title": "Lon"
             }
           }
         ],
@@ -283,7 +348,7 @@
     "/feedback": {
       "post": {
         "summary": "Feedback",
-        "description": "Accept / reject (with reason) / skip / rating. Returns the updated state and fresh\nrecommendations; the provider only ever sees aggregates (kind + reason, star ratings).",
+        "description": "Accept / reject (with reason) / skip / rating. Returns the updated state and fresh\nrecommendations; the provider only ever sees aggregates (kind + reason, star ratings).\nSigned in: what it taught about their taste is also saved to their profile context.",
         "operationId": "feedback_feedback_post",
         "requestBody": {
           "content": {
@@ -1000,6 +1065,187 @@
         }
       }
     },
+    "/me/onboarding": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Onboarding",
+        "operationId": "onboarding_me_onboarding_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Question"
+                  },
+                  "type": "array",
+                  "title": "Response Onboarding Me Onboarding Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/context": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Get Context",
+        "operationId": "get_context_me_context_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileContext"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Forget All",
+        "operationId": "forget_all_me_context_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/me/context/import": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Import Context",
+        "description": "A past itinerary or trip notes in your own words (\"Goa last winter: Old Goa churches,\nFort Aguada, beach shacks; skipped the casinos\") -> what you liked and avoided.",
+        "operationId": "import_context_me_context_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileContext"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/context/{tag}": {
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Forget Tag",
+        "operationId": "forget_tag_me_context__tag__delete",
+        "parameters": [
+          {
+            "name": "tag",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "beach",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ],
+              "type": "string",
+              "title": "Tag"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "tags": [
@@ -1487,6 +1733,47 @@
           }
         }
       }
+    },
+    "/calendar/export": {
+      "post": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Export",
+        "operationId": "export_calendar_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarExport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1754,6 +2041,83 @@
         ],
         "title": "BookingResponse"
       },
+      "CalendarEvent": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "remind_min": {
+            "type": "integer",
+            "title": "Remind Min"
+          },
+          "reminder": {
+            "type": "string",
+            "title": "Reminder"
+          },
+          "google_url": {
+            "type": "string",
+            "title": "Google Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "start",
+          "end",
+          "remind_min",
+          "reminder",
+          "google_url"
+        ],
+        "title": "CalendarEvent"
+      },
+      "CalendarExport": {
+        "properties": {
+          "ics": {
+            "type": "string",
+            "title": "Ics"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ics",
+          "events"
+        ],
+        "title": "CalendarExport"
+      },
+      "CalendarRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "itinerary"
+        ],
+        "title": "CalendarRequest"
+      },
       "Candidate": {
         "properties": {
           "experience_id": {
@@ -1869,6 +2233,81 @@
         ],
         "title": "Change"
       },
+      "ChatContext": {
+        "properties": {
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "location_source": {
+            "type": "string",
+            "enum": [
+              "text",
+              "device",
+              "previous",
+              "profile",
+              "default"
+            ],
+            "title": "Location Source"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "data_source": {
+            "type": "string",
+            "title": "Data Source"
+          },
+          "places_considered": {
+            "type": "integer",
+            "title": "Places Considered"
+          },
+          "weather": {
+            "$ref": "#/components/schemas/WeatherNow"
+          },
+          "traffic": {
+            "type": "string",
+            "title": "Traffic"
+          },
+          "closed_now": {
+            "items": {
+              "$ref": "#/components/schemas/ClosedNow"
+            },
+            "type": "array",
+            "title": "Closed Now",
+            "default": []
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions",
+            "default": []
+          },
+          "profile_used": {
+            "type": "boolean",
+            "title": "Profile Used",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "location",
+          "location_source",
+          "lat",
+          "lon",
+          "data_source",
+          "places_considered",
+          "weather",
+          "traffic"
+        ],
+        "title": "ChatContext"
+      },
       "ChatRequest": {
         "properties": {
           "text": {
@@ -1896,6 +2335,28 @@
               }
             ],
             "title": "Now"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
           }
         },
         "type": "object",
@@ -1935,6 +2396,16 @@
           },
           "plan": {
             "$ref": "#/components/schemas/PlanResponse"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1947,6 +2418,47 @@
           "plan"
         ],
         "title": "ChatResponse"
+      },
+      "ClosedNow": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          },
+          "next_open": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Open"
+          },
+          "hours_confirmed": {
+            "type": "boolean",
+            "title": "Hours Confirmed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "title",
+          "why"
+        ],
+        "title": "ClosedNow",
+        "description": "A good match that can't happen in this window, and when it next can."
       },
       "Companion": {
         "properties": {
@@ -1997,6 +2509,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -2050,6 +2563,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -2167,6 +2681,89 @@
         ],
         "title": "ContextCheckResponse"
       },
+      "ContextEntry": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "enum": [
+              "local-food",
+              "street-food",
+              "fine-dining",
+              "vegetarian",
+              "sweets",
+              "chai",
+              "heritage",
+              "history",
+              "architecture",
+              "museum",
+              "spiritual",
+              "craft",
+              "art",
+              "music",
+              "dance",
+              "performance",
+              "workshop",
+              "hands-on",
+              "shopping",
+              "market",
+              "textiles",
+              "jewellery",
+              "nature",
+              "wildlife",
+              "beach",
+              "sunset",
+              "sunrise",
+              "viewpoint",
+              "photography",
+              "adventure",
+              "active",
+              "wellness",
+              "relaxed",
+              "nightlife",
+              "evening",
+              "social",
+              "romantic",
+              "family",
+              "kids",
+              "learning",
+              "community",
+              "walking-tour",
+              "hidden-gem",
+              "iconic"
+            ],
+            "title": "Tag"
+          },
+          "weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Weight"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag",
+          "weight",
+          "source"
+        ],
+        "title": "ContextEntry"
+      },
       "ContextEvent": {
         "properties": {
           "kind": {
@@ -2242,6 +2839,22 @@
           "at"
         ],
         "title": "ContextEvent"
+      },
+      "ContextImport": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 3,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ContextImport",
+        "description": "A past itinerary or trip notes, in the traveler's words."
       },
       "DeleteAccount": {
         "properties": {
@@ -2322,6 +2935,14 @@
           },
           "draft": {
             "$ref": "#/components/schemas/ListingDraft"
+          },
+          "fits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fits",
+            "default": []
           }
         },
         "type": "object",
@@ -2390,7 +3011,8 @@
             "enum": [
               "provider",
               "traveler",
-              "verified"
+              "verified",
+              "estimate"
             ],
             "title": "Source"
           },
@@ -2406,7 +3028,7 @@
           "updated_at"
         ],
         "title": "Evidence",
-        "description": "Where one attribute's value came from and when it was last confirmed."
+        "description": "Where one attribute's value came from and when it was last confirmed.\n\n`estimate`: nobody confirmed it; it's the typical value for this kind of place (open data\nwithout hours/prices). Always flagged low confidence, never presented as fact."
       },
       "Experience": {
         "properties": {
@@ -2470,6 +3092,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -2978,6 +3601,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -3013,6 +3637,33 @@
               }
             ],
             "title": "Near"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area",
+            "default": ""
           },
           "duration_min": {
             "type": "integer",
@@ -3230,6 +3881,28 @@
             ],
             "title": "Near"
           },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Name"
+          },
+          "my_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Age"
+          },
           "start_time": {
             "anyOf": [
               {
@@ -3354,6 +4027,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -3379,6 +4053,60 @@
             "title": "Intents",
             "default": []
           },
+          "avoid": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "beach",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Avoid",
+            "default": []
+          },
           "accessibility": {
             "items": {
               "type": "string",
@@ -3392,6 +4120,47 @@
             "type": "array",
             "title": "Accessibility",
             "default": []
+          },
+          "with_companions": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "With Companions"
+          },
+          "return_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "station",
+                  "airport"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return To"
+          },
+          "budget_hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Hint"
           },
           "avoid_crowds": {
             "anyOf": [
@@ -3662,6 +4431,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -3715,6 +4485,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -3846,6 +4617,16 @@
             "maxItems": 20,
             "title": "Companions",
             "default": []
+          },
+          "avoid_crowds": {
+            "type": "boolean",
+            "title": "Avoid Crowds",
+            "default": false
+          },
+          "hidden_gems": {
+            "type": "boolean",
+            "title": "Hidden Gems",
+            "default": false
           }
         },
         "type": "object",
@@ -3854,6 +4635,34 @@
         ],
         "title": "Profile",
         "description": "Everything used to personalise recommendations. All optional except the name.\nSensitive fields (age, accessibility, diet) are owner-only: never shown to admins/providers."
+      },
+      "ProfileContext": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ContextEntry"
+            },
+            "type": "array",
+            "title": "Entries",
+            "default": []
+          },
+          "from_trips": {
+            "items": {
+              "$ref": "#/components/schemas/ContextEntry"
+            },
+            "type": "array",
+            "title": "From Trips",
+            "default": []
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ProfileContext",
+        "description": "What the planner has learned about the traveler, visible and correctable (doc §12.2)."
       },
       "Provider": {
         "properties": {
@@ -3920,6 +4729,62 @@
           "draft"
         ],
         "title": "PublishRequest"
+      },
+      "Question": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "number",
+              "text",
+              "single",
+              "multi",
+              "bool",
+              "companions"
+            ],
+            "title": "Kind"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options",
+            "default": []
+          },
+          "max_choices": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Choices"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "kind",
+          "why"
+        ],
+        "title": "Question",
+        "description": "One onboarding question. `id` is the Profile field the answer is saved to."
       },
       "QuickStopSuggestion": {
         "properties": {
@@ -4473,6 +5338,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -4577,6 +5443,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -4600,6 +5467,60 @@
             },
             "type": "array",
             "title": "Intents",
+            "default": []
+          },
+          "avoid": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "beach",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Avoid",
             "default": []
           },
           "mode": {
@@ -4690,6 +5611,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -5116,6 +6038,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -5169,6 +6092,7 @@
                 "jewellery",
                 "nature",
                 "wildlife",
+                "beach",
                 "sunset",
                 "sunrise",
                 "viewpoint",
@@ -5321,6 +6245,57 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WeatherNow": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temp C"
+          },
+          "rain_chance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rain Chance"
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "WeatherNow"
       }
     }
   }

@@ -5,7 +5,10 @@ import type {
   AdminStats,
   AdminUserRow,
   Candidate,
+  ContextEntry,
   Profile,
+  ProfileContext,
+  Question,
   Role,
   Stay,
   StayRecommendation,
@@ -77,6 +80,22 @@ const checkTrip = (d: TripDraft) => {
     fail(`Value error, trips can be at most ${MAX_TRIP_DAYS} days`);
   if (d.day_end <= d.day_start) fail("Value error, each day must end after it starts");
 };
+
+// learned context per user id; the mock only records imports (the real parser is server-side)
+const contexts = new Map<number, ContextEntry[]>();
+const ctxOf = (u: Row): ProfileContext => ({
+  entries: contexts.get(u.id) ?? [],
+  from_trips: [],
+  summary: (contexts.get(u.id) ?? []).map((e) => `${e.weight > 0 ? "likes" : "avoids"} ${e.tag}`).join(", "),
+});
+const questions: Question[] = [
+  { id: "interests", text: "What do you enjoy most when you travel?", kind: "multi", options: ["heritage", "history", "museum", "beach", "local-food", "craft", "nature"], max_choices: 5, why: "Ranks what matches your taste higher." },
+  { id: "dislikes", text: "Anything you'd rather skip?", kind: "multi", options: ["nature", "shopping", "nightlife", "adventure"], max_choices: 5, why: "We won't suggest these unless you ask." },
+  { id: "age", text: "How old are you?", kind: "number", options: [], max_choices: null, why: "Sets a comfortable pace and age limits. Only you can see it." },
+  { id: "companions", text: "Who do you usually travel with?", kind: "companions", options: [], max_choices: null, why: "Plans for the whole group when you say you're with them." },
+  { id: "pace", text: "How full do you like your days?", kind: "single", options: ["relaxed", "normal", "packed"], max_choices: null, why: "Adds breathing room between stops." },
+  { id: "home_city", text: "Which city do you live in?", kind: "text", options: [], max_choices: null, why: "Where we plan when you don't say where you are." },
+];
 
 const findTrip = (u: Row, id: number) => u.trips.find((t) => t.id === id) ?? fail("no such trip");
 
@@ -444,5 +463,31 @@ export const mockV2: V2 = {
   },
   async catalog() {
     return delay(catalog);
+  },
+  async onboarding() {
+    need();
+    return delay(questions);
+  },
+  async context() {
+    return delay(ctxOf(need()));
+  },
+  async importContext(text) {
+    const u = need();
+    const found = ["heritage", "beach", "museum", "local-food", "craft", "nature"].filter((t) =>
+      text.toLowerCase().includes(t.replace("local-", "")),
+    );
+    if (!found.length) fail("couldn't find anything about what you liked in that text");
+    const entries = contexts.get(u.id) ?? [];
+    for (const tag of found) {
+      const e = entries.find((x) => x.tag === tag);
+      if (e) e.weight = Math.min(1, e.weight + 0.3);
+      else entries.push({ tag, weight: 0.3, source: "import", updated: now() });
+    }
+    contexts.set(u.id, entries);
+    return delay(ctxOf(u));
+  },
+  async forgetContext(tag) {
+    const u = need();
+    contexts.set(u.id, tag ? (contexts.get(u.id) ?? []).filter((e) => e.tag !== tag) : []);
   },
 };

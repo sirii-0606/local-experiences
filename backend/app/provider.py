@@ -44,6 +44,9 @@ class ListingDraft(BaseModel):
     category: Category = "community"
     tags: list[Tag] = []
     near: str | None = None  # a known place name; the listing is pinned there
+    lat: float | None = None  # or an exact pin, for anywhere outside the curated city
+    lon: float | None = None
+    area: str = ""  # neighbourhood/town shown with a pinned listing
     duration_min: int = 60
     price_inr: int = 0
     price_model: Literal["per_person", "per_group", "free", "donation"] = "per_person"
@@ -133,10 +136,12 @@ def draft_rules(text: str, seed: Seed) -> ListingDraft:
     return d
 
 
-DRAFT_SYSTEM = """A small local business or host in Jaipur describes an experience they offer
+DRAFT_SYSTEM = """A small local business or host in India describes an experience they offer
 to travelers. Turn it into a listing draft the provider will review before publishing.
 Use only what they said; keep defaults for anything not mentioned.
-- near: copy one name exactly from KNOWN PLACES that is closest to where it happens.
+- near: copy one name exactly from KNOWN PLACES that is closest to where it happens; null if
+  none is near it (it may be in another city).
+- area: the neighbourhood and town it is in, as they said it (e.g. "Versova, Mumbai").
 - title: short and inviting, e.g. "Make your own lac bangle with Salim's family".
 - description: 1-2 sentences in plain language, in the provider's spirit; no invented claims.
 - tags/category: closest values from the allowed lists.
@@ -164,8 +169,10 @@ def to_listing(d: ListingDraft, seed: Seed, today: date,
     `key`: reuse an existing listing's ids (an edit) instead of minting new ones.
     """
     near = next((p for p in seed.places.values() if p.name == d.near), None)
-    if near is None:
-        raise ValueError("pick the nearest landmark from the list so travelers can find you")
+    if near is None and (d.lat is None or d.lon is None):
+        raise ValueError("pick the nearest landmark or drop a pin so travelers can find you")
+    if near is None and not (6 <= d.lat <= 38 and 68 <= d.lon <= 98):
+        raise ValueError("the pin must be in India")
     if not d.title.strip():
         raise ValueError("give the experience a title")
     opens, closes = time.fromisoformat(d.open_time), time.fromisoformat(d.close_time)
@@ -178,10 +185,13 @@ def to_listing(d: ListingDraft, seed: Seed, today: date,
         raise ValueError("add at least one tag so travelers with that interest are matched")
     key = key or f"{_slug(d.title)}-{uuid.uuid4().hex[:4]}"
     name = d.provider_name.strip() or d.title.strip()
+    hood = near.neighbourhood if near else d.area.strip()
     provider = Provider(id=f"pv-u-{key}", name=name, kind="informal",
-                        neighbourhood=near.neighbourhood, community_led=d.community_led)
-    place = Place(id=f"pl-u-{key}", name=f"{name}, near {near.name}",
-                  neighbourhood=near.neighbourhood, lat=near.lat, lon=near.lon)
+                        neighbourhood=hood, community_led=d.community_led)
+    place = (Place(id=f"pl-u-{key}", name=f"{name}, near {near.name}",
+                   neighbourhood=hood, lat=near.lat, lon=near.lon) if near else
+             Place(id=f"pl-u-{key}", name=f"{name}, {hood}" if hood else name,
+                   neighbourhood=hood, lat=d.lat, lon=d.lon))
     said = Evidence(source="provider", updated_at=today)
     exp = Experience(
         id=f"ex-u-{key}", title=d.title.strip(), provider_id=provider.id, place_id=place.id,
@@ -209,11 +219,41 @@ def to_draft(provider: Provider, place: Place, exp: Experience, base: Seed) -> L
     return ListingDraft(
         provider_name=provider.name, title=exp.title, description=exp.description,
         category=exp.category, tags=exp.tags, near=near, duration_min=exp.duration_min,
+        lat=None if near else place.lat, lon=None if near else place.lon,
+        area="" if near else place.neighbourhood,
         price_inr=exp.price_inr, price_model=exp.price_model, capacity=exp.capacity,
         min_age=exp.min_age, accessibility=exp.accessibility, indoor=exp.indoor,
         weather_sensitive=exp.weather_sensitive, open_time=f"{w.start:%H:%M}",
         close_time=f"{w.end:%H:%M}", days=w.days, community_led=provider.community_led,
     )
+
+
+# ---------------------------------------------------------------- who it suits (doc §10.3)
+
+SEGMENTS: list[tuple[str, set[str]]] = [
+    ("culture seekers", {"heritage", "history", "museum", "craft", "art", "performance",
+                         "architecture", "spiritual"}),
+    ("food lovers", {"local-food", "street-food", "sweets", "chai", "fine-dining"}),
+    ("nature and outdoors", {"nature", "beach", "viewpoint", "wildlife", "sunrise", "sunset"}),
+    ("couples", {"romantic", "sunset", "fine-dining"}),
+    ("solo and social travelers", {"social", "workshop", "walking-tour", "community"}),
+]
+
+
+def segments(x: "ListingDraft | Experience") -> list[str]:
+    """Traveler segments an experience suits, from its own structured facts. This is what the
+    ranker already rewards, said in the provider's language: who we'll match it to."""
+    tags = set(x.tags)
+    out = [name for name, want in SEGMENTS if tags & want]
+    if tags & {"kids", "family"} and x.min_age <= 8:
+        out.append("families with kids")
+    easy = not tags & {"active", "adventure"} and x.duration_min <= 150
+    if easy and (set(x.accessibility) & {"seating", "step_free", "wheelchair"}
+                 or tags & {"relaxed", "heritage", "spiritual", "museum"}):
+        out.append("seniors and relaxed travelers")
+    if x.price_inr <= 300 or x.price_model in ("free", "donation"):
+        out.append("students and budget travelers")
+    return out
 
 
 # ---------------------------------------------------------------- demand insights (doc §10.3)
@@ -230,6 +270,7 @@ REASON_BUCKETS = [
     ("km away", "too far from them"),
     ("raining", "outdoors while it rained"),
     ("not indoors", "they wanted indoors"),
+    ("rather skip", "travelers said: not for them"),
 ]
 TIPS = {
     "over their budget": "Interested travelers found it too expensive. A shorter, cheaper "

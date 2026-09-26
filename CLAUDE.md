@@ -26,5 +26,6 @@ Context-aware local experience discovery + planning platform (hackathon). Concep
 - API contract snapshot: `backend/.venv/Scripts/python scripts/openapi_snapshot.py` (commit `docs/openapi.json` with the change)
 - Frontend against a mock API: `cd frontend && VITE_API_MOCK=1 npm run dev`; against another backend: `API_TARGET=http://host:port PORT=5174 npm run dev`
 - Admin sign-in: start the backend with `ADMIN_EMAIL` and `ADMIN_PASSWORD` (8+ chars) set
+- Pre-fetch open-data places for demo cities (Wikidata ~1 query/min): `backend/.venv/Scripts/python scripts/warm_places.py Pune Mumbai`. Tests run with `LIVE_DATA=0` (no network).
 - Production build + single-port run: `python scripts/prod.py [--build-only | --no-build | --reset]` (serves `frontend/dist` + `/api/*` on `:8000`)
 - AWS EC2 deployment & fast updates: `bash scripts/ec2_setup.sh` (one-time) and `./scripts/ec2_update.sh [--sync]` (guide: `docs/deploy-ec2.md`)

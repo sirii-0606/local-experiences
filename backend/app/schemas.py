@@ -74,6 +74,8 @@ class Profile(BaseModel):
     transport: list[Mode] = []
     languages: list[str] = Field(default=[], max_length=10)
     companions: list[Companion] = Field(default=[], max_length=20)
+    avoid_crowds: bool = False
+    hidden_gems: bool = False  # prefers little-known local places over famous ones
 
 
 class PasswordChange(BaseModel):
@@ -259,3 +261,81 @@ class Trip(TripDraft):
     id: int
     created: datetime
     updated: datetime
+
+
+# ---------------------------------------------------------------- onboarding + profile context
+
+class Question(BaseModel):
+    """One onboarding question. `id` is the Profile field the answer is saved to."""
+    id: str
+    text: str
+    kind: Literal["number", "text", "single", "multi", "bool", "companions"]
+    options: list[str] = []
+    max_choices: int | None = None
+    why: str  # shown to the traveler: what we use the answer for
+
+
+class ContextEntry(BaseModel):
+    tag: Tag
+    weight: float = Field(ge=-1, le=1)  # -1 = avoid, +1 = loves it
+    source: str  # onboarding / chat / feedback / import / trips
+    updated: datetime | None = None
+
+
+class ProfileContext(BaseModel):
+    """What the planner has learned about the traveler, visible and correctable (doc §12.2)."""
+    entries: list[ContextEntry] = []  # stored: from chats, feedback, imported itineraries
+    from_trips: list[ContextEntry] = []  # derived on the fly from saved trips
+    summary: str = ""  # the text the assistant is given as background
+
+
+class ContextImport(BaseModel):
+    """A past itinerary or trip notes, in the traveler's words."""
+    text: str = Field(min_length=3, max_length=4000)
+
+
+# ---------------------------------------------------------------- chat context + calendar
+
+class WeatherNow(BaseModel):
+    available: bool
+    condition: str | None = None  # "rain" | "heat" | "clear"
+    temp_c: float | None = None
+    rain_chance: int | None = None
+    applied: bool = False  # true when it changed what's feasible (rain rules out outdoors)
+
+
+class ClosedNow(BaseModel):
+    """A good match that can't happen in this window, and when it next can."""
+    experience_id: str
+    title: str
+    why: str
+    next_open: datetime | None = None
+    hours_confirmed: bool = False  # False = typical hours for this kind of place
+
+
+class ChatContext(BaseModel):
+    location: str  # human-readable, e.g. "Pune" or "Hawa Mahal"
+    location_source: Literal["text", "device", "previous", "profile", "default"]
+    lat: float
+    lon: float
+    data_source: str  # "curated", "curated+wikidata", "wikipedia", ...
+    places_considered: int
+    weather: WeatherNow
+    traffic: str
+    closed_now: list[ClosedNow] = []
+    assumptions: list[str] = []  # what we assumed; the traveler can correct any of it
+    profile_used: bool = False
+
+
+class CalendarEvent(BaseModel):
+    title: str
+    start: datetime
+    end: datetime
+    remind_min: int  # minutes before start: travel time from the previous stop + 15
+    reminder: str
+    google_url: str  # one-click "add to Google Calendar"
+
+
+class CalendarExport(BaseModel):
+    ics: str  # import into Google/Apple/Outlook calendar; carries the reminders
+    events: list[CalendarEvent]

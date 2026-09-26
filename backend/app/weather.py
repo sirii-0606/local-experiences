@@ -7,20 +7,22 @@ import time
 import urllib.request
 from collections.abc import Callable
 from datetime import date, datetime
+from functools import partial
 
 from pydantic import BaseModel
 
+from app.engine.feasibility import km_between
 from app.models import Stop
 from app.seed import Seed
 
-CITY = (26.92, 75.82)  # Jaipur centre
+CITY = (26.92, 75.82)  # Jaipur centre: the default when no location is known
 URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
        "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
        "&timezone=Asia%2FKolkata&start_date={day}&end_date={day}")
 RAIN_CODES = set(range(51, 68)) | set(range(80, 83)) | set(range(95, 100))  # WMO drizzle..storm
 HEAT_C = 38.0
 TTL_S = 1800
-_cache: dict[date, tuple[float, dict]] = {}
+_cache: dict[tuple[date, float, float], tuple[float, dict]] = {}
 
 
 class Hour(BaseModel):
@@ -79,11 +81,19 @@ def jaipur_climatology(day: date) -> dict:
     }
 
 
-def _fetch_openmeteo(day: date, key: str | None = None) -> dict:
+def _typical(day: date, lat: float, lon: float) -> dict:
+    """Jaipur's monthly climatology, only for Jaipur: anywhere else we'd be inventing weather."""
+    if km_between(lat, lon, *CITY) > 60:
+        raise LookupError("no forecast and no climatology for this location")
+    return jaipur_climatology(day)
+
+
+def _fetch_openmeteo(day: date, key: str | None = None, lat: float = CITY[0],
+                     lon: float = CITY[1]) -> dict:
     if day < date.today():
         try:
             archive_url = (
-                f"https://archive-api.open-meteo.com/v1/archive?latitude={CITY[0]}&longitude={CITY[1]}"
+                f"https://archive-api.open-meteo.com/v1/archive?latitude={lat}&longitude={lon}"
                 f"&start_date={day.isoformat()}&end_date={day.isoformat()}"
                 f"&hourly=temperature_2m,precipitation,weather_code&timezone=Asia%2FKolkata"
             )
@@ -93,25 +103,25 @@ def _fetch_openmeteo(day: date, key: str | None = None) -> dict:
                 res["hourly"]["precipitation_probability"] = [0] * len(res["hourly"]["time"])
             return res
         except Exception:
-            return jaipur_climatology(day)
+            return _typical(day, lat, lon)
 
     days_ahead = (day - date.today()).days
     if days_ahead <= 16:
-        url = URL.format(lat=CITY[0], lon=CITY[1], day=day.isoformat())
+        url = URL.format(lat=lat, lon=lon, day=day.isoformat())
         if key:
             url += f"&apikey={key}"
         try:
             with urllib.request.urlopen(url, timeout=4) as r:
                 return json.load(r)
         except Exception:
-            return jaipur_climatology(day)
+            return _typical(day, lat, lon)
 
-    return jaipur_climatology(day)
+    return _typical(day, lat, lon)
 
 
-def _fetch_weatherapi(day: date, key: str) -> dict:
+def _fetch_weatherapi(day: date, key: str, lat: float = CITY[0], lon: float = CITY[1]) -> dict:
     url = (
-        f"https://api.weatherapi.com/v1/forecast.json?key={key}&q={CITY[0]},{CITY[1]}"
+        f"https://api.weatherapi.com/v1/forecast.json?key={key}&q={lat},{lon}"
         f"&dt={day.isoformat()}&days=1"
     )
     req = urllib.request.Request(url, headers={"User-Agent": "local-experiences/1.0"})
@@ -119,7 +129,7 @@ def _fetch_weatherapi(day: date, key: str) -> dict:
         raw = json.load(r)
     hours = raw.get("forecast", {}).get("forecastday", [{}])[0].get("hour", [])
     if not hours:
-        return _fetch_openmeteo(day)
+        return _fetch_openmeteo(day, lat=lat, lon=lon)
     times, temps, precips, probs, codes = [], [], [], [], []
     for h in hours:
         t_str = h.get("time", "").replace(" ", "T")
@@ -142,14 +152,15 @@ def _fetch_weatherapi(day: date, key: str) -> dict:
     }
 
 
-def _fetch_openweathermap(day: date, key: str) -> dict:
+def _fetch_openweathermap(day: date, key: str, lat: float = CITY[0],
+                          lon: float = CITY[1]) -> dict:
     # OpenWeatherMap 5-day forecast covers only today to today + 5 days
     days_ahead = (day - date.today()).days
     if not (0 <= days_ahead <= 5):
-        return _fetch_openmeteo(day)
+        return _fetch_openmeteo(day, lat=lat, lon=lon)
 
     url = (
-        f"https://api.openweathermap.org/data/2.5/forecast?lat={CITY[0]}&lon={CITY[1]}"
+        f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}"
         f"&appid={key}&units=metric"
     )
     req = urllib.request.Request(url, headers={"User-Agent": "local-experiences/1.0"})
@@ -157,7 +168,7 @@ def _fetch_openweathermap(day: date, key: str) -> dict:
         raw = json.load(r)
     items = raw.get("list", [])
     if not items:
-        return _fetch_openmeteo(day)
+        return _fetch_openmeteo(day, lat=lat, lon=lon)
 
     times, temps, precips, probs, codes = [], [], [], [], []
     for h in range(24):
@@ -185,7 +196,7 @@ def _fetch_openweathermap(day: date, key: str) -> dict:
     }
 
 
-def _fetch(day: date) -> dict:
+def _fetch(day: date, lat: float = CITY[0], lon: float = CITY[1]) -> dict:
     key = os.environ.get("WEATHER_API_KEY", "").strip()
     provider = os.environ.get("WEATHER_PROVIDER", "").strip().lower()
 
@@ -199,30 +210,33 @@ def _fetch(day: date) -> dict:
 
     if key and provider in ("openweathermap", "openweather"):
         try:
-            return _fetch_openweathermap(day, key)
+            return _fetch_openweathermap(day, key, lat, lon)
         except Exception:
-            return _fetch_openmeteo(day)
+            return _fetch_openmeteo(day, lat=lat, lon=lon)
 
     if key and provider in ("weatherapi",):
         try:
-            return _fetch_weatherapi(day, key)
+            return _fetch_weatherapi(day, key, lat, lon)
         except Exception:
-            return _fetch_openmeteo(day)
+            return _fetch_openmeteo(day, lat=lat, lon=lon)
 
-    return _fetch_openmeteo(day)
+    return _fetch_openmeteo(day, lat=lat, lon=lon)
 
 
-def forecast(day: date, fetch: Callable[[date], dict] | None = None) -> list[Hour] | None:
-    """Hourly conditions for one day, cached 30 min. None if the service can't be reached."""
-    hit = _cache.get(day)
+def forecast(day: date, fetch: Callable[[date], dict] | None = None, lat: float = CITY[0],
+             lon: float = CITY[1]) -> list[Hour] | None:
+    """Hourly conditions for one day at a place (~10 km cells), cached 30 min.
+    None if the service can't be reached."""
+    key = (day, round(lat, 1), round(lon, 1))
+    hit = _cache.get(key)
     if hit and time.monotonic() - hit[0] < TTL_S:
         data = hit[1]
     else:
         try:
-            data = (fetch or _fetch)(day)
+            data = (fetch or partial(_fetch, lat=lat, lon=lon))(day)
         except Exception:  # offline, timeout, bad payload: weather is optional context
             return None
-        _cache[day] = (time.monotonic(), data)
+        _cache[key] = (time.monotonic(), data)
     h = data.get("hourly", {})
     times = h.get("time", [])
     temps = h.get("temperature_2m", [])

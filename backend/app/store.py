@@ -13,7 +13,7 @@ import os
 import secrets
 import sqlite3
 from contextlib import closing
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from app.engine.confidence import with_ratings
@@ -39,6 +39,10 @@ create table if not exists ratings (
 create table if not exists bookings (
     code text primary key, at text not null, experience_id text not null,
     start text not null, people integer not null);
+create table if not exists cache (key text primary key, at text not null, json text not null);
+create table if not exists areas (
+    id integer primary key, lat real not null, lon real not null, km real not null,
+    at text not null, source text not null, json text not null);
 """
 DEFAULT_DB = Path(__file__).resolve().parents[1] / "data" / "local.db"
 
@@ -216,3 +220,36 @@ def demand_rows() -> list[dict]:
         for k in ("intents", "shown", "excluded"):
             row[k] = json.loads(row[k])
     return out
+
+
+# ---------------------------------------------------------------- open-data cache (opendata.py)
+# Public place data and geocodes only: never a traveler's location or text.
+
+def cache_get(key: str, max_days: int):
+    rows = _run("select at, json from cache where key = ?", (key,))
+    if not rows or datetime.fromisoformat(rows[0][0]) < datetime.now() - timedelta(days=max_days):
+        return None
+    return json.loads(rows[0][1])
+
+
+def cache_put(key: str, value) -> None:
+    _run("insert or replace into cache values (?, ?, ?)", (key, _now(), json.dumps(value)))
+
+
+def area_put(lat: float, lon: float, km: float, source: str, items: list[dict]) -> None:
+    _run("insert into areas (lat, lon, km, at, source, json) values (?, ?, ?, ?, ?, ?)",
+         (lat, lon, km, _now(), source, json.dumps(items)))
+
+
+def area_near(lat: float, lon: float, within_km: float,
+              max_days: int) -> tuple[list[dict], str, datetime] | None:
+    """The freshest cached area whose centre is within `within_km` of the point:
+    (places, source, fetched at)."""
+    from app.engine.feasibility import km_between
+    since = (datetime.now() - timedelta(days=max_days)).isoformat(timespec="seconds")
+    rows = _run("select lat, lon, source, json, at from areas where at > ? order by at desc",
+                (since,))
+    for a_lat, a_lon, source, items, at in rows:
+        if km_between(lat, lon, a_lat, a_lon) <= within_km:
+            return json.loads(items), source, datetime.fromisoformat(at)
+    return None

@@ -3,7 +3,7 @@ from datetime import date
 
 from app.models import Evidence, Experience, Provider
 
-SOURCE_WEIGHT = {"verified": 1.0, "traveler": 0.7, "provider": 0.6}
+SOURCE_WEIGHT = {"verified": 1.0, "traveler": 0.7, "provider": 0.6, "estimate": 0.3}
 HALF_LIFE_DAYS = 90
 LOW_CONFIDENCE = 0.5
 

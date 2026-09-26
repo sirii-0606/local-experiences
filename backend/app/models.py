@@ -19,7 +19,7 @@ Tag = Literal[
     "heritage", "history", "architecture", "museum", "spiritual",
     "craft", "art", "music", "dance", "performance", "workshop", "hands-on",
     "shopping", "market", "textiles", "jewellery",
-    "nature", "wildlife", "sunset", "sunrise", "viewpoint", "photography",
+    "nature", "wildlife", "beach", "sunset", "sunrise", "viewpoint", "photography",
     "adventure", "active", "wellness", "relaxed",
     "nightlife", "evening", "social", "romantic",
     "family", "kids", "learning", "community", "walking-tour",
@@ -30,8 +30,11 @@ Weekday = Literal[0, 1, 2, 3, 4, 5, 6]  # Mon=0, matches date.weekday()
 
 
 class Evidence(BaseModel):
-    """Where one attribute's value came from and when it was last confirmed."""
-    source: Literal["provider", "traveler", "verified"]
+    """Where one attribute's value came from and when it was last confirmed.
+
+    `estimate`: nobody confirmed it; it's the typical value for this kind of place (open data
+    without hours/prices). Always flagged low confidence, never presented as fact."""
+    source: Literal["provider", "traveler", "verified", "estimate"]
     updated_at: date
 
 
@@ -105,6 +108,7 @@ class TravelerState(BaseModel):
     budget_inr: int  # total for the whole group
     group: list[Traveler] = Field(default_factory=lambda: [Traveler()], min_length=1)
     intents: list[Tag] = []  # what they want *now*, e.g. ["local-food", "heritage"]
+    avoid: list[Tag] = []  # "not a park": never suggested unless also asked for in `intents`
     mode: Literal["walk", "auto", "car"] = "auto"
     pace: Literal["relaxed", "normal", "packed"] = "normal"
     indoor_only: bool = False
