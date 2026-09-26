@@ -111,6 +111,7 @@ class TravelerState(BaseModel):
     max_distance_km: float | None = None
     avoid_crowds: bool = False
     novelty: float = Field(default=0.15, ge=0, le=1)  # appetite for hidden/local vs iconic
+    weather: Literal["clear", "rain", "heat"] = "clear"  # current context (doc §5.1)
     # Where you must be by window_end (hotel, station, next booking). None = no return trip.
     end_lat: float | None = None
     end_lon: float | None = None

@@ -40,6 +40,10 @@ class Recommendation(BaseModel):
     reasons: list[str]
 
 
+def is_strenuous(exp: Experience) -> bool:
+    return bool({"active", "adventure"} & set(exp.tags)) or exp.duration_min > 150
+
+
 def _overlap(wanted: list[str], tags: set[str], cap: int) -> float:
     if not wanted:
         return 0.5  # no signal: neutral
@@ -61,8 +65,9 @@ def _factors(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, conf: 
         smoothed = (exp.rating * exp.review_count + 4.0 * 20) / (exp.review_count + 20)
         quality = min(1.0, max(0.0, (smoothed - 3) / 2))
     crowd = 1 - exp.tourist_index if state.avoid_crowds else 0.5
-    strenuous = bool(tags & {"active", "adventure"}) or exp.duration_min > 150
-    pace = 0.0 if state.pace == "relaxed" and strenuous else 1.0
+    pace = 0.0 if state.pace == "relaxed" and is_strenuous(exp) else 1.0
+    if state.weather == "heat" and exp.weather_sensitive and not exp.indoor:
+        pace *= 0.5  # soft: outdoors in the heat is possible, just less appealing
     wants_iconic = "iconic" in state.intents
     return {
         # group fairness: don't let one member be miserable (decisions.md)
@@ -84,7 +89,9 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
     out = [
         f"{fit.km:.1f} km away, ~{fit.travel_min} min by {state.mode}"
         if fit.travel_min else "right where you are",
-        f"{fit.start:%H:%M}–{fit.end:%H:%M}, done before your {state.window_end:%H:%M} cutoff",
+        f"{fit.start:%H:%M}–{fit.end:%H:%M}, "
+        + (f"in time for your next stop at {state.window_end:%H:%M}" if state.end_lat is not None
+           else f"done before your {state.window_end:%H:%M} cutoff"),
         "free" if fit.cost_inr == 0
         else f"₹{fit.cost_inr} for {size}, within your ₹{state.budget_inr} budget",
     ]

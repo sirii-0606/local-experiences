@@ -32,6 +32,10 @@ def group_cost(exp: Experience, size: int) -> int:
     return {"per_person": exp.price_inr * size, "per_group": exp.price_inr}.get(exp.price_model, 0)
 
 
+def rained_out(exp: Experience, state: TravelerState) -> bool:
+    return state.weather == "rain" and exp.weather_sensitive and not exp.indoor
+
+
 def runs_on(w: AvailabilityWindow, day: date) -> bool:
     return w.on_date == day if w.on_date else day.weekday() in w.days
 
@@ -101,6 +105,8 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
         r.append("accessibility claim is unconfirmed")
     if state.indoor_only and not exp.indoor:
         r.append("not indoors")
+    if rained_out(exp, state):
+        r.append("outdoors, and it's raining")
     if state.max_distance_km is not None and km > state.max_distance_km:
         r.append(f"{km:.1f} km away, beyond your {state.max_distance_km:g} km limit")
 

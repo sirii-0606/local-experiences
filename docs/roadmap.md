@@ -8,7 +8,7 @@ M2→M3→M4 is the critical path, because the engine is the product. Everything
 | M1 | ✅ | Domain models (`backend/app/models.py`) + Jaipur seed (50 experiences, 23 providers) + backend CI | Seed validates; loader tests pass |
 | M2 | ✅ | Feasibility filter + ranking + explanations (`backend/app/engine`) | Persona tests pass; every result passes the independent feasibility validator |
 | M3 | ✅ | Itinerary engine: gaps, sequence feasibility, lock/flexible | A 90-min gap between fixed stops returns only sequence-feasible fills |
-| M4 | ⬜ | Adaptation: closure, rain, delay, budget, tired → local replan with diff | Only the affected segment changes; locked stops untouched |
+| M4 | ✅ | Adaptation: closure, rain, delay, budget, tired → local replan with diff | Only the affected segment changes; locked stops untouched |
 | M5 | ⬜ | FastAPI endpoints + LLM intent parser + rule fallback | Scenarios A and B work via `/chat` with and without an API key |
 | M6 | ⬜ | Traveler UI: chat, map, itinerary, badges, disruption panel + frontend CI | Scenarios A and B run in the browser |
 | M7 | ⬜ | Provider UI: onboarding, availability, demand insights | Scenario C: a new provider shows up in traveler results |

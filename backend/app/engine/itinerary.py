@@ -2,10 +2,11 @@
 
 The existing itinerary is a first-class input: locked stops never move, new stops go in gaps.
 """
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from app.engine.feasibility import earliest_start, km_between, travel_min
+from app.engine.feasibility import earliest_start, km_between, rained_out, travel_min
 from app.engine.rank import Recommendation, discover
 from app.models import Itinerary, Stop, TravelerState
 from app.seed import Seed
@@ -24,7 +25,13 @@ class Gap:
 
 
 def active(it: Itinerary) -> list[Stop]:
+    """Stops that count: done, in progress, or still ahead. Used for budget."""
     return sorted((s for s in it.stops if s.status not in INACTIVE), key=lambda s: s.start)
+
+
+def upcoming(it: Itinerary) -> list[Stop]:
+    """Stops still ahead. Planning starts from state.lat/lon at window_start."""
+    return [s for s in active(it) if s.status in ("proposed", "confirmed")]
 
 
 def remaining_budget(it: Itinerary, state: TravelerState) -> int:
@@ -35,7 +42,7 @@ def gaps(it: Itinerary, state: TravelerState, min_minutes: int = MIN_GAP_MIN) ->
     slack = timedelta(minutes=PACE_SLACK_MIN[state.pace])
     end_dest = (state.end_lat, state.end_lon) if state.end_lat is not None else None
     out, pos, t = [], (state.lat, state.lon), state.window_start
-    for s in active(it):
+    for s in upcoming(it):
         if s.start - t >= timedelta(minutes=min_minutes):
             out.append(Gap(t, s.start, pos, (s.lat, s.lon)))
         pos, t = (s.lat, s.lon), max(t, s.end + slack)
@@ -45,7 +52,8 @@ def gaps(it: Itinerary, state: TravelerState, min_minutes: int = MIN_GAP_MIN) ->
 
 
 def fill_gap(
-    it: Itinerary, gap: Gap, state: TravelerState, seed: Seed, k: int = 5
+    it: Itinerary, gap: Gap, state: TravelerState, seed: Seed, k: int = 5,
+    skip: Collection[str] = (),
 ) -> list[Recommendation]:
     """Experiences reachable from the previous stop and done in time for the next."""
     narrowed = state.model_copy(update={
@@ -55,8 +63,8 @@ def fill_gap(
         "end_lon": gap.dest[1] if gap.dest else None,
         "budget_inr": remaining_budget(it, state),
     })
-    used = {s.experience_id for s in it.stops if s.experience_id}
-    return discover(narrowed, seed, k, skip=used)[0]
+    used = {s.experience_id for s in active(it) if s.experience_id}
+    return discover(narrowed, seed, k, skip=used | set(skip))[0]
 
 
 def to_stop(rec: Recommendation) -> Stop:
@@ -91,17 +99,19 @@ def validate(it: Itinerary, state: TravelerState, seed: Seed) -> list[str]:
     """Whole-sequence feasibility (doc §8.2). Empty list = the plan holds up."""
     problems = []
     pos, t = (state.lat, state.lon), state.window_start
-    for s in active(it):
+    for s in upcoming(it):
         need = travel_min(km_between(*pos, s.lat, s.lon), state.mode)
-        if s.status != "completed" and s.start < t + timedelta(minutes=need):
+        if s.start < t + timedelta(minutes=need):
             problems.append(f"can't reach {s.title} by {s.start:%H:%M} "
                             f"(needs {need} min after {t:%H:%M})")
         if s.experience_id:
             exp = seed.experiences[s.experience_id]
             if s.end - s.start != timedelta(minutes=exp.duration_min):
                 problems.append(f"{s.title} needs {exp.duration_min} min")
-            if s.status != "completed" and earliest_start(exp, s.start) != s.start:
+            if earliest_start(exp, s.start) != s.start:
                 problems.append(f"{s.title} can't start at {s.start:%H:%M}")
+            if rained_out(exp, state):
+                problems.append(f"{s.title} is outdoors in the rain")
         if not s.locked and s.end > state.window_end:
             problems.append(f"{s.title} ends after your {state.window_end:%H:%M} cutoff")
         pos, t = (s.lat, s.lon), max(t, s.end)
