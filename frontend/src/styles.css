@@ -1530,3 +1530,27 @@ a.button.mini { padding: 5px 12px; font-size: 0.82rem; }
   box-shadow: 0 6px 18px rgba(229, 169, 60, 0.45);
 }
 
+.time-window-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-time-pill {
+  background: var(--gold-gradient);
+  color: #140810;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(229, 169, 60, 0.3);
+  transition: transform 0.12s ease;
+  line-height: 1.1;
+}
+
+.mini-time-pill:hover {
+  transform: scale(1.08);
+}
+

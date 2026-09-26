@@ -23,6 +23,20 @@ const hhmm = (iso: string) => iso.slice(11, 16);
 const LIVE = (s: Stop) => s.status !== "replaced" && s.status !== "skipped";
 type Msg = { role: "user" | "bot"; text: string };
 
+function addHoursToIso(iso: string, hours: number): string {
+  if (!iso) return iso;
+  const [datePart, timePart] = iso.split("T");
+  const [hStr, mStr] = (timePart || "18:00").split(":");
+  let totalMinutes = parseInt(hStr, 10) * 60 + parseInt(mStr, 10) + Math.round(hours * 60);
+  if (totalMinutes >= 24 * 60) {
+    totalMinutes = 23 * 60 + 59; // cap at 23:59 for same-day window
+  }
+  const newH = Math.floor(totalMinutes / 60);
+  const newM = totalMinutes % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${datePart}T${pad(newH)}:${pad(newM)}:00`;
+}
+
 function describe(s: TravelerState, parser: string, recs: number, excluded: number) {
   const kids = s.group.filter((t) => t.age < 16).length;
   const seniors = s.group.filter((t) => t.age >= 65).length;
@@ -47,7 +61,7 @@ export default function ExplorePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [scheduleFullError, setScheduleFullError] = useState<{ title: string; min: number } | null>(null);
+  const [scheduleFullError, setScheduleFullError] = useState<{ title: string; min: number; expId: string } | null>(null);
   const [copiedSchedule, setCopiedSchedule] = useState(false);
 
   // Voyagenix-style Quick Planner State
@@ -127,9 +141,30 @@ export default function ExplorePage() {
     } catch (e) {
       const errText = e instanceof Error ? e.message : String(e);
       if (errText.includes("doesn't fit")) {
-        setScheduleFullError({ title: r.title, min: r.travel_min || 45 });
+        setScheduleFullError({ title: r.title, min: r.travel_min || 45, expId: r.experience_id });
       }
       throw e;
+    }
+  });
+
+  const autoReplaceUnlocked = (expId: string) => run(async () => {
+    if (!state) return;
+    const unlocked = itinerary.stops.filter((s) => !s.locked && LIVE(s));
+    if (unlocked.length > 0) {
+      const stopToDrop = unlocked[unlocked.length - 1];
+      const remainingStops = itinerary.stops.filter((s) => s !== stopToDrop);
+      const p = await api.plan(state, { stops: remainingStops }, 0, expId);
+      setItinerary(p.itinerary);
+      setProblems(p.problems);
+      const f = await api.feedback(state, expId, "accept", null, `${clock}:00`);
+      setState(f.state);
+      setRecs(f.recommendations);
+      setExcluded(f.excluded);
+      setScheduleFullError(null);
+    } else {
+      const nextEnd = addHoursToIso(state.window_end, 2);
+      applyState({ ...state, window_end: nextEnd });
+      setScheduleFullError(null);
     }
   });
 
@@ -485,7 +520,35 @@ export default function ExplorePage() {
               <section className="panel">
                 <h2>Your Situation &amp; Preferences</h2>
                 <div className="chips">
-                  <span className="chip">🕓 {hhmm(state.window_start)}–{hhmm(state.window_end)}</span>
+                  <span className="chip time-window-chip">
+                    🕓 {hhmm(state.window_start)}–{hhmm(state.window_end)}
+                    <button
+                      type="button"
+                      className="mini-time-pill"
+                      title="Extend window by 1 hour"
+                      disabled={busy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextEnd = addHoursToIso(state.window_end, 1);
+                        applyState({ ...state, window_end: nextEnd });
+                      }}
+                    >
+                      +1h
+                    </button>
+                    <button
+                      type="button"
+                      className="mini-time-pill"
+                      title="Extend window by 2 hours"
+                      disabled={busy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextEnd = addHoursToIso(state.window_end, 2);
+                        applyState({ ...state, window_end: nextEnd });
+                      }}
+                    >
+                      +2h
+                    </button>
+                  </span>
                   <span className={`chip ${spent > state.budget_inr ? "warn" : ""}`}>💰 ₹{spent} of ₹{state.budget_inr}</span>
                   <span className="chip">👥 {state.group.length} travelers</span>
                   <span className="chip">{state.mode === "walk" ? "🚶" : state.mode === "car" ? "🚗" : "🛺"} {state.mode}</span>
@@ -564,22 +627,41 @@ export default function ExplorePage() {
                         <div style={{ flex: 1 }}>
                           <h4 style={{ margin: "0 0 3px", color: "var(--ink)", fontSize: "0.95rem" }}>Schedule Currently Full</h4>
                           <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--muted)", lineHeight: 1.45 }}>
-                            <strong>"{scheduleFullError.title}"</strong> cannot fit in your current time window ({hhmm(state.window_start)}–{hhmm(state.window_end)}). You can extend your hours or remove an existing stop to make room.
+                            <strong>"{scheduleFullError.title}"</strong> cannot fit in your current time window ({hhmm(state.window_start)}–{hhmm(state.window_end)}). You can extend your hours or swap out an unlocked stop to make room.
                           </p>
-                          <div className="row" style={{ marginTop: "8px", gap: "6px" }}>
+                          <div className="row" style={{ marginTop: "10px", gap: "6px", flexWrap: "wrap" }}>
                             <button
                               type="button"
                               className="secondary mini"
                               onClick={() => {
-                                const currentEnd = new Date(state.window_end);
-                                currentEnd.setHours(currentEnd.getHours() + 2);
-                                const extendedIso = currentEnd.toISOString().slice(0, 16);
-                                applyState({ ...state, window_end: extendedIso });
+                                const nextEnd = addHoursToIso(state.window_end, 1);
+                                applyState({ ...state, window_end: nextEnd });
                                 setScheduleFullError(null);
                               }}
                             >
-                              ➕ Extend Schedule by 2 Hours
+                              ➕ Extend by +1 Hour
                             </button>
+                            <button
+                              type="button"
+                              className="secondary mini"
+                              onClick={() => {
+                                const nextEnd = addHoursToIso(state.window_end, 2);
+                                applyState({ ...state, window_end: nextEnd });
+                                setScheduleFullError(null);
+                              }}
+                            >
+                              ➕ Extend by +2 Hours
+                            </button>
+                            {itinerary.stops.some((s) => !s.locked && LIVE(s)) && (
+                              <button
+                                type="button"
+                                className="secondary mini"
+                                style={{ background: "var(--marigold-gold)", color: "#140810", fontWeight: 700 }}
+                                onClick={() => autoReplaceUnlocked(scheduleFullError.expId)}
+                              >
+                                🔄 Swap Unlocked Stop
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="secondary mini"
