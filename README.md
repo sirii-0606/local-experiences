@@ -2,7 +2,7 @@
 
 An intelligent local discovery and experience platform. It answers *"What should I do next, given my situation?"* rather than *"What exists nearby?"*: it filters local experiences by what is actually feasible (time, budget, distance, hours, group, accessibility, existing itinerary), ranks them with reasons you can read, replans when something changes, and helps local providers reach travelers who genuinely fit.
 
-**Status:** M6 (engine + API + traveler web app). See [`docs/roadmap.md`](docs/roadmap.md) and [`CONTEXT.md`](CONTEXT.md).
+**Status:** M7 (engine, API, traveler app, provider onboarding + demand insights). See [`docs/roadmap.md`](docs/roadmap.md) and [`CONTEXT.md`](CONTEXT.md).
 
 ## Run it
 Use two terminals:
@@ -17,7 +17,7 @@ cd frontend
 npm install
 npm run dev                                                             # http://localhost:5173
 ```
-In the app, click **Send** on the pre-filled family example to get recommendations, a map and a plan. Then use **Something changed?** (late, rain, closure, tired, budget) to see local replanning. The demo clock is fixed at 26 Sep 2026 15:30 so results are reproducible. The chat works offline. Set `ANTHROPIC_API_KEY` to have Claude parse free text instead. See [`docs/api.md`](docs/api.md).
+In the app, click **Send** on the pre-filled family example to get recommendations, a map and a plan. Then use **Something changed?** (late, rain, closure, tired, budget) to see local replanning. The demo clock is fixed at 26 Sep 2026 15:30 so results are reproducible. In the **Provider** tab, click **Draft my listing**, then **Publish**. A new artisan goes live, is recommended to matching travelers, and sees aggregate demand and why they lost bookings. Delete `backend/data/local.db` to reset. The chat works offline. Set `ANTHROPIC_API_KEY` to have Claude parse free text instead. See [`docs/api.md`](docs/api.md).
 
 ## Docs
 - Concept baseline: [`docs/ideation/`](docs/ideation/) (original docx + text copy)

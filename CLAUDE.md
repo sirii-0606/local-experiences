@@ -10,7 +10,8 @@ Context-aware local experience discovery + planning platform (hackathon). Concep
 - Feasibility before ranking; hard constraints ≠ soft preferences; low-confidence is flagged, never silently hidden.
 - Minimal code: stdlib first, no ORM, no routing API, no unrequested abstractions. Mark deliberate shortcuts with a `ponytail:` comment.
 - Git: `main` is not protected (team choice); work on `feat/*` `fix/*` `docs/*`; conventional commits; PR + squash merge, or fast-forward `main` when the user asks. Never push or create remotes without the user's go-ahead.
-- LLM: `claude-opus-5` via `client.beta.messages.parse` in `backend/app/intent.py` (anthropic SDK 1.x uses `httpx2`). Tests never hit the network (`INTENT_PARSER=rules`).
+- LLM: `claude-opus-5` via `intent.claude_parse()` (shared by traveler intents and provider drafts; anthropic SDK 1.x uses `httpx2`). Always pair it with a rule fallback through `intent.llm_or_rules()`. Tests never hit the network (`INTENT_PARSER=rules`).
+- Runtime data (provider listings, pauses, demand log) lives in SQLite via `backend/app/store.py`, overlaid onto the read-only JSON seed by `store.current_seed()`. Tests get a temp DB (`tests/conftest.py`). Never log location or free text.
 
 ## Commands
 - Backend setup: `cd backend && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"` (use `.venv/bin/` on macOS/Linux)

@@ -75,6 +75,45 @@ export type EventResponse = { itinerary: Itinerary; state: TravelerState; change
 export type Catalog = {
   places: { id: string; name: string; lat: number; lon: number }[];
   experiences: { id: string; title: string; category: string; place_id: string }[];
+  provider_listings: string[];
+  paused: string[];
+  vocabulary: { tags: string[]; categories: string[]; accessibility: string[] };
+};
+
+export type ListingDraft = {
+  provider_name: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  near: string | null;
+  duration_min: number;
+  price_inr: number;
+  price_model: "per_person" | "per_group" | "free" | "donation";
+  capacity: number;
+  min_age: number;
+  accessibility: string[];
+  indoor: boolean;
+  weather_sensitive: boolean;
+  open_time: string;
+  close_time: string;
+  days: number[];
+  community_led: boolean;
+};
+
+export type Insights = {
+  experience_id: string;
+  paused: boolean;
+  searches: number;
+  matching_searches: number;
+  shown: number;
+  shown_to_matching: number;
+  why_not_chosen: [string, number][];
+  tips: string[];
+  start_hours: [number, number][];
+  budget_per_person: [string, number][];
+  with_kids: number;
+  also_wanted: [string, number][];
 };
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
@@ -87,6 +126,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
     const text = await r.text();
     let detail = text;
     try { detail = JSON.parse(text).detail ?? text; } catch { /* not JSON */ }
+    if (Array.isArray(detail)) detail = detail.map((d: { msg?: string }) => d.msg).join("; "); // pydantic 422
     throw new Error(typeof detail === "string" ? detail : `${path} failed (${r.status})`);
   }
   return r.json();
@@ -101,4 +141,10 @@ export const api = {
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
   event: (state: TravelerState, itinerary: Itinerary, event: ContextEvent) =>
     call<EventResponse>("/events", { state, itinerary, event }),
+  draft: (text: string) => call<{ parser: string; draft: ListingDraft }>("/providers/draft", { text }),
+  publish: (draft: ListingDraft, today: string) =>
+    call<{ experience: { id: string; title: string } }>("/providers/listings", { draft, today }),
+  pause: (experience_id: string, paused: boolean) =>
+    call<{ paused: boolean }>("/providers/availability", { experience_id, paused }),
+  insights: (id: string) => call<Insights>(`/providers/insights/${encodeURIComponent(id)}`),
 };

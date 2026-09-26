@@ -24,13 +24,19 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | GET | `/health` | none | `{ok, experiences}` |
-| GET | `/catalog` | none | `{places[], providers[], experiences[]}`, i.e. everything the map and provider views need |
+| GET | `/catalog` | none | `{places[], providers[], experiences[], provider_listings[], paused[], vocabulary{tags, categories, accessibility}}`, i.e. everything the map and provider views need |
 | POST | `/chat` | `{text, state?, now?}` | `{parser, parsed, state, recommendations[], excluded{}, plan{itinerary, problems[]}}` |
 | POST | `/discover` | `{state, k?=5}` | `{recommendations[], excluded{}}` |
 | POST | `/plan` | `{state, itinerary?, max_new?=3, add?}` | `{itinerary, problems[]}`. It fills gaps around existing stops; locked stops never move. `add` is an experience id: the engine fits it into the earliest feasible gap, or returns **409** with a readable `detail` if it fits nowhere. |
 | POST | `/events` | `{state, itinerary, event}` | `{itinerary, state, changes[], problems[]}` |
+| POST | `/providers/draft` | `{text}` | `{parser, draft: ListingDraft}`. Free text becomes an editable draft; nothing is saved. |
+| POST | `/providers/listings` | `{draft, today?}` | `{provider, place, experience}`. Validates the reviewed draft and publishes it. A bad draft returns **422** with a readable `detail` (unknown landmark, hours shorter than the experience, no tags, no days). |
+| POST | `/providers/availability` | `{experience_id, paused}` | Pauses or resumes any experience. While paused it isn't recommended, and replanning treats it as unavailable. |
+| GET | `/providers/insights/{experience_id}` | none | Aggregate demand: `matching_searches`, `shown`, `shown_to_matching`, `why_not_chosen[[reason, n]]`, `tips[]`, `start_hours`, `budget_per_person`, `with_kids`, `also_wanted`, `paused` |
 
 Unknown experience ids return `422`. An empty `problems` means the whole plan is feasible.
+
+**Storage:** provider listings, pauses and the demand log live in SQLite (`backend/data/local.db`, gitignored; override the location with `DB_PATH`). Delete the file to reset a demo. `/chat` logs **aggregates only**: start hour, duration, budget, group size, kids yes/no, intents, which ids were shown, and exclusion reasons. It never logs location or the chat text.
 
 ## Flow for the traveler UI
 1. **First message.** Call `POST /chat {text, now?}`, then render `recommendations` (cards and map pins, using `lat`/`lon`), `plan.itinerary` (timeline) and, optionally, `excluded` (a "why not X?" panel). **Keep `state` and `plan.itinerary`.**

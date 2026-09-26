@@ -6,6 +6,7 @@ fallback that works offline. `parse()` picks one and always falls back to rules 
 import logging
 import os
 import re
+from collections.abc import Callable
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
 
@@ -101,6 +102,35 @@ def _clock(h: str, m: str | None, ampm: str | None, hint: str | None = None) -> 
     return f"{hour:02d}:{int(m or 0):02d}"
 
 
+MONEY = r"(?:₹|rs\.?|inr)\s*(\d[\d,]*)|(\d[\d,]*)\s*(?:₹|rs\b|rupees|inr)"
+CLOCK = r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?"
+
+
+def money(t: str, extra: str = "") -> tuple[int | None, str]:
+    """(first amount in rupees, text with amounts removed so they don't read as times)."""
+    m = re.search(MONEY + extra, t)
+    amount = int(next(g for g in m.groups() if g).replace(",", "")) if m else None
+    return amount, re.sub(MONEY, " ", t)
+
+
+def clock_range(t: str) -> tuple[str, str] | None:
+    if m := re.search(CLOCK + r"\s*(?:-|to|till|until)\s*" + CLOCK, t):
+        return _clock(m[1], m[2], m[3], hint=m[6]), _clock(m[4], m[5], m[6])
+    return None
+
+
+def duration(t: str) -> int | None:
+    if re.search(r"half an? hour", t):
+        return 30
+    if m := re.search(N + r"\s*(?:hours?|hrs?)\b", t):
+        return int(_num(m[1]) * 60)
+    if m := re.search(r"(\d+)\s*(?:minutes|mins?)\b", t):
+        return int(m[1])
+    if "half a day" in t or "half day" in t:
+        return 240
+    return None
+
+
 def parse_rules(text: str, seed: Seed) -> ParsedRequest:
     t = text.lower().replace("–", "-").replace("—", "-")
     p = ParsedRequest()
@@ -108,25 +138,12 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
         p.near, matched = found
         t = t.replace(matched, " ")
 
-    money = r"(?:₹|rs\.?|inr)\s*(\d[\d,]*)|(\d[\d,]*)\s*(?:₹|rs\b|rupees|inr)"
-    if m := re.search(money + r"|budget(?: of| is)?\s*(\d[\d,]*)", t):
-        p.budget_inr = int(next(g for g in m.groups() if g).replace(",", ""))
-    t_no_money = re.sub(money, " ", t)
-
-    clock = r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?"
-    if m := re.search(clock + r"\s*(?:-|to|till|until)\s*" + clock, t_no_money):
-        p.start_time = _clock(m[1], m[2], m[3], hint=m[6])
-        p.end_time = _clock(m[4], m[5], m[6])
-    elif m := re.search(r"(?:until|till|by|before|back at)\s+" + clock, t_no_money):
+    p.budget_inr, t_no_money = money(t, r"|budget(?: of| is)?\s*(\d[\d,]*)")
+    if span := clock_range(t_no_money):
+        p.start_time, p.end_time = span
+    elif m := re.search(r"(?:until|till|by|before|back at)\s+" + CLOCK, t_no_money):
         p.end_time = _clock(m[1], m[2], m[3])
-    if re.search(r"half an? hour", t_no_money):
-        p.duration_min = 30
-    elif m := re.search(N + r"\s*(?:hours?|hrs?)\b", t_no_money):
-        p.duration_min = int(_num(m[1]) * 60)
-    elif m := re.search(r"(\d+)\s*(?:minutes|mins?)\b", t_no_money):
-        p.duration_min = int(m[1])
-    elif "half a day" in t or "half day" in t:
-        p.duration_min = 240
+    p.duration_min = duration(t_no_money)
 
     if m := re.search(r"family of " + N, t):
         p.group_size = int(_num(m[1]))
@@ -213,26 +230,34 @@ a budget, time or group size that was not stated.
 - raining: true only if the traveler says it is raining."""
 
 
-def parse_llm(text: str, now: datetime, seed: Seed, client=None) -> ParsedRequest:
+def claude_parse[T: BaseModel](system: str, content: str, schema: type[T], client=None) -> T:
+    """One structured-output extraction call. Shared by traveler intents and provider drafts."""
     import anthropic
 
     client = client or anthropic.Anthropic(timeout=30, max_retries=1)
-    places = ", ".join(sorted(p.name for p in seed.places.values()))
     response = client.beta.messages.parse(
         model=MODEL,
         max_tokens=16000,
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
-        output_config={"effort": "low"},  # plain extraction; low effort keeps chat snappy
-        system=SYSTEM,
-        messages=[{"role": "user", "content": (
-            f"KNOWN PLACES: {places}\nCURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\n"
-            f"TRAVELER: {text}")}],
-        output_format=ParsedRequest,
+        output_config={"effort": "low"},  # plain extraction; low effort keeps it snappy
+        system=system,
+        messages=[{"role": "user", "content": content}],
+        output_format=schema,
     )
     if response.stop_reason == "refusal" or response.parsed_output is None:
         raise ValueError(f"no structured output (stop_reason={response.stop_reason})")
     return response.parsed_output
+
+
+def known_places(seed: Seed) -> str:
+    return ", ".join(sorted(p.name for p in seed.places.values()))
+
+
+def parse_llm(text: str, now: datetime, seed: Seed, client=None) -> ParsedRequest:
+    return claude_parse(SYSTEM, f"KNOWN PLACES: {known_places(seed)}\n"
+                                f"CURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\nTRAVELER: {text}",
+                        ParsedRequest, client)
 
 
 def _llm_enabled() -> bool:
@@ -243,14 +268,19 @@ def _llm_enabled() -> bool:
                ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"))
 
 
-def parse(text: str, now: datetime, seed: Seed) -> tuple[ParsedRequest, str]:
-    """Returns (parsed request, which parser produced it: "llm" or "rules")."""
+def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, str]:
+    """Try Claude when enabled; any failure (auth, network, refusal) falls back to rules."""
     if _llm_enabled():
         try:
-            return parse_llm(text, now, seed), "llm"
-        except Exception as e:  # any LLM failure (auth, network, refusal) -> offline parser
-            log.warning("LLM intent parsing failed, using rules: %s", e)
-    return parse_rules(text, seed), "rules"
+            return llm(), "llm"
+        except Exception as e:
+            log.warning("LLM extraction failed, using rules: %s", e)
+    return rules(), "rules"
+
+
+def parse(text: str, now: datetime, seed: Seed) -> tuple[ParsedRequest, str]:
+    """Returns (parsed request, which parser produced it: "llm" or "rules")."""
+    return llm_or_rules(lambda: parse_llm(text, now, seed), lambda: parse_rules(text, seed))
 
 
 # ---------------------------------------------------------------- ParsedRequest -> state

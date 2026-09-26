@@ -1,20 +1,23 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-07-m6-traveler-ui.md](docs/context/2026-09-26-07-m6-traveler-ui.md)_
+_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-08-m7-provider.md](docs/context/2026-09-26-08-m7-provider.md)_
 
 ## Where we are
-- **M0–M6 are done.** `main` has M5; `feat/m6-traveler-ui` is waiting to be merged. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
-- **Engine** (`backend/app/engine/`): feasibility, confidence, ranking + reasons, gap-aware planning, `insert` (fit a chosen experience into a feasible gap), and localized replanning.
-- **API** (`backend/app/main.py`): `/chat`, `/discover`, `/plan` (with `add`), `/events`, `/catalog`, `/health`. The contract is `docs/api.md`.
-- **Intent** (`backend/app/intent.py`): Claude `claude-opus-5` structured output with a refusal fallback, plus an offline rule parser. The Claude path is verified offline only.
-- **Traveler app** (`frontend/`): React + Leaflet. Chat, situation chips, cards with reasons and confidence badges, map, plan timeline with lock/remove/fill, a disruption panel with a diff, "why not", and a demo clock. It was verified end to end in a browser. The demo steps are in the latest context file.
-- **Tests/CI:** backend 51 pass (1 skipped: live LLM). The frontend `npm run build` (tsc + vite) passes. CI runs backend, frontend and the context check.
+- **M0–M7 are done.** `main` has M6; `feat/m7-provider` is waiting to be merged. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
+- **Engine** (`backend/app/engine/`): feasibility, confidence, ranking + reasons, gap-aware planning + `insert`, and localized replanning.
+- **API** (`backend/app/main.py`): traveler endpoints (`/chat`, `/discover`, `/plan`, `/events`, `/catalog`) plus provider endpoints (`/providers/draft|listings|availability|insights`). The contract is `docs/api.md`.
+- **AI** (`backend/app/intent.py`): `claude_parse` (claude-opus-5, structured output, refusal fallback) for traveler intents and provider drafts, with offline rule parsers as fallback. It's verified offline only.
+- **Runtime data** (`backend/app/store.py`): SQLite overlay on the JSON seed for provider listings and pauses, plus an aggregate-only demand log. Delete `backend/data/local.db` to reset a demo.
+- **Web app** (`frontend/`), with Traveler and Provider tabs:
+  - Traveler: chat, cards with reasons and confidence, map, plan timeline with lock/remove/fill/add, disruption panel with a diff, "why not".
+  - Provider: free text → editable draft → publish; demand insights with lost-demand reasons and tips; pause/resume.
+- **Scenarios A, B and C** all run end to end in the browser.
+- **Tests/CI:** backend 59 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
 - **Team:** 5 people. The work split is in `docs/roadmap.md`. Stretch items come last, as M9.
 
 ## Next steps
-- **M7, provider side:** a SQLite overlay on the seed, Claude-drafted listings from free text, demand insights from aggregate chat logs, and a `/provider` view. Scenario C is the acceptance test.
-- **M8:** feedback loop (accept/reject shifts ranking), group mode UI, README polish, demo rehearsal.
-- **Data/demo:** 10 labelled personas, planner tuning, and one live LLM run (`RUN_LLM_TESTS=1`).
+- **M8:** feedback loop (accept/reject shifts ranking and evidence), group-mode UI, demo polish (screenshots, one-command start, rehearsal), and one live LLM run.
+- **M9 stretch** (after M8): 360°/3D previews, real weather API, booking stub, Hindi UI, provider auth, listing edits, and a map location picker.
 
 ## Setup
 Backend: `cd backend && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]" && .venv/Scripts/python -m uvicorn app.main:app --reload`

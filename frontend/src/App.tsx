@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import MapView from "./MapView";
+import ProviderView from "./ProviderView";
 import { api } from "./api";
 import type { Catalog, Change, ContextEvent, Itinerary, Recommendation, Stop, TravelerState } from "./api";
 
@@ -36,7 +37,9 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => { api.catalog().then(setCatalog).catch((e) => setError(String(e))); }, []);
+  const [view, setView] = useState<"traveler" | "provider">("traveler");
+  const loadCatalog = () => api.catalog().then(setCatalog);
+  useEffect(() => { loadCatalog().catch((e) => setError(String(e))); }, []);
   const title = (id: string) => catalog?.experiences.find((e) => e.id === id)?.title ?? id;
 
   async function run(fn: () => Promise<void>) {
@@ -89,11 +92,16 @@ export default function App() {
     <div className="app">
       <header>
         <h1>Local &amp; Experiences <span>Jaipur</span></h1>
+        <nav className="tabs" aria-label="View">
+          <button className={view === "traveler" ? "on" : ""} aria-pressed={view === "traveler"} onClick={() => setView("traveler")}>Traveler</button>
+          <button className={view === "provider" ? "on" : ""} aria-pressed={view === "provider"} onClick={() => setView("provider")}>Provider</button>
+        </nav>
         <label className="clock">Demo clock
           <input type="datetime-local" value={clock} onChange={(e) => setClock(e.target.value)} />
         </label>
       </header>
 
+      {view === "provider" ? <ProviderView catalog={catalog} clock={clock} onChanged={loadCatalog} /> : <>
       <aside className="side">
         <section className="panel chat" aria-live="polite">
           <h2>Tell us your situation</h2>
@@ -218,6 +226,7 @@ export default function App() {
           </details>
         )}
       </main>
+      </>}
     </div>
   );
 }
