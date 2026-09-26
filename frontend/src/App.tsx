@@ -3,7 +3,8 @@ import MapView from "./MapView";
 import ProviderView from "./ProviderView";
 import GroupEditor from "./GroupEditor";
 import { api } from "./api";
-import type { Catalog, Change, ContextEvent, Itinerary, Recommendation, Stop, TravelerState } from "./api";
+import type { Catalog, Change, ContextCheck, ContextEvent, Itinerary, Recommendation, Stop, TravelerState, WeatherHour } from "./api";
+const ICON = { rain: "🌧", heat: "🔥", clear: "☀" } as const;
 
 const EXAMPLES = [
   "We're a family of 4 with two kids near Hawa Mahal, free 4–6 pm, ₹1500 total, want local food and something cultural.",
@@ -43,6 +44,14 @@ export default function App() {
   useEffect(() => { loadCatalog().catch((e) => setError(String(e))); }, []);
   const title = (id: string) => catalog?.experiences.find((e) => e.id === id)?.title ?? id;
 
+  // Live weather for the demo-clock hour (Open-Meteo, city centre). Never changes results by itself.
+  const [live, setLive] = useState<WeatherHour | null | "offline">(null);
+  const [forecastCheck, setForecastCheck] = useState<ContextCheck | null>(null);
+  useEffect(() => {
+    api.weather(`${clock}:00`).then((w) => setLive(w.available ? w.hour : "offline")).catch(() => setLive("offline"));
+  }, [clock]);
+  const checkForecast = () => run(async () => setForecastCheck(await api.contextCheck(state!, itinerary, `${clock}:00`)));
+
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -60,7 +69,8 @@ export default function App() {
     setItinerary(plan.itinerary);
     setProblems(plan.problems);
     setChanges(null);
-    setMsgs((m) => [...m, { role: "user", text: msg },
+    setForecastCheck(null);
+    setMsgs((m) =>[...m, { role: "user", text: msg },
       { role: "bot", text: describe(res.state, res.parser, res.recommendations.length, Object.keys(res.excluded).length) }]);
     setText("");
   });
@@ -131,6 +141,10 @@ export default function App() {
         <label className="clock">Demo clock
           <input type="datetime-local" value={clock} onChange={(e) => setClock(e.target.value)} />
         </label>
+        <span className="chip live-weather" title="Live forecast for Jaipur at the demo clock hour (Open-Meteo)">
+          {live === null ? "…" : live === "offline" ? "live weather offline"
+            : `${ICON[live.condition]} ${live.temp_c.toFixed(0)}°C${live.precip_prob ? ` · ${live.precip_prob}% rain` : ""} · live`}
+        </span>
       </header>
 
       {view === "provider" ? <ProviderView catalog={catalog} clock={clock} onChanged={loadCatalog} /> : <>
@@ -192,7 +206,20 @@ export default function App() {
               </button>
               <button disabled={busy} onClick={() => trigger({ kind: "fatigue" })}>We're tired</button>
               <button disabled={busy} onClick={() => trigger({ kind: "budget_change", budget_inr: 300 })}>Only ₹300 left</button>
+              <button disabled={busy} className="forecast" onClick={checkForecast}>Check live forecast</button>
             </div>
+            {forecastCheck && (
+              <div className="forecast-result" role="status">
+                {!forecastCheck.available && <p className="muted">Live forecast unavailable (offline). Use the buttons above to simulate.</p>}
+                {forecastCheck.available && forecastCheck.risks.length === 0 && <p className="ok">✓ No weather risk to your plan in the live forecast.</p>}
+                {forecastCheck.risks.map((r) => <p key={r.stop} className="warn-line">{ICON[r.condition as keyof typeof ICON] ?? "⚠"} {r.message}</p>)}
+                {forecastCheck.proposed && (
+                  <button disabled={busy} onClick={() => { const { at: _at, ...e } = forecastCheck.proposed!; setForecastCheck(null); trigger(e); }}>
+                    Replan for {forecastCheck.proposed.weather}
+                  </button>
+                )}
+              </div>
+            )}
             {changes && (
               <ul className="changes">
                 {changes.length === 0 && <li className="muted">Nothing in your plan is affected.</li>}

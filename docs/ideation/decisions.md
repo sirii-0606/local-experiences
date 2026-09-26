@@ -10,7 +10,7 @@ Resolves the baseline doc's §16 open questions for the prototype. **Status: pro
 | Storage | JSON seed in memory; stdlib `sqlite3` for provider edits + feedback | No ORM for ~50 records |
 | AI | `claude-opus-5` parses NL → `ParsedRequest` (structured output, effort low, refusal fallback `"default"`), merged into `TravelerState`. Explanations are the engine's own `reasons` (no LLM rephrasing yet). Rule-based parser as offline fallback. | Doc §7.5: explanations come from the same factors the engine used |
 | Travel time | Haversine × 1.3 road factor ÷ mode speed (walk 4.5, auto 18, car 22 km/h) + 10 min buffer; 0 if < 100 m | No routing API. `ponytail:` upgrade to OSRM if accuracy matters |
-| Weather/traffic | Mock context events triggered from a demo panel | Real feeds are out of MVP scope |
+| Weather/traffic | Demo-panel events, **plus live weather (M9)** from Open-Meteo (no key) for the fixed Jaipur centre, never the traveler's position. Rain means WMO drizzle–storm codes, ≥0.5 mm or ≥70% probability; heat means ≥38 °C. A 30-min cache; offline means "unavailable" and nothing changes. `/context/check` **proposes** a replan and never applies one (doc §9.2: explain, allow override). `ponytail:` the engine's weather is window-wide, so once you accept rain, every outdoor stop ahead is treated as rained out. Upgrade to per-hour weather if that's too coarse. Traffic is still mocked (distance-based). | Reproducible demos; the traveler stays in control |
 | City | Jaipur (seed data only, swappable) | Dense mix of food, craft, heritage, informal providers |
 
 ## §16 open questions → prototype answers

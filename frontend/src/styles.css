@@ -143,6 +143,12 @@ select.pass { font: inherit; font-size: 0.85rem; padding: 6px; border-radius: 8p
 .member input:not([type=checkbox]) { font: inherit; font-size: 0.85rem; min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .member .check { display: flex; align-items: center; gap: 2px; }
 
+.live-weather { white-space: nowrap; }
+.events .forecast { grid-column: 1 / -1; background: var(--panel); border-color: var(--rec); color: var(--rec); }
+.forecast-result { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.forecast-result p { margin: 0; }
+.warn-line { background: var(--warn-bg); color: var(--warn); padding: 6px 10px; border-radius: 6px; }
+
 @media (max-width: 900px) {
   .provider, .draft { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr; }

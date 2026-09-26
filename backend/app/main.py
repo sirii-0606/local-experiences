@@ -8,9 +8,9 @@ from typing import get_args
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from app import provider, store
+from app import provider, store, weather
 from app.engine.adapt import Replan, replan
-from app.engine.itinerary import insert, plan, validate
+from app.engine.itinerary import insert, plan, upcoming, validate
 from app.engine.learn import learn
 from app.engine.rank import Recommendation, discover
 from app.intent import ParsedRequest, now_ist, parse, to_state
@@ -173,6 +173,40 @@ def chat(req: ChatRequest) -> ChatResponse:
         parser=parser, parsed=parsed, state=state, recommendations=recs, excluded=excluded,
         plan=PlanResponse(itinerary=it, problems=validate(it, state, s)),
     )
+
+
+@app.get("/weather")
+def weather_now(at: datetime) -> dict:
+    """Live conditions for the hour `at` (Jaipur centre). available=false when offline."""
+    hours = weather.forecast(at.date())
+    return {"available": hours is not None, "hour": hours and weather.at_hour(hours, at)}
+
+
+class ContextCheckRequest(BaseModel):
+    state: TravelerState
+    itinerary: Itinerary
+    now: datetime
+
+
+class ContextCheckResponse(BaseModel):
+    available: bool
+    risks: list[weather.Risk] = []
+    proposed: ContextEvent | None = None  # the replan we suggest; the traveler decides (doc §9.2)
+
+
+@app.post("/context/check")
+def context_check(req: ContextCheckRequest) -> ContextCheckResponse:
+    """Detect a live weather risk to the plan and propose (not apply) a replan."""
+    hours = weather.forecast(req.now.date())
+    if hours is None:
+        return ContextCheckResponse(available=False)
+    ahead = [s for s in upcoming(req.itinerary) if s.end > req.now]
+    risks = weather.plan_risks(ahead, seed(), hours)
+    worst = next((c for c in ("rain", "heat") if any(r.condition == c for r in risks)), None)
+    proposed = None
+    if worst and worst != req.state.weather:
+        proposed = ContextEvent(kind="weather", at=req.now, weather=worst)
+    return ContextCheckResponse(available=True, risks=risks, proposed=proposed)
 
 
 class FeedbackRequest(BaseModel):

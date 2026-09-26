@@ -68,7 +68,11 @@ export type ContextEvent = {
   budget_inr?: number;
 };
 
-export type PlanResponse = { itinerary: Itinerary; problems: string[] };
+export type WeatherHour = { at: string; condition: "rain" | "heat" | "clear"; temp_c: number; precip_mm: number; precip_prob: number | null };
+export type WeatherRisk = { stop: string; condition: string; message: string };
+export type ContextCheck = { available: boolean; risks: WeatherRisk[]; proposed: ContextEvent | null };
+
+export type PlanResponse ={ itinerary: Itinerary; problems: string[] };
 export type DiscoverResponse = { recommendations: Recommendation[]; excluded: Record<string, string[]> };
 export type ChatResponse = DiscoverResponse & {
   parser: "llm" | "rules";
@@ -148,6 +152,9 @@ export const api = {
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
   event: (state: TravelerState, itinerary: Itinerary, event: ContextEvent) =>
     call<EventResponse>("/events", { state, itinerary, event }),
+  weather: (at: string) => call<{ available: boolean; hour: WeatherHour | null }>(`/weather?at=${encodeURIComponent(at)}`),
+  contextCheck: (state: TravelerState, itinerary: Itinerary, now: string) =>
+    call<ContextCheck>("/context/check", { state, itinerary, now }),
   feedback: (state: TravelerState, experience_id: string, kind: FeedbackKind, reason: string | null, at: string) =>
     call<DiscoverResponse & { state: TravelerState }>("/feedback", { state, feedback: { experience_id, kind, reason, at } }),
   draft: (text: string) => call<{ parser: string; draft: ListingDraft }>("/providers/draft", { text }),
