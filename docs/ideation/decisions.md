@@ -8,7 +8,7 @@ Resolves the baseline doc's §16 open questions for the prototype. **Status: pro
 | Backend | Python 3.12 + FastAPI + Pydantic | Engine logic is easy to test in Python |
 | Frontend | React + Vite + TypeScript + Leaflet (OSM tiles) | Free map, no key |
 | Storage | JSON seed in memory; stdlib `sqlite3` for provider edits + feedback | No ORM for ~50 records |
-| AI | Claude API parses NL → `TravelerState`, phrases explanations from engine factors. Rule-based fallback. | Doc §7.5: explanations come from the same factors the engine used |
+| AI | `claude-opus-5` parses NL → `ParsedRequest` (structured output, effort low, refusal fallback `"default"`), merged into `TravelerState`. Explanations are the engine's own `reasons` (no LLM rephrasing yet). Rule-based parser as offline fallback. | Doc §7.5: explanations come from the same factors the engine used |
 | Travel time | Haversine × 1.3 road factor ÷ mode speed (walk 4.5, auto 18, car 22 km/h) + 10 min buffer; 0 if < 100 m | No routing API. `ponytail:` upgrade to OSRM if accuracy matters |
 | Weather/traffic | Mock context events triggered from a demo panel | Real feeds are out of MVP scope |
 | City | Jaipur (seed data only, swappable) | Dense mix of food, craft, heritage, informal providers |
