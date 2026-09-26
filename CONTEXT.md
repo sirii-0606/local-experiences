@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-19-itinerary-schema-timezone-fix.md](docs/context/2026-09-26-19-itinerary-schema-timezone-fix.md)_
+_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-20-jaipur-luxury-ui-redesign.md](docs/context/2026-09-26-20-jaipur-luxury-ui-redesign.md)_
 
 ## Where we are
 - **`main` (`56097d9`) has everything through M9:**
