@@ -3,6 +3,7 @@
 Track B onboarding: a small provider describes what they offer in their own words; Claude (or
 the offline rules) drafts a structured listing the provider reviews before publishing.
 """
+
 import re
 import uuid
 from collections import Counter
@@ -119,9 +120,13 @@ def draft_rules(text: str, seed: Seed) -> ListingDraft:
         if re.search(pattern, t):
             d.tags += [x for x in tags if x not in d.tags]
     d.category = next((c for tags, c in CATEGORY_BY_TAG if tags & set(d.tags)), "community")
-    d.community_led = bool(re.search(
-        r"family business|our family|community|cooperative|collective|women|generation|hereditary",
-        t))
+    d.community_led = bool(
+        re.search(
+            r"family business|our family|community|cooperative|collective|women|"
+            r"generation|hereditary",
+            t,
+        )
+    )
     if re.search(r"outdoor|rooftop|open[- ]air|\bwalk", t):
         d.indoor, d.weather_sensitive = False, True
     if "wheelchair" in t:
@@ -146,19 +151,26 @@ Use only what they said; keep defaults for anything not mentioned.
 
 def draft(text: str, seed: Seed, client=None) -> tuple[ListingDraft, str]:
     return llm_or_rules(
-        lambda: claude_parse(DRAFT_SYSTEM, f"KNOWN PLACES: {known_places(seed)}\n\n"
-                                           f"PROVIDER: {text}", ListingDraft, client),
-        lambda: draft_rules(text, seed))
+        lambda: claude_parse(
+            DRAFT_SYSTEM,
+            f"KNOWN PLACES: {known_places(seed)}\n\nPROVIDER: {text}",
+            ListingDraft,
+            client,
+        ),
+        lambda: draft_rules(text, seed),
+    )
 
 
 # ---------------------------------------------------------------- publishing
+
 
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:32] or "listing"
 
 
-def to_listing(d: ListingDraft, seed: Seed, today: date,
-               key: str | None = None) -> tuple[Provider, Place, Experience]:
+def to_listing(
+    d: ListingDraft, seed: Seed, today: date, key: str | None = None
+) -> tuple[Provider, Place, Experience]:
     """Validate a reviewed draft (trust boundary) and build the entities. ValueError = bad draft.
 
     `key`: reuse an existing listing's ids (an edit) instead of minting new ones.
@@ -170,25 +182,48 @@ def to_listing(d: ListingDraft, seed: Seed, today: date,
         raise ValueError("give the experience a title")
     opens, closes = time.fromisoformat(d.open_time), time.fromisoformat(d.close_time)
     if (closes.hour * 60 + closes.minute) - (opens.hour * 60 + opens.minute) < d.duration_min:
-        raise ValueError(f"open hours {d.open_time}-{d.close_time} are shorter than the "
-                         f"{d.duration_min}-minute experience")
+        raise ValueError(
+            f"open hours {d.open_time}-{d.close_time} are shorter than the "
+            f"{d.duration_min}-minute experience"
+        )
     if not d.days:
         raise ValueError("choose at least one day")
     if not d.tags:
         raise ValueError("add at least one tag so travelers with that interest are matched")
     key = key or f"{_slug(d.title)}-{uuid.uuid4().hex[:4]}"
     name = d.provider_name.strip() or d.title.strip()
-    provider = Provider(id=f"pv-u-{key}", name=name, kind="informal",
-                        neighbourhood=near.neighbourhood, community_led=d.community_led)
-    place = Place(id=f"pl-u-{key}", name=f"{name}, near {near.name}",
-                  neighbourhood=near.neighbourhood, lat=near.lat, lon=near.lon)
+    provider = Provider(
+        id=f"pv-u-{key}",
+        name=name,
+        kind="informal",
+        neighbourhood=near.neighbourhood,
+        community_led=d.community_led,
+    )
+    place = Place(
+        id=f"pl-u-{key}",
+        name=f"{name}, near {near.name}",
+        neighbourhood=near.neighbourhood,
+        lat=near.lat,
+        lon=near.lon,
+    )
     said = Evidence(source="provider", updated_at=today)
     exp = Experience(
-        id=f"ex-u-{key}", title=d.title.strip(), provider_id=provider.id, place_id=place.id,
-        category=d.category, tags=d.tags, description=d.description.strip() or d.title.strip(),
-        duration_min=d.duration_min, price_inr=d.price_inr, price_model=d.price_model,
-        start_model="rolling", capacity=d.capacity, min_age=d.min_age,
-        accessibility=d.accessibility, indoor=d.indoor, weather_sensitive=d.weather_sensitive,
+        id=f"ex-u-{key}",
+        title=d.title.strip(),
+        provider_id=provider.id,
+        place_id=place.id,
+        category=d.category,
+        tags=d.tags,
+        description=d.description.strip() or d.title.strip(),
+        duration_min=d.duration_min,
+        price_inr=d.price_inr,
+        price_model=d.price_model,
+        start_model="rolling",
+        capacity=d.capacity,
+        min_age=d.min_age,
+        accessibility=d.accessibility,
+        indoor=d.indoor,
+        weather_sensitive=d.weather_sensitive,
         tourist_index=NEW_LISTING_TOURIST_INDEX,
         availability=[AvailabilityWindow(start=opens, end=closes, days=d.days)],
         evidence={a: said for a in ("price_inr", "availability", "duration_min")}
@@ -203,16 +238,29 @@ def listing_key(experience_id: str) -> str:
 
 def to_draft(provider: Provider, place: Place, exp: Experience, base: Seed) -> ListingDraft:
     """A stored listing back as an editable draft (the inverse of to_listing)."""
-    near = next((p.name for p in base.places.values()
-                 if (p.lat, p.lon) == (place.lat, place.lon)), None)
+    near = next(
+        (p.name for p in base.places.values() if (p.lat, p.lon) == (place.lat, place.lon)), None
+    )
     w = exp.availability[0]
     return ListingDraft(
-        provider_name=provider.name, title=exp.title, description=exp.description,
-        category=exp.category, tags=exp.tags, near=near, duration_min=exp.duration_min,
-        price_inr=exp.price_inr, price_model=exp.price_model, capacity=exp.capacity,
-        min_age=exp.min_age, accessibility=exp.accessibility, indoor=exp.indoor,
-        weather_sensitive=exp.weather_sensitive, open_time=f"{w.start:%H:%M}",
-        close_time=f"{w.end:%H:%M}", days=w.days, community_led=provider.community_led,
+        provider_name=provider.name,
+        title=exp.title,
+        description=exp.description,
+        category=exp.category,
+        tags=exp.tags,
+        near=near,
+        duration_min=exp.duration_min,
+        price_inr=exp.price_inr,
+        price_model=exp.price_model,
+        capacity=exp.capacity,
+        min_age=exp.min_age,
+        accessibility=exp.accessibility,
+        indoor=exp.indoor,
+        weather_sensitive=exp.weather_sensitive,
+        open_time=f"{w.start:%H:%M}",
+        close_time=f"{w.end:%H:%M}",
+        days=w.days,
+        community_led=provider.community_led,
     )
 
 
@@ -233,14 +281,14 @@ REASON_BUCKETS = [
 ]
 TIPS = {
     "over their budget": "Interested travelers found it too expensive. A shorter, cheaper "
-                         "version could win them.",
+    "version could win them.",
     "doesn't fit their free time or your hours": "Most interested travelers are free at other "
-                                                 "times. Consider longer hours or another slot.",
+    "times. Consider longer hours or another slot.",
     "too long for their free time": "Travelers had less time than it takes. A shorter format "
-                                    "would fit more plans.",
+    "would fit more plans.",
     "group bigger than your capacity": "Groups larger than your capacity asked for it.",
     "accessibility needs": "Travelers with accessibility needs couldn't book it. Confirming "
-                           "step-free access or seating would open it to them.",
+    "step-free access or seating would open it to them.",
 }
 
 
@@ -249,13 +297,23 @@ def _bucket(reason: str) -> str:
 
 
 def _band(per_person: float) -> str:
-    return next(b for limit, b in ((200, "under ₹200"), (500, "₹200-500"), (1000, "₹500-1000"),
-                                   (float("inf"), "₹1000+")) if per_person < limit)
+    return next(
+        b
+        for limit, b in (
+            (200, "under ₹200"),
+            (500, "₹200-500"),
+            (1000, "₹500-1000"),
+            (float("inf"), "₹1000+"),
+        )
+        if per_person < limit
+    )
 
 
 FEEDBACK_REASONS = {
-    "not_interested": "travelers said: not for them", "too_expensive": "over their budget",
-    "too_far": "too far from them", "bad_time": "doesn't fit their free time or your hours",
+    "not_interested": "travelers said: not for them",
+    "too_expensive": "over their budget",
+    "too_far": "too far from them",
+    "bad_time": "doesn't fit their free time or your hours",
     None: "travelers passed without saying why",
 }
 
@@ -268,8 +326,9 @@ def insights(exp: Experience, rows: list[dict], feedback: list[tuple[str, str | 
     """
     matching = [r for r in rows if set(r["intents"]) & set(exp.tags)]
     reasons = Counter(_bucket(x) for r in matching for x in r["excluded"].get(exp.id, []))
-    reasons.update(FEEDBACK_REASONS.get(reason, "other") for kind, reason in feedback
-                   if kind == "reject")
+    reasons.update(
+        FEEDBACK_REASONS.get(reason, "other") for kind, reason in feedback if kind == "reject"
+    )
     return {
         "accepted": sum(kind == "accept" for kind, _ in feedback),
         "passed": sum(kind == "reject" for kind, _ in feedback),
@@ -281,8 +340,10 @@ def insights(exp: Experience, rows: list[dict], feedback: list[tuple[str, str | 
         "tips": [TIPS[b] for b, _ in reasons.most_common(2) if b in TIPS],
         "start_hours": sorted(Counter(r["start_hour"] for r in matching).items()),
         "budget_per_person": Counter(
-            _band(r["budget_inr"] / max(r["group_size"], 1)) for r in matching).most_common(),
+            _band(r["budget_inr"] / max(r["group_size"], 1)) for r in matching
+        ).most_common(),
         "with_kids": sum(r["has_kids"] for r in matching),
-        "also_wanted": Counter(i for r in matching for i in r["intents"]
-                               if i not in exp.tags).most_common(5),
+        "also_wanted": Counter(
+            i for r in matching for i in r["intents"] if i not in exp.tags
+        ).most_common(5),
     }

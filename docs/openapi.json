@@ -280,6 +280,188 @@
         }
       }
     },
+    "/social/signals": {
+      "get": {
+        "summary": "Social Signals",
+        "description": "Real-world social signals and trending community hashtags.",
+        "operationId": "social_signals_social_signals_get",
+        "parameters": [
+          {
+            "name": "condition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Condition"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Social Signals Social Signals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/report": {
+      "post": {
+        "summary": "Submit Social Report",
+        "description": "Submit a real-time crowdsourced traveler report or hazard update.",
+        "operationId": "submit_social_report_social_report_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSocialReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialSignal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simulation/presets": {
+      "get": {
+        "summary": "Simulation Presets",
+        "description": "Preset weather impact scenarios for interactive Digital Twin testing.",
+        "operationId": "simulation_presets_simulation_presets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SimulationScenario"
+                  },
+                  "type": "array",
+                  "title": "Response Simulation Presets Simulation Presets Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simulation/what-if": {
+      "post": {
+        "summary": "Simulation What If",
+        "description": "Run Digital Twin simulation with weather perturbations & plan repair.",
+        "operationId": "simulation_what_if_simulation_what_if_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigitalTwinResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feedback": {
       "post": {
         "summary": "Feedback",
@@ -2257,6 +2439,118 @@
         ],
         "title": "DeleteAccount"
       },
+      "DigitalTwinMetrics": {
+        "properties": {
+          "safety_score": {
+            "type": "integer",
+            "title": "Safety Score"
+          },
+          "comfort_index": {
+            "type": "integer",
+            "title": "Comfort Index"
+          },
+          "transit_friction_multiplier": {
+            "type": "number",
+            "title": "Transit Friction Multiplier"
+          },
+          "added_transit_delay_min": {
+            "type": "integer",
+            "title": "Added Transit Delay Min"
+          },
+          "sheltered_ratio_pct": {
+            "type": "integer",
+            "title": "Sheltered Ratio Pct"
+          },
+          "weather_classification": {
+            "type": "string",
+            "enum": [
+              "rain",
+              "heat",
+              "clear"
+            ],
+            "title": "Weather Classification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "safety_score",
+          "comfort_index",
+          "transit_friction_multiplier",
+          "added_transit_delay_min",
+          "sheltered_ratio_pct",
+          "weather_classification"
+        ],
+        "title": "DigitalTwinMetrics"
+      },
+      "DigitalTwinResult": {
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/SimulationScenario"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/DigitalTwinMetrics"
+          },
+          "impact_zones": {
+            "items": {
+              "$ref": "#/components/schemas/ImpactZonePolygon"
+            },
+            "type": "array",
+            "title": "Impact Zones"
+          },
+          "original_itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "adapted_itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "vulnerable_stop_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Vulnerable Stop Ids"
+          },
+          "protected_stop_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Protected Stop Ids"
+          },
+          "simulated_social_signals": {
+            "items": {
+              "$ref": "#/components/schemas/SocialSignal"
+            },
+            "type": "array",
+            "title": "Simulated Social Signals"
+          },
+          "ai_executive_summary": {
+            "type": "string",
+            "title": "Ai Executive Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario",
+          "metrics",
+          "impact_zones",
+          "original_itinerary",
+          "adapted_itinerary",
+          "changes",
+          "vulnerable_stop_ids",
+          "protected_stop_ids",
+          "simulated_social_signals",
+          "ai_executive_summary"
+        ],
+        "title": "DigitalTwinResult"
+      },
       "DiscoverRequest": {
         "properties": {
           "state": {
@@ -2862,6 +3156,65 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImpactZonePolygon": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "extreme"
+            ],
+            "title": "Severity"
+          },
+          "center": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Center"
+          },
+          "radius_meters": {
+            "type": "number",
+            "title": "Radius Meters"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "waterlogging_prob": {
+            "type": "number",
+            "title": "Waterlogging Prob"
+          },
+          "heat_index_c": {
+            "type": "number",
+            "title": "Heat Index C"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "severity",
+          "center",
+          "radius_meters",
+          "description",
+          "waterlogging_prob",
+          "heat_index_c"
+        ],
+        "title": "ImpactZonePolygon"
       },
       "Itinerary": {
         "properties": {
@@ -4095,6 +4448,197 @@
         ],
         "title": "Risk"
       },
+      "SimulationRequest": {
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/SimulationScenario"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario",
+          "state",
+          "itinerary"
+        ],
+        "title": "SimulationRequest"
+      },
+      "SimulationScenario": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": "Custom What-If Scenario"
+          },
+          "temp_c": {
+            "type": "number",
+            "maximum": 52.0,
+            "minimum": 10.0,
+            "title": "Temp C",
+            "default": 28.0
+          },
+          "rain_intensity_mm_h": {
+            "type": "number",
+            "maximum": 80.0,
+            "minimum": 0.0,
+            "title": "Rain Intensity Mm H",
+            "default": 0.0
+          },
+          "duration_hours": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": 0.5,
+            "title": "Duration Hours",
+            "default": 2.0
+          },
+          "epicenter_lat": {
+            "type": "number",
+            "title": "Epicenter Lat",
+            "default": 26.9239
+          },
+          "epicenter_lon": {
+            "type": "number",
+            "title": "Epicenter Lon",
+            "default": 75.8267
+          },
+          "epicenter_name": {
+            "type": "string",
+            "title": "Epicenter Name",
+            "default": "Old Walled City, Jaipur"
+          },
+          "radius_km": {
+            "type": "number",
+            "maximum": 15.0,
+            "minimum": 0.5,
+            "title": "Radius Km",
+            "default": 3.5
+          },
+          "wind_kmh": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Wind Kmh",
+            "default": 15.0
+          }
+        },
+        "type": "object",
+        "title": "SimulationScenario"
+      },
+      "SocialSignal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "x_twitter",
+              "reddit",
+              "traffic_police",
+              "local_guide",
+              "crowd_report",
+              "instagram"
+            ],
+            "title": "Source"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "avatar": {
+            "type": "string",
+            "title": "Avatar"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "location_name": {
+            "type": "string",
+            "title": "Location Name"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "sentiment": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "neutral",
+              "warning",
+              "critical"
+            ],
+            "title": "Sentiment"
+          },
+          "weather_related": {
+            "type": "boolean",
+            "title": "Weather Related",
+            "default": true
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          },
+          "impact_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Impact Level",
+            "default": "low"
+          },
+          "relevance_score": {
+            "type": "number",
+            "title": "Relevance Score",
+            "default": 0.95
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "author",
+          "handle",
+          "avatar",
+          "content",
+          "lat",
+          "lon",
+          "location_name",
+          "timestamp",
+          "sentiment"
+        ],
+        "title": "SocialSignal"
+      },
       "SplitLane": {
         "properties": {
           "traveler_names": {
@@ -5281,6 +5825,62 @@
           "onboarded"
         ],
         "title": "User"
+      },
+      "UserSocialReport": {
+        "properties": {
+          "author": {
+            "type": "string",
+            "title": "Author",
+            "default": "Anonymous Traveler"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "location_name": {
+            "type": "string",
+            "title": "Location Name"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "sentiment": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "neutral",
+              "warning",
+              "critical"
+            ],
+            "title": "Sentiment",
+            "default": "warning"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "weather_related": {
+            "type": "boolean",
+            "title": "Weather Related",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "content",
+          "location_name",
+          "lat",
+          "lon"
+        ],
+        "title": "UserSocialReport"
       },
       "ValidationError": {
         "properties": {

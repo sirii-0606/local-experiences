@@ -1,4 +1,5 @@
 """Load and validate the curated seed data (data/seed/*.json)."""
+
 from dataclasses import dataclass
 from pathlib import Path
 

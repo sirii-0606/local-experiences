@@ -1,4 +1,5 @@
 """Shared FastAPI dependencies for the v2 website routers: session user, roles, CSRF guard."""
+
 from fastapi import Depends, HTTPException, Request, Response
 
 from app import accounts
@@ -32,13 +33,21 @@ def require_role(*roles: Role):
         if user["role"] not in roles:
             raise HTTPException(403, "you don't have access to this")
         return user
+
     return check
 
 
 def set_session_cookie(response: Response, request: Request, token: str) -> None:
     https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-    response.set_cookie(COOKIE, token, max_age=accounts.SESSION_DAYS * 86400, httponly=True,
-                        samesite="lax", secure=https, path="/")
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=accounts.SESSION_DAYS * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=https,
+        path="/",
+    )
 
 
 def clear_session_cookie(response: Response) -> None:

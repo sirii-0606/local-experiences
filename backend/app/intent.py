@@ -3,6 +3,7 @@
 Two parsers produce the same ParsedRequest: Claude (structured output) and a rule-based
 fallback that works offline. `parse()` picks one and always falls back to rules on failure.
 """
+
 import logging
 import os
 import re
@@ -12,6 +13,7 @@ from typing import Literal, get_args
 
 from pydantic import BaseModel, field_validator
 
+from app import weather
 from app.models import Access, Tag, Traveler, TravelerState
 from app.seed import Seed
 
@@ -45,6 +47,7 @@ ACCESS_SYNONYMS: dict[str, Access] = {
 
 class ParsedRequest(BaseModel):
     """Only what the traveler said. None = not mentioned (keep previous value)."""
+
     near: str | None = None  # a place name from the known list
     start_time: str | None = None  # "HH:MM", 24h
     end_time: str | None = None
@@ -110,8 +113,21 @@ def now_ist() -> datetime:
 
 # ---------------------------------------------------------------- rule-based parser
 
-NUM = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
-       "seven": 7, "eight": 8, "nine": 9, "ten": 10, "half": 0.5}
+NUM = {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "half": 0.5,
+}
 N = r"(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)"
 KEYWORDS: dict[str, list[str]] = {  # regex -> tags
     r"street[- ]?food|chaat|kachori": ["street-food", "local-food"],
@@ -252,8 +268,11 @@ def parse_rules(text: str, seed: Seed) -> ParsedRequest:
     return p
 
 
-ALIASES = {"jkk": "Jawahar Kala Kendra", "railway station": "Station Road, Sindhi Camp",
-           "train station": "Station Road, Sindhi Camp"}
+ALIASES = {
+    "jkk": "Jawahar Kala Kendra",
+    "railway station": "Station Road, Sindhi Camp",
+    "train station": "Station Road, Sindhi Camp",
+}
 GENERIC = {"city", "central", "station", "old"}
 
 
@@ -384,19 +403,36 @@ def known_places(seed: Seed) -> str:
 
 
 def parse_llm(text: str, now: datetime, seed: Seed, client=None) -> ParsedRequest:
-    return claude_parse(SYSTEM, f"KNOWN PLACES: {known_places(seed)}\n"
-                                f"CURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\nTRAVELER: {text}",
-                        ParsedRequest, client)
+    w = weather.current_weather_summary(now)
+    weather_ctx = (
+        f"LIVE WEATHER AT DESTINATION: {w.description}\nMETEOROLOGICAL ADVISORY: {w.ai_guidance}\n"
+    )
+    return claude_parse(
+        SYSTEM,
+        f"{weather_ctx}"
+        f"KNOWN PLACES: {known_places(seed)}\n"
+        f"CURRENT TIME: {now:%A %d %B %Y, %H:%M}\n\n"
+        f"TRAVELER: {text}",
+        ParsedRequest,
+        client,
+    )
 
 
 def _llm_enabled() -> bool:
     mode = os.environ.get("INTENT_PARSER", "auto")
     if mode != "auto":
         return mode == "llm"
-    return any(os.environ.get(k) for k in
-               ("NVIDIA_API_KEY", "NIM_API_KEY",
-                "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE",
-                "OPENAI_API_KEY"))
+    return any(
+        os.environ.get(k)
+        for k in (
+            "NVIDIA_API_KEY",
+            "NIM_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_PROFILE",
+            "OPENAI_API_KEY",
+        )
+    )
 
 
 def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, str]:
@@ -416,18 +452,28 @@ def parse(text: str, now: datetime, seed: Seed) -> tuple[ParsedRequest, str]:
 
 # ---------------------------------------------------------------- ParsedRequest -> state
 
+
 def _hhmm(day: date, s: str) -> datetime:
     return datetime.combine(day, time.fromisoformat(s))
 
 
-def to_state(p: ParsedRequest, now: datetime, seed: Seed,
-             base: TravelerState | None = None) -> TravelerState:
+def to_state(
+    p: ParsedRequest, now: datetime, seed: Seed, base: TravelerState | None = None
+) -> TravelerState:
     """Merge what was said into the previous state (conversational refinement)."""
     home = seed.places[DEFAULT_PLACE]
-    s = base.model_dump() if base else {
-        "lat": home.lat, "lon": home.lon, "budget_inr": 2000, "group": [Traveler().model_dump()],
-        "window_start": now, "window_end": now + timedelta(hours=3),
-    }
+    s = (
+        base.model_dump()
+        if base
+        else {
+            "lat": home.lat,
+            "lon": home.lon,
+            "budget_inr": 2000,
+            "group": [Traveler().model_dump()],
+            "window_start": now,
+            "window_end": now + timedelta(hours=3),
+        }
+    )
     day = s["window_start"].date() if base else now.date()
 
     if p.near and (place := next((x for x in seed.places.values() if x.name == p.near), None)):
@@ -446,20 +492,35 @@ def to_state(p: ParsedRequest, now: datetime, seed: Seed,
     if any(v is not None for v in (p.group_size, p.adults, p.children, p.seniors)) or p.child_ages:
         # "solo", "a couple", "family of 4" describe the WHOLE group: nobody carries over from
         # before. "actually with my parents" / "with a kid" only adds to the previous group.
-        prev = [] if (p.group_size is not None or p.adults is not None) else (
-            base.group if base else [])
-        children = p.children if p.children is not None else (
-            len(p.child_ages) or sum(t.age < 16 for t in prev))
+        prev = (
+            []
+            if (p.group_size is not None or p.adults is not None)
+            else (base.group if base else [])
+        )
+        children = (
+            p.children
+            if p.children is not None
+            else (len(p.child_ages) or sum(t.age < 16 for t in prev))
+        )
         seniors = p.seniors if p.seniors is not None else sum(t.age >= 65 for t in prev)
-        adults = p.adults if p.adults is not None else (
-            max(p.group_size - children - seniors, 0) if p.group_size
-            else sum(16 <= t.age < 65 for t in prev) or 1)
+        adults = (
+            p.adults
+            if p.adults is not None
+            else (
+                max(p.group_size - children - seniors, 0)
+                if p.group_size
+                else sum(16 <= t.age < 65 for t in prev) or 1
+            )
+        )
         ages = (p.child_ages + [8] * children)[:children]
-        s["group"] = ([Traveler(name=f"adult{i + 1}").model_dump() for i in range(adults)]
-                      + [Traveler(name=f"senior{i + 1}", age=68).model_dump()
-                         for i in range(seniors)]
-                      + [Traveler(name=f"child{i + 1}", age=a, interests=["kids"]).model_dump()
-                         for i, a in enumerate(ages)])
+        s["group"] = (
+            [Traveler(name=f"adult{i + 1}").model_dump() for i in range(adults)]
+            + [Traveler(name=f"senior{i + 1}", age=68).model_dump() for i in range(seniors)]
+            + [
+                Traveler(name=f"child{i + 1}", age=a, interests=["kids"]).model_dump()
+                for i, a in enumerate(ages)
+            ]
+        )
     if p.accessibility:
         member = s["group"][0]
         member["accessibility"] = sorted(set(member["accessibility"]) | set(p.accessibility))

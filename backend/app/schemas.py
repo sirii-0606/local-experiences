@@ -4,6 +4,7 @@ Contract-first: the frontend builds against these shapes (mirrored in frontend/s
 mocked in frontend/src/mocks/) while the backend behind them is still evolving.
 The OpenAPI snapshot in docs/openapi.json is checked by tests/test_contract.py.
 """
+
 import re
 from datetime import date, datetime, time
 from typing import Literal
@@ -49,6 +50,7 @@ class User(BaseModel):
 
 class Companion(BaseModel):
     """A person the user often travels with; reused when planning trips (P3)."""
+
     name: str = Field(min_length=1, max_length=60)
     age: int | None = Field(default=None, ge=0, le=110)
     interests: list[Tag] = []
@@ -60,6 +62,7 @@ class Companion(BaseModel):
 class Profile(BaseModel):
     """Everything used to personalise recommendations. All optional except the name.
     Sensitive fields (age, accessibility, diet) are owner-only: never shown to admins/providers."""
+
     display_name: str = Field(min_length=1, max_length=60)
     age: int | None = Field(default=None, ge=0, le=110)
     home_city: str | None = Field(default=None, max_length=60)
@@ -87,6 +90,7 @@ class DeleteAccount(BaseModel):
 
 class AdminUserRow(BaseModel):
     """What an admin may see about a user: account facts only, never profile data."""
+
     id: int
     email: str
     role: Role
@@ -117,6 +121,7 @@ MAX_TRIP_DAYS = 7
 
 class TripTraveler(Companion):
     """One person on a trip. `is_me` marks the account owner (their profile can fill it in)."""
+
     is_me: bool = False
 
 
@@ -228,6 +233,7 @@ ShortlistDecision = Literal["in_person", "ar", "skip"]
 class TripDraft(BaseModel):
     """What the "Plan a trip" wizard collects. Shortlist, stay pick, itinerary, splits and
     feedback are added as optional fields in P4-P6, so drafts saved now stay valid."""
+
     title: str = Field(min_length=1, max_length=80)
     destination: Literal["jaipur"] = "jaipur"  # the only city with data; others "coming soon"
     origin_city: str | None = Field(default=None, max_length=60)

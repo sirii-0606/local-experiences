@@ -17,32 +17,53 @@ SAT = date(2026, 9, 26)
 
 def state(where, day, start_h, end_h, budget, group=None, **kw):
     return TravelerState(
-        lat=where[0], lon=where[1], budget_inr=budget,
+        lat=where[0],
+        lon=where[1],
+        budget_inr=budget,
         window_start=datetime.combine(day, datetime.min.time()) + timedelta(hours=start_h),
         window_end=datetime.combine(day, datetime.min.time()) + timedelta(hours=end_h),
-        group=group or [Traveler()], **kw,
+        group=group or [Traveler()],
+        **kw,
     )
 
 
 FAMILY = [
-    Traveler(name="mum", age=40), Traveler(name="dad", age=42),
-    Traveler(name="kid1", age=11, interests=["craft", "kids"]), Traveler(name="kid2", age=8),
+    Traveler(name="mum", age=40),
+    Traveler(name="dad", age=42),
+    Traveler(name="kid1", age=11, interests=["craft", "kids"]),
+    Traveler(name="kid2", age=8),
 ]
-SCENARIO_A = state(HAWA_MAHAL, SAT, 16, 18, 1500, FAMILY,
-                   intents=["local-food", "heritage", "performance"])
+SCENARIO_A = state(
+    HAWA_MAHAL, SAT, 16, 18, 1500, FAMILY, intents=["local-food", "heritage", "performance"]
+)
 
 PERSONAS = {
     "scenario_a_family": SCENARIO_A,
-    "wheelchair_senior": state(HAWA_MAHAL, SAT, 10, 14, 1000,
-                               [Traveler(age=72, accessibility=["wheelchair"])],
-                               intents=["history", "museum"]),
+    "wheelchair_senior": state(
+        HAWA_MAHAL,
+        SAT,
+        10,
+        14,
+        1000,
+        [Traveler(age=72, accessibility=["wheelchair"])],
+        intents=["history", "museum"],
+    ),
     "zero_budget_student": state(JKK, SAT, 14, 20, 0, [Traveler(age=21)], intents=["art"]),
     "early_riser": state(JAL_MAHAL, SAT, 5.75, 8, 800, intents=["wellness", "sunrise"]),
-    "rainy_indoor_couple": state(HAWA_MAHAL, SAT, 11, 15, 3000, [Traveler(), Traveler()],
-                                 indoor_only=True, intents=["craft"]),
+    "rainy_indoor_couple": state(
+        HAWA_MAHAL, SAT, 11, 15, 3000, [Traveler(), Traveler()], indoor_only=True, intents=["craft"]
+    ),
     "walker_1km": state(HAWA_MAHAL, SAT, 9, 21, 2000, mode="walk", max_distance_km=1.0),
-    "hidden_gems_solo": state(HAWA_MAHAL, SAT, 10, 18, 2000, avoid_crowds=True, novelty=0.6,
-                              intents=["hidden-gem", "craft"]),
+    "hidden_gems_solo": state(
+        HAWA_MAHAL,
+        SAT,
+        10,
+        18,
+        2000,
+        avoid_crowds=True,
+        novelty=0.6,
+        intents=["hidden-gem", "craft"],
+    ),
     "folk_night_sunday": state(JKK, date(2026, 9, 27), 18.5, 22, 500, intents=["music"]),
 }
 
@@ -59,7 +80,8 @@ def assert_independently_feasible(rec, s):
     assert rec.end == rec.start + timedelta(minutes=e.duration_min) <= s.window_end
     assert any(
         (w.on_date == day if w.on_date else day.weekday() in w.days)
-        and w.start <= rec.start.time() and rec.end.time() <= w.end
+        and w.start <= rec.start.time()
+        and rec.end.time() <= w.end
         and (not w.slots or rec.start.time() in w.slots)
         for w in e.availability
     ), f"{e.id} not open at {rec.start:%H:%M}"
@@ -101,15 +123,22 @@ def test_low_confidence_is_flagged_not_hidden():
 def test_one_off_event_only_on_its_date():
     recs, _ = discover(PERSONAS["folk_night_sunday"], SEED)
     assert "ex-jkk-folk-evening" in {r.experience_id for r in recs}
-    monday = PERSONAS["folk_night_sunday"].model_copy(update={
-        "window_start": datetime(2026, 9, 28, 18, 30), "window_end": datetime(2026, 9, 28, 22)})
+    monday = PERSONAS["folk_night_sunday"].model_copy(
+        update={
+            "window_start": datetime(2026, 9, 28, 18, 30),
+            "window_end": datetime(2026, 9, 28, 22),
+        }
+    )
     _, excluded = discover(monday, SEED)
     assert excluded["ex-jkk-folk-evening"] == ["not running on Monday 28 Sep"]
 
 
 def test_unconfirmed_accessibility_fails_hard_constraint():
-    exp = SEED.experiences["ex-chai-boardgames"].model_copy(update={
-        "evidence": {"accessibility": Evidence(source="provider", updated_at=date(2025, 1, 1))}})
+    exp = SEED.experiences["ex-chai-boardgames"].model_copy(
+        update={
+            "evidence": {"accessibility": Evidence(source="provider", updated_at=date(2025, 1, 1))}
+        }
+    )
     s = state((26.9050, 75.8060), SAT, 16, 20, 1000, [Traveler(accessibility=["wheelchair"])])
     assert check(exp, s, SEED).reasons == ["accessibility claim is unconfirmed"]
 

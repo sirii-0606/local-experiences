@@ -1,19 +1,32 @@
 """Trips (v2 website, P3): owner-scoped CRUD and validation."""
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 PW = "correct horse 42"
-TRIP = {"title": "Jaipur with the family", "start_date": "2026-10-10", "end_date": "2026-10-12",
-        "budget_inr": 30000, "travelers": [{"name": "Asha", "age": 34, "is_me": True},
-                                           {"name": "Kabir", "age": 8, "interests": ["kids"]}],
-        "must_see": ["ex-hawa-mahal"], "stay": {"type": "homestay", "max_per_night_inr": 4000}}
+TRIP = {
+    "title": "Jaipur with the family",
+    "start_date": "2026-10-10",
+    "end_date": "2026-10-12",
+    "budget_inr": 30000,
+    "travelers": [
+        {"name": "Asha", "age": 34, "is_me": True},
+        {"name": "Kabir", "age": 8, "interests": ["kids"]},
+    ],
+    "must_see": ["ex-hawa-mahal"],
+    "stay": {"type": "homestay", "max_per_night_inr": 4000},
+}
 
 
 def signup(email: str) -> TestClient:
     c = TestClient(app, headers={"X-Requested-With": "le"})
-    assert c.post("/auth/register", json={"email": email, "password": PW,
-                                          "display_name": "A"}).status_code == 201
+    assert (
+        c.post(
+            "/auth/register", json={"email": email, "password": PW, "display_name": "A"}
+        ).status_code
+        == 201
+    )
     return c
 
 
@@ -25,8 +38,13 @@ def test_trip_crud_round_trip():
     t = r.json()
     assert t["destination"] == "jaipur" and t["day_start"] == "09:30:00"
     assert t["stay"]["type"] == "homestay" and t["travelers"][0]["is_me"]
-    assert c.post("/trips", json={**TRIP, "title": "Earlier", "start_date": "2026-10-01",
-                                  "end_date": "2026-10-01"}).status_code == 201
+    assert (
+        c.post(
+            "/trips",
+            json={**TRIP, "title": "Earlier", "start_date": "2026-10-01", "end_date": "2026-10-01"},
+        ).status_code
+        == 201
+    )
     assert [x["title"] for x in c.get("/trips").json()] == ["Earlier", TRIP["title"]]  # by date
     r = c.put(f"/trips/{t['id']}", json={**TRIP, "title": "Renamed"})
     assert r.status_code == 200 and r.json()["title"] == "Renamed"
@@ -50,13 +68,15 @@ def test_trips_are_private_to_their_owner():
 
 def test_trip_validation():
     c = signup("asha@example.com")
-    bad = [{"end_date": "2026-10-09"},                                # ends before it starts
-           {"end_date": "2026-10-17"},                                # 8 days
-           {"day_start": "20:00", "day_end": "09:00"},
-           {"travelers": []},
-           {"destination": "goa"},
-           {"must_see": ["ex-nope"]},
-           {"title": ""}]
+    bad = [
+        {"end_date": "2026-10-09"},  # ends before it starts
+        {"end_date": "2026-10-17"},  # 8 days
+        {"day_start": "20:00", "day_end": "09:00"},
+        {"travelers": []},
+        {"destination": "goa"},
+        {"must_see": ["ex-nope"]},
+        {"title": ""},
+    ]
     for patch in bad:
         assert c.post("/trips", json={**TRIP, **patch}).status_code == 422, patch
     assert c.post("/trips", json={**TRIP, "end_date": "2026-10-16"}).status_code == 201  # 7 days

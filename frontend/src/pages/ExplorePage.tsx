@@ -2,7 +2,22 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router";
 import MapView from "../MapView";
 import { api } from "../api";
-import type { Catalog, Change, ContextCheck, ContextEvent, Itinerary, Recommendation, Stop, TravelerState } from "../api";
+import type {
+  Catalog,
+  Change,
+  ContextCheck,
+  ContextEvent,
+  DigitalTwinResult,
+  ImpactZonePolygon,
+  Itinerary,
+  Recommendation,
+  SimulationScenario,
+  SocialSignal,
+  Stop,
+  TravelerState,
+  UserSocialReport,
+  WeatherSummary,
+} from "../api";
 import { useClock } from "../clock";
 import { getExperiencePhoto } from "../photos";
 
@@ -57,6 +72,36 @@ export default function ExplorePage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatText, setChatText] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
+
+  // Weather & Live Atmospheric State
+  const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
+
+  // Real-World Social Signals State
+  const [socialSignals, setSocialSignals] = useState<SocialSignal[]>([]);
+  const [trendingHashtags, setTrendingHashtags] = useState<Array<{ tag: string; count: number; trend: string; sentiment: string }>>([]);
+  const [isSocialOpen, setIsSocialOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportAuthor, setReportAuthor] = useState("");
+  const [reportContent, setReportContent] = useState("");
+  const [reportLocation, setReportLocation] = useState("Badi Chaupar");
+  const [reportSentiment, setReportSentiment] = useState<"positive" | "neutral" | "warning" | "critical">("warning");
+
+  // Digital Twin Simulation State
+  const [isSimulationOpen, setIsSimulationOpen] = useState(false);
+  const [simPresets, setSimPresets] = useState<SimulationScenario[]>([]);
+  const [currentScenario, setCurrentScenario] = useState<SimulationScenario>({
+    name: "Custom What-If",
+    temp_c: 28.0,
+    rain_intensity_mm_h: 0.0,
+    duration_hours: 2.0,
+    epicenter_lat: 26.9239,
+    epicenter_lon: 75.8267,
+    epicenter_name: "Old Walled City, Jaipur",
+    radius_km: 3.5,
+    wind_kmh: 15.0,
+  });
+  const [simResult, setSimResult] = useState<DigitalTwinResult | null>(null);
+  const [simLoading, setSimLoading] = useState(false);
 
   // Initial Load: Populate catalog, initial traveler state, recommendations and itinerary
   useEffect(() => {
@@ -168,6 +213,82 @@ export default function ExplorePage() {
       active = false;
     };
   }, []);
+
+  // Fetch Live Weather Meteorological Summary & Real-World Social Signals
+  useEffect(() => {
+    async function loadAtmosphericAndSocial() {
+      try {
+        const wRes = await api.weather(clock);
+        if (wRes?.summary) {
+          setWeatherSummary(wRes.summary);
+        }
+        const sRes = await api.getSocialSignals({ condition: wRes?.summary?.condition || "clear" });
+        if (sRes?.signals) {
+          setSocialSignals(sRes.signals);
+          setTrendingHashtags(sRes.trending_hashtags || []);
+        }
+        const presets = await api.getSimulationPresets();
+        if (presets?.length) {
+          setSimPresets(presets);
+        }
+      } catch (err) {
+        console.warn("Failed to load atmospheric/social context:", err);
+      }
+    }
+    loadAtmosphericAndSocial();
+  }, [clock]);
+
+  // Digital Twin Execution Handler
+  async function triggerSimulation(scenarioToRun?: SimulationScenario) {
+    const sc = scenarioToRun || currentScenario;
+    if (!state) return;
+    setSimLoading(true);
+    try {
+      const res = await api.runSimulation(sc, state, itinerary);
+      setSimResult(res);
+      if (res.simulated_social_signals?.length) {
+        setSocialSignals(res.simulated_social_signals);
+      }
+    } catch (err) {
+      console.error("Digital Twin simulation error:", err);
+    } finally {
+      setSimLoading(false);
+    }
+  }
+
+  function applySimulatedPlan() {
+    if (!simResult) return;
+    setItinerary(simResult.adapted_itinerary);
+    if (state) {
+      setState({
+        ...state,
+        weather: simResult.metrics.weather_classification,
+      });
+    }
+    setIsSimulationOpen(false);
+  }
+
+  async function handleReportSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reportContent.trim()) return;
+    try {
+      const newSig = await api.postSocialReport({
+        author: reportAuthor.trim() || "Local Explorer",
+        content: reportContent.trim(),
+        location_name: reportLocation,
+        lat: 26.9239,
+        lon: 75.8267,
+        sentiment: reportSentiment,
+        tags: ["#LiveAlert", "#JaipurUpdate"],
+        weather_related: true,
+      });
+      setSocialSignals((prev) => [newSig, ...prev]);
+      setReportContent("");
+      setIsReportOpen(false);
+    } catch (err) {
+      console.error("Failed to post report:", err);
+    }
+  }
 
   // Catalog item lookup maps
   const expMap = useMemo(() => {
@@ -566,8 +687,31 @@ export default function ExplorePage() {
             </div>
           </div>
 
-          {/* AI Chat Assistant Toggle */}
-          <div style={{ marginTop: "auto", paddingTop: "8px" }}>
+          {/* Action Hub: Digital Twin Studio, Social Pulse, AI Assistant */}
+          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingTop: "12px" }}>
+            <button
+              type="button"
+              className="ai-assistant-btn"
+              style={{ background: "linear-gradient(135deg, #1b4332, #2d6a4f)", boxShadow: "0 4px 14px rgba(27, 67, 50, 0.35)" }}
+              onClick={() => {
+                setIsSimulationOpen(true);
+                if (!simResult) triggerSimulation();
+              }}
+            >
+              <span>🌐</span>
+              <span>Digital Twin What-If Studio</span>
+            </button>
+
+            <button
+              type="button"
+              className="ai-assistant-btn"
+              style={{ background: "linear-gradient(135deg, #263388, #3b4cca)", boxShadow: "0 4px 14px rgba(38, 51, 136, 0.35)" }}
+              onClick={() => setIsSocialOpen(true)}
+            >
+              <span>📡</span>
+              <span>Social Signals Radar ({socialSignals.length})</span>
+            </button>
+
             <button
               type="button"
               className="ai-assistant-btn"
@@ -787,18 +931,41 @@ export default function ExplorePage() {
             <div className="weather-header-row">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.3rem" }}>
-                  {liveWeather === "offline" || !liveWeather ? "☀️" : liveWeather.condition === "rain" ? "🌧" : liveWeather.condition === "heat" ? "🔥" : "☀️"}
+                  {weatherSummary?.condition === "rain" ? "🌧" : weatherSummary?.condition === "heat" ? "🔥" : "☀️"}
                 </span>
                 <div>
                   <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
-                    Jaipur Weather: {liveWeather && liveWeather !== "offline" ? `${liveWeather.temp_c.toFixed(0)}°C` : "32°C"}
+                    Jaipur Weather: {weatherSummary ? `${weatherSummary.temp_c.toFixed(1)}°C` : (liveWeather && liveWeather !== "offline" ? `${liveWeather.temp_c.toFixed(0)}°C` : "32°C")}
                   </h4>
-                  <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-                    Sunset: 6:18 PM • Perfect for outdoor exploration
+                  <span style={{ fontSize: "0.74rem", color: "var(--muted)", display: "block" }}>
+                    {weatherSummary ? `${weatherSummary.description}` : "Clear & mild breeze in central district"}
                   </span>
                 </div>
               </div>
             </div>
+
+            {/* Meteorological telemetry pills */}
+            {weatherSummary && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", fontSize: "0.72rem", fontWeight: 700, marginTop: "4px" }}>
+                <span style={{ background: "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: "var(--ink)", border: "1px solid var(--line)" }}>
+                  💧 {weatherSummary.humidity_pct}% Humidity
+                </span>
+                <span style={{ background: "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: "var(--ink)", border: "1px solid var(--line)" }}>
+                  💨 {weatherSummary.wind_kmh} km/h Wind
+                </span>
+                <span style={{ background: weatherSummary.precip_prob > 30 ? "rgba(184, 67, 48, 0.15)" : "var(--panel-2)", padding: "2px 8px", borderRadius: "6px", color: weatherSummary.precip_prob > 30 ? "var(--accent)" : "var(--ink)", border: "1px solid var(--line)" }}>
+                  🌧️ {weatherSummary.precip_prob}% Rain Prob
+                </span>
+              </div>
+            )}
+
+            {/* AI Weather Advisory Banner */}
+            {weatherSummary?.condition !== "clear" && (
+              <div style={{ background: weatherSummary?.condition === "rain" ? "#e3f2fd" : "#fff3e0", border: `1px solid ${weatherSummary?.condition === "rain" ? "#90caf9" : "#ffb74d"}`, borderRadius: "8px", padding: "8px 10px", fontSize: "0.72rem", color: "#1e131d", lineHeight: 1.35, marginTop: "4px" }}>
+                <strong style={{ display: "block", marginBottom: "2px" }}>🤖 AI Weather Advisory:</strong>
+                {weatherSummary?.ai_guidance}
+              </div>
+            )}
 
             {/* Transport Mode Switcher */}
             <div className="transport-selector">
@@ -829,10 +996,440 @@ export default function ExplorePage() {
               recs={filteredRecs}
               stops={itinerary.stops}
               highlightedId={highlightedExpId}
+              impactZones={simResult?.impact_zones}
+              socialSignals={socialSignals}
+              vulnerableStopIds={simResult?.vulnerable_stop_ids}
             />
           </div>
         </aside>
       </div>
+
+      {/* =========================================================================
+          DIGITAL TWIN WHAT-IF SIMULATION STUDIO MODAL
+      ========================================================================== */}
+      {isSimulationOpen && (
+        <div className="exp-modal-backdrop" style={{ zIndex: 3000 }}>
+          <div className="exp-modal-card" style={{ maxWidth: "860px", maxHeight: "92vh", overflowY: "auto", padding: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--line)", paddingBottom: "12px", marginBottom: "16px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "1.4rem" }}>🌐</span>
+                  <h3 style={{ margin: 0, fontSize: "1.4rem", fontFamily: "var(--serif)", color: "var(--ink)" }}>
+                    Digital Twin · Environmental What-If Studio
+                  </h3>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>
+                  Simulate severe weather events across Jaipur, propagate physical transit delays, and watch the AI engine repair the day's itinerary.
+                </p>
+              </div>
+              <button type="button" onClick={() => setIsSimulationOpen(false)} className="close-drawer-btn" style={{ fontSize: "1.2rem" }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Presets Bar */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "0.74rem", fontWeight: 800, textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: "6px" }}>
+                1-Click What-If Scenarios:
+              </label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {(simPresets.length ? simPresets : [
+                  { name: "Sudden Cloudburst (35 mm/h)", temp_c: 29.5, rain_intensity_mm_h: 35.0, duration_hours: 2.5, epicenter_lat: 26.9239, epicenter_lon: 75.8267, epicenter_name: "Old Walled City", radius_km: 3.8, wind_kmh: 32.0 },
+                  { name: "Extreme Heatwave (43.8°C)", temp_c: 43.8, rain_intensity_mm_h: 0.0, duration_hours: 4.0, epicenter_lat: 26.9247, epicenter_lon: 75.8245, epicenter_name: "Jantar Mantar", radius_km: 5.0, wind_kmh: 18.0 },
+                  { name: "Amer Flash Flood & Rampart Closure", temp_c: 27.0, rain_intensity_mm_h: 48.0, duration_hours: 3.0, epicenter_lat: 26.9855, epicenter_lon: 75.8513, epicenter_name: "Amer Fort Hills", radius_km: 2.8, wind_kmh: 28.0 },
+                  { name: "Pleasant Autumn Evening (24.0°C)", temp_c: 24.0, rain_intensity_mm_h: 0.0, duration_hours: 3.0, epicenter_lat: 26.9378, epicenter_lon: 75.8155, epicenter_name: "Nahargarh Ridge", radius_km: 4.0, wind_kmh: 12.0 },
+                ]).map((pre, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setCurrentScenario(pre);
+                      triggerSimulation(pre);
+                    }}
+                    style={{
+                      background: currentScenario.name === pre.name ? "var(--accent)" : "var(--panel-2)",
+                      color: currentScenario.name === pre.name ? "#ffffff" : "var(--ink)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "8px",
+                      padding: "6px 12px",
+                      fontSize: "0.78rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {pre.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Parameter Sliders Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", background: "var(--panel-2)", padding: "14px", borderRadius: "12px", border: "1px solid var(--line)", marginBottom: "16px" }}>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px" }}>
+                  <span>🌡️ Temperature</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 800 }}>{currentScenario.temp_c.toFixed(1)}°C</span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="48"
+                  step="0.5"
+                  value={currentScenario.temp_c}
+                  onChange={(e) => {
+                    const next = { ...currentScenario, temp_c: Number(e.target.value) };
+                    setCurrentScenario(next);
+                  }}
+                  className="budget-slider"
+                />
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px" }}>
+                  <span>🌧️ Rain Intensity</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 800 }}>{currentScenario.rain_intensity_mm_h.toFixed(1)} mm/h</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="60"
+                  step="1"
+                  value={currentScenario.rain_intensity_mm_h}
+                  onChange={(e) => {
+                    const next = { ...currentScenario, rain_intensity_mm_h: Number(e.target.value) };
+                    setCurrentScenario(next);
+                  }}
+                  className="budget-slider"
+                />
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px" }}>
+                  <span>⏱️ Duration</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 800 }}>{currentScenario.duration_hours.toFixed(1)} hrs</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="6.0"
+                  step="0.5"
+                  value={currentScenario.duration_hours}
+                  onChange={(e) => {
+                    const next = { ...currentScenario, duration_hours: Number(e.target.value) };
+                    setCurrentScenario(next);
+                  }}
+                  className="budget-slider"
+                />
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px" }}>
+                  <span>📍 Epicenter</span>
+                </div>
+                <select
+                  value={currentScenario.epicenter_name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    let lat = 26.9239;
+                    let lon = 75.8267;
+                    if (val.includes("Amer")) { lat = 26.9855; lon = 75.8513; }
+                    else if (val.includes("Nahargarh")) { lat = 26.9378; lon = 75.8155; }
+                    else if (val.includes("Jantar")) { lat = 26.9247; lon = 75.8245; }
+                    setCurrentScenario({ ...currentScenario, epicenter_name: val, epicenter_lat: lat, epicenter_lon: lon });
+                  }}
+                  style={{ width: "100%", padding: "5px 8px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--panel)", fontSize: "0.78rem", fontWeight: 700, color: "var(--ink)" }}
+                >
+                  <option value="Old Walled City, Jaipur">Old Walled City & Badi Chaupar</option>
+                  <option value="Amer Fort Hills & Maota Lake">Amer Fort Hills</option>
+                  <option value="Jantar Mantar & Central Open Terraces">Jantar Mantar Open Area</option>
+                  <option value="Nahargarh Ridge & Sunset Point">Nahargarh Ridge</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+              <button
+                type="button"
+                className="ai-assistant-btn"
+                style={{ width: "auto", padding: "8px 20px" }}
+                onClick={() => triggerSimulation()}
+                disabled={simLoading}
+              >
+                {simLoading ? "Running Simulation Physics..." : "⚡ Execute What-If Simulation"}
+              </button>
+            </div>
+
+            {/* Simulation Results Display */}
+            {simResult && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {/* 4 Telemetry Metrics */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                  <div style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 800 }}>Safety Score</span>
+                    <h4 style={{ margin: "4px 0 0", fontSize: "1.3rem", color: simResult.metrics.safety_score < 70 ? "var(--bad)" : "var(--ok)", fontWeight: 900 }}>
+                      {simResult.metrics.safety_score}%
+                    </h4>
+                  </div>
+
+                  <div style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 800 }}>Comfort Index</span>
+                    <h4 style={{ margin: "4px 0 0", fontSize: "1.3rem", color: simResult.metrics.comfort_index < 70 ? "var(--warn)" : "var(--ok)", fontWeight: 900 }}>
+                      {simResult.metrics.comfort_index}%
+                    </h4>
+                  </div>
+
+                  <div style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 800 }}>Transit Friction</span>
+                    <h4 style={{ margin: "4px 0 0", fontSize: "1.3rem", color: "var(--ink)", fontWeight: 900 }}>
+                      {simResult.metrics.transit_friction_multiplier}x
+                    </h4>
+                    <span style={{ fontSize: "0.68rem", color: "var(--muted)" }}>+{simResult.metrics.added_transit_delay_min} min delay</span>
+                  </div>
+
+                  <div style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 800 }}>Sheltered Ratio</span>
+                    <h4 style={{ margin: "4px 0 0", fontSize: "1.3rem", color: "var(--accent)", fontWeight: 900 }}>
+                      {simResult.metrics.sheltered_ratio_pct}%
+                    </h4>
+                  </div>
+                </div>
+
+                {/* AI Executive Summary */}
+                <div style={{ background: "rgba(38, 51, 136, 0.08)", border: "1px solid rgba(38, 51, 136, 0.2)", borderRadius: "10px", padding: "12px 14px", fontSize: "0.82rem", lineHeight: 1.45, color: "var(--ink)" }}>
+                  <strong style={{ display: "block", color: "var(--rec)", marginBottom: "4px" }}>
+                    🤖 Digital Twin Assessment & Propagation Analysis:
+                  </strong>
+                  {simResult.ai_executive_summary}
+                </div>
+
+                {/* Itemized Replan Changes */}
+                <div>
+                  <h4 style={{ margin: "0 0 8px", fontSize: "0.92rem", fontWeight: 800, color: "var(--ink)" }}>
+                    Automated Plan Repair ({simResult.changes.length} adjustments proposed):
+                  </h4>
+                  {simResult.changes.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--muted)" }}>No itinerary changes required. Current stops remain safe and accessible.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {simResult.changes.map((c, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 12px", fontSize: "0.82rem" }}>
+                          <div>
+                            <span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.72rem", color: c.action === "replaced" ? "var(--accent)" : "var(--warn)", marginRight: "8px" }}>
+                              {c.action}
+                            </span>
+                            <strong>{c.stop}</strong>
+                            {c.new_stop && <span> → <strong style={{ color: "var(--ok)" }}>{c.new_stop}</strong></span>}
+                            <span style={{ display: "block", fontSize: "0.72rem", color: "var(--muted)", marginTop: "2px" }}>Reason: {c.reason}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Bar */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)", paddingTop: "14px", marginTop: "6px" }}>
+                  <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>
+                    Map now visualizes the simulated impact rings and vulnerable stops.
+                  </span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsSimulationOpen(false)}
+                      style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid var(--line)", background: "transparent", cursor: "pointer", fontSize: "0.82rem", fontWeight: 700 }}
+                    >
+                      Close & Observe Map
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applySimulatedPlan}
+                      className="ai-assistant-btn"
+                      style={{ width: "auto", padding: "8px 18px" }}
+                    >
+                      ✅ Apply Simulated Plan to My Day
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          REAL-WORLD SOCIAL SIGNAL RADAR DRAWER / MODAL
+      ========================================================================== */}
+      {isSocialOpen && (
+        <div className="exp-modal-backdrop" style={{ zIndex: 3000 }}>
+          <div className="exp-modal-card" style={{ maxWidth: "700px", maxHeight: "88vh", overflowY: "auto", padding: "22px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--line)", paddingBottom: "12px", marginBottom: "14px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "1.4rem" }}>📡</span>
+                  <h3 style={{ margin: 0, fontSize: "1.3rem", fontFamily: "var(--serif)", color: "var(--ink)" }}>
+                    Jaipur Real-World Social Signals Radar
+                  </h3>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>
+                  Live traveler reactions, crowdsourced weather reports, and traffic police advisories.
+                </p>
+              </div>
+              <button type="button" onClick={() => setIsSocialOpen(false)} className="close-drawer-btn" style={{ fontSize: "1.2rem" }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Trending Hashtags */}
+            {trendingHashtags.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
+                {trendingHashtags.map((h, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      background: h.sentiment === "critical" ? "rgba(179, 38, 30, 0.15)" : "var(--panel-2)",
+                      color: h.sentiment === "critical" ? "var(--bad)" : "var(--accent)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "999px",
+                      padding: "3px 10px",
+                      fontSize: "0.74rem",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {h.tag} <small style={{ opacity: 0.7 }}>({h.count})</small>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Report Button */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "var(--ink)" }}>
+                Latest Community Reports ({socialSignals.length}):
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(!isReportOpen)}
+                style={{
+                  background: "var(--accent)",
+                  color: "#ffffff",
+                  border: 0,
+                  borderRadius: "8px",
+                  padding: "5px 12px",
+                  fontSize: "0.76rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {isReportOpen ? "Cancel Report" : "➕ Report Ground Hazard"}
+              </button>
+            </div>
+
+            {/* Ground Hazard Submission Form */}
+            {isReportOpen && (
+              <form onSubmit={handleReportSubmit} style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "12px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <strong style={{ fontSize: "0.82rem", color: "var(--ink)" }}>Submit Live Ground Report:</strong>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <input
+                    type="text"
+                    placeholder="Your Name (or Guide ID)"
+                    value={reportAuthor}
+                    onChange={(e) => setReportAuthor(e.target.value)}
+                    style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid var(--line)", fontSize: "0.8rem", background: "var(--panel)" }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Location (e.g. Hawa Mahal, Amer)"
+                    value={reportLocation}
+                    onChange={(e) => setReportLocation(e.target.value)}
+                    style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid var(--line)", fontSize: "0.8rem", background: "var(--panel)" }}
+                  />
+                </div>
+                <textarea
+                  placeholder="Describe current weather, crowd condition, road waterlogging, or advice..."
+                  rows={2}
+                  value={reportContent}
+                  onChange={(e) => setReportContent(e.target.value)}
+                  style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid var(--line)", fontSize: "0.8rem", background: "var(--panel)" }}
+                  required
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <select
+                    value={reportSentiment}
+                    onChange={(e) => setReportSentiment(e.target.value as any)}
+                    style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid var(--line)", fontSize: "0.76rem" }}
+                  >
+                    <option value="warning">⚠️ Warning / Delay</option>
+                    <option value="critical">🚨 Critical / Closure</option>
+                    <option value="positive">✨ Positive / Clear</option>
+                    <option value="neutral">ℹ️ Informational</option>
+                  </select>
+                  <button type="submit" className="ai-assistant-btn" style={{ width: "auto", padding: "6px 16px", fontSize: "0.78rem" }}>
+                    Publish to Live Radar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Signals Feed */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "380px", overflowY: "auto" }}>
+              {socialSignals.map((sig) => (
+                <div
+                  key={sig.id}
+                  style={{
+                    background: "var(--panel-2)",
+                    border: `1.5px solid ${sig.sentiment === "critical" ? "#b3261e" : sig.sentiment === "warning" ? "var(--accent)" : "var(--line)"}`,
+                    borderRadius: "10px",
+                    padding: "10px 12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "1.1rem" }}>{sig.avatar}</span>
+                      <strong style={{ fontSize: "0.82rem", color: "var(--ink)" }}>{sig.author}</strong>
+                      <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>({sig.handle})</span>
+                      {sig.verified && <span style={{ fontSize: "0.68rem", color: "var(--ok)", fontWeight: 800 }}>✓ Official</span>}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.68rem",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        background: sig.sentiment === "critical" ? "#b3261e" : sig.sentiment === "warning" ? "var(--accent)" : "var(--ok)",
+                        color: "#ffffff",
+                      }}
+                    >
+                      {sig.sentiment}
+                    </span>
+                  </div>
+
+                  <p style={{ margin: "4px 0", fontSize: "0.8rem", color: "var(--ink)", lineHeight: 1.35 }}>
+                    {sig.content}
+                  </p>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem", color: "var(--muted)", borderTop: "1px dashed var(--line)", paddingTop: "4px", marginTop: "2px" }}>
+                    <span>📍 {sig.location_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHighlightedExpId(null);
+                        setIsSocialOpen(false);
+                      }}
+                      style={{ background: "transparent", border: 0, color: "var(--accent)", fontWeight: 700, cursor: "pointer", fontSize: "0.72rem" }}
+                    >
+                      Spotlight on Map ↗
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating AI Chat Drawer (Opens smoothly when requested) */}
       {isChatOpen && (

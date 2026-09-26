@@ -14,13 +14,15 @@ SAT = date(2026, 9, 26)
 
 def payload(rain_hours=(), hot_hours=()):
     hrs = range(24)
-    return {"hourly": {
-        "time": [f"2026-09-26T{h:02d}:00" for h in hrs],
-        "temperature_2m": [40.0 if h in hot_hours else 30.0 for h in hrs],
-        "precipitation": [2.0 if h in rain_hours else 0.0 for h in hrs],
-        "precipitation_probability": [90 if h in rain_hours else 5 for h in hrs],
-        "weather_code": [63 if h in rain_hours else 1 for h in hrs],
-    }}
+    return {
+        "hourly": {
+            "time": [f"2026-09-26T{h:02d}:00" for h in hrs],
+            "temperature_2m": [40.0 if h in hot_hours else 30.0 for h in hrs],
+            "precipitation": [2.0 if h in rain_hours else 0.0 for h in hrs],
+            "precipitation_probability": [90 if h in rain_hours else 5 for h in hrs],
+            "weather_code": [63 if h in rain_hours else 1 for h in hrs],
+        }
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -33,13 +35,20 @@ def use(monkeypatch, data):
         if isinstance(data, Exception):
             raise data
         return data
+
     monkeypatch.setattr(weather, "_fetch", fake)
 
 
-@pytest.mark.parametrize("temp, mm, prob, code, expected", [
-    (30, 0.0, 10, 1, "clear"), (30, 0.0, 10, 63, "rain"), (30, 1.2, 40, 3, "rain"),
-    (30, 0.0, 80, 3, "rain"), (39, 0.0, 0, 0, "heat"),
-])
+@pytest.mark.parametrize(
+    "temp, mm, prob, code, expected",
+    [
+        (30, 0.0, 10, 1, "clear"),
+        (30, 0.0, 10, 63, "rain"),
+        (30, 1.2, 40, 3, "rain"),
+        (30, 0.0, 80, 3, "rain"),
+        (39, 0.0, 0, 0, "heat"),
+    ],
+)
 def test_classify(temp, mm, prob, code, expected):
     assert weather.classify(temp, mm, prob, code) == expected
 
@@ -57,9 +66,14 @@ def test_forecast_is_cached_and_survives_outages(monkeypatch):
 
 
 def check(itinerary, state=S, now="2026-09-26T11:30:00"):
-    r = client.post("/context/check", json={"state": state.model_dump(mode="json"),
-                                            "itinerary": itinerary.model_dump(mode="json"),
-                                            "now": now})
+    r = client.post(
+        "/context/check",
+        json={
+            "state": state.model_dump(mode="json"),
+            "itinerary": itinerary.model_dump(mode="json"),
+            "now": now,
+        },
+    )
     assert r.status_code == 200, r.text
     return r.json()
 

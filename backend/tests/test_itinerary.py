@@ -14,11 +14,26 @@ def at(h, m=0):
     return datetime.combine(SAT, datetime.min.time()) + timedelta(hours=h, minutes=m)
 
 
-LUNCH = Stop(title="Lunch at a Johari Bazaar restaurant", lat=26.9205, lon=75.8260,
-             start=at(12, 30), end=at(13, 30), status="confirmed", locked=True)
-PALACE = Stop(title="City Palace (booked)", experience_id="ex-city-palace",
-              lat=26.9258, lon=75.8237, start=at(15), end=at(16, 30),
-              status="confirmed", locked=True, cost_inr=200)
+LUNCH = Stop(
+    title="Lunch at a Johari Bazaar restaurant",
+    lat=26.9205,
+    lon=75.8260,
+    start=at(12, 30),
+    end=at(13, 30),
+    status="confirmed",
+    locked=True,
+)
+PALACE = Stop(
+    title="City Palace (booked)",
+    experience_id="ex-city-palace",
+    lat=26.9258,
+    lon=75.8237,
+    start=at(15),
+    end=at(16, 30),
+    status="confirmed",
+    locked=True,
+    cost_inr=200,
+)
 
 
 def indep_travel(a, b, speed_kmh=18):
@@ -28,8 +43,9 @@ def indep_travel(a, b, speed_kmh=18):
 
 
 def assert_sequence_ok(it, s):
-    stops = sorted((x for x in it.stops if x.status not in ("skipped", "replaced")),
-                   key=lambda x: x.start)
+    stops = sorted(
+        (x for x in it.stops if x.status not in ("skipped", "replaced")), key=lambda x: x.start
+    )
     pos, t = (s.lat, s.lon), s.window_start
     for x in stops:
         assert x.start >= t + timedelta(minutes=indep_travel(pos, (x.lat, x.lon)) - 1), x.title
@@ -48,19 +64,34 @@ def test_gap_between_locked_stops_only_returns_sequence_feasible_fills():
         filled = Itinerary(stops=[LUNCH, to_stop(r), PALACE])
         assert validate(filled, s, SEED) == [], r.experience_id
         assert_sequence_ok(filled, s)
-        assert r.end + timedelta(minutes=indep_travel((r.lat, r.lon), (PALACE.lat, PALACE.lon))) \
+        assert (
+            r.end + timedelta(minutes=indep_travel((r.lat, r.lon), (PALACE.lat, PALACE.lon)))
             <= PALACE.start
+        )
 
 
 def test_validate_catches_unreachable_and_closed_stops():
     s = state(HAWA_MAHAL, SAT, 9, 20, 2000)
-    amer = Stop(title="Amer Fort", experience_id="ex-amer-fort", lat=26.9855, lon=75.8513,
-                start=at(10), end=at(12, 30))
+    amer = Stop(
+        title="Amer Fort",
+        experience_id="ex-amer-fort",
+        lat=26.9855,
+        lon=75.8513,
+        start=at(10),
+        end=at(12, 30),
+    )
     rushed = PALACE.model_copy(update={"start": at(12, 35), "end": at(14, 5), "locked": False})
-    assert any("can't reach City Palace" in p for p in validate(Itinerary(stops=[amer, rushed]),
-                                                               s, SEED))
-    late = Stop(title="Hawa Mahal", experience_id="ex-hawa-mahal", lat=HAWA_MAHAL[0],
-                lon=HAWA_MAHAL[1], start=at(16, 15), end=at(17))
+    assert any(
+        "can't reach City Palace" in p for p in validate(Itinerary(stops=[amer, rushed]), s, SEED)
+    )
+    late = Stop(
+        title="Hawa Mahal",
+        experience_id="ex-hawa-mahal",
+        lat=HAWA_MAHAL[0],
+        lon=HAWA_MAHAL[1],
+        start=at(16, 15),
+        end=at(17),
+    )
     assert "Hawa Mahal can't start at 16:15" in validate(Itinerary(stops=[late]), s, SEED)
 
 

@@ -4,6 +4,7 @@ Only signals about *taste* teach anything: "too expensive" or "too far" says not
 liking pottery, and suitability tags (who it's for, diet, time of day) are not taste either.
 An explicit "not my thing" counts fully; a bare skip is inferred and counts ~0.3x (decisions.md).
 """
+
 from app.models import Experience, Feedback, TravelerState
 
 ACCEPT, NOT_MY_THING, NO_REASON = 0.3, -0.3, -0.1

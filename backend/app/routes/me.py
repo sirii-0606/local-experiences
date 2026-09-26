@@ -1,4 +1,5 @@
 """The signed-in user's own data: profile (onboarding), password, export, delete."""
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app import accounts
@@ -23,8 +24,9 @@ def put_profile(profile: Profile, user: dict = Depends(current_user)) -> Profile
 
 
 @router.put("/password", status_code=204)
-def change_password(req: PasswordChange, request: Request,
-                    user: dict = Depends(current_user)) -> None:
+def change_password(
+    req: PasswordChange, request: Request, user: dict = Depends(current_user)
+) -> None:
     if not accounts.verify_password(req.current_password, user["password_hash"]):
         raise HTTPException(403, "current password is wrong")
     accounts.update(user["id"], password_hash=accounts.hash_password(req.new_password))

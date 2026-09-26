@@ -2,6 +2,7 @@
 
 Pure-Python engine module. Builds upon feasibility, rank, and itinerary.
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -81,9 +82,7 @@ def _origin_coordinates(trip, seed: Seed) -> tuple[float, float]:
     return DEFAULT_LAT, DEFAULT_LON
 
 
-def _point_to_segment_km(
-    px: float, py: float, x1: float, y1: float, x2: float, y2: float
-) -> float:
+def _point_to_segment_km(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
     """Approximate distance in km from point P to line segment (A -> B)."""
     dx = x2 - x1
     dy = y2 - y1
@@ -201,9 +200,7 @@ def score_candidates(trip, seed: Seed) -> list[Candidate]:
     return candidates
 
 
-def score_stays(
-    trip, seed: Seed, in_person_exp_ids: list[str]
-) -> list[StayRecommendation]:
+def score_stays(trip, seed: Seed, in_person_exp_ids: list[str]) -> list[StayRecommendation]:
     """Score all stays in seed against shortlist centroid, budget, and accessibility (P4)."""
     lats, lons = [], []
     for eid in in_person_exp_ids:
@@ -295,7 +292,8 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
 
     # 1. Gather shortlisted in-person IDs
     in_person_ids = [
-        eid for eid, decision in getattr(trip, "shortlist", {}).items()
+        eid
+        for eid, decision in getattr(trip, "shortlist", {}).items()
         if decision == "in_person" and eid in seed.experiences
     ]
     if not in_person_ids:
@@ -306,6 +304,7 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
 
     # Order activities by must-see priority and spatial proximity to stay
     must_see_set = set(trip.must_see)
+
     def sort_key(eid):
         exp = seed.experiences[eid]
         place = seed.places[exp.place_id]

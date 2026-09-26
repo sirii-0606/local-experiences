@@ -6,6 +6,7 @@ ratings on top of it, so the engine never knows the difference. Stored rows are 
 only: no location, no free text, no traveler identity (mvp-scope.md privacy stance).
 New tables are separate `create table if not exists` statements so older demo DBs keep working.
 """
+
 import hashlib
 import hmac
 import json
@@ -68,35 +69,50 @@ def _hash(token: str) -> str:
 
 # ---------------------------------------------------------------- provider listings + owners
 
+
 def add_listing(provider: Provider, place: Place, exp: Experience) -> str:
     """Store a new listing; returns its secret edit token (shown to the provider once)."""
     token = secrets.token_urlsafe(18)
-    _run("insert into listings values (?, ?, ?, ?, ?)",
-         (exp.id, provider.model_dump_json(), place.model_dump_json(), exp.model_dump_json(),
-          _now()))
+    _run(
+        "insert into listings values (?, ?, ?, ?, ?)",
+        (
+            exp.id,
+            provider.model_dump_json(),
+            place.model_dump_json(),
+            exp.model_dump_json(),
+            _now(),
+        ),
+    )
     _run("insert into owners values (?, ?)", (exp.id, _hash(token)))
     return token
 
 
 def update_listing(provider: Provider, place: Place, exp: Experience) -> None:
-    _run("update listings set provider = ?, place = ?, experience = ? where id = ?",
-         (provider.model_dump_json(), place.model_dump_json(), exp.model_dump_json(), exp.id))
+    _run(
+        "update listings set provider = ?, place = ?, experience = ? where id = ?",
+        (provider.model_dump_json(), place.model_dump_json(), exp.model_dump_json(), exp.id),
+    )
 
 
 def delete_listing(experience_id: str) -> None:
-    for table, col in (("listings", "id"), ("owners", "experience_id"),
-                       ("paused", "experience_id")):
+    for table, col in (
+        ("listings", "id"),
+        ("owners", "experience_id"),
+        ("paused", "experience_id"),
+    ):
         _run(f"delete from {table} where {col} = ?", (experience_id,))
 
 
 def get_listing(experience_id: str) -> tuple[Provider, Place, Experience] | None:
-    rows = _run("select provider, place, experience from listings where id = ?",
-                (experience_id,))
+    rows = _run("select provider, place, experience from listings where id = ?", (experience_id,))
     if not rows:
         return None
     pv, pl, ex = rows[0]
-    return (Provider.model_validate_json(pv), Place.model_validate_json(pl),
-            Experience.model_validate_json(ex))
+    return (
+        Provider.model_validate_json(pv),
+        Place.model_validate_json(pl),
+        Experience.model_validate_json(ex),
+    )
 
 
 def is_listing(experience_id: str) -> bool:
@@ -125,16 +141,24 @@ def paused_ids() -> set[str]:
 
 # ---------------------------------------------------------------- ratings
 
+
 def add_rating(experience_id: str, rating: int, as_described: bool | None, at: datetime) -> None:
-    _run("insert into ratings (at, experience_id, rating, as_described) values (?, ?, ?, ?)",
-         (at.isoformat(timespec="seconds"), experience_id, rating,
-          None if as_described is None else int(as_described)))
+    _run(
+        "insert into ratings (at, experience_id, rating, as_described) values (?, ?, ?, ?)",
+        (
+            at.isoformat(timespec="seconds"),
+            experience_id,
+            rating,
+            None if as_described is None else int(as_described),
+        ),
+    )
 
 
 def ratings() -> dict[str, list[tuple[date, int, bool | None]]]:
     out: dict[str, list] = {}
     for at, eid, rating, described in _run(
-            "select at, experience_id, rating, as_described from ratings"):
+        "select at, experience_id, rating, as_described from ratings"
+    ):
         ok = None if described is None else bool(described)
         out.setdefault(eid, []).append((datetime.fromisoformat(at).date(), rating, ok))
     return out
@@ -142,17 +166,21 @@ def ratings() -> dict[str, list[tuple[date, int, bool | None]]]:
 
 # ---------------------------------------------------------------- bookings
 
+
 def booked(experience_id: str, start: datetime) -> int:
-    rows = _run("select coalesce(sum(people), 0) from bookings"
-                " where experience_id = ? and start = ?",
-                (experience_id, start.isoformat(timespec="minutes")))
+    rows = _run(
+        "select coalesce(sum(people), 0) from bookings where experience_id = ? and start = ?",
+        (experience_id, start.isoformat(timespec="minutes")),
+    )
     return rows[0][0]
 
 
 def add_booking(experience_id: str, start: datetime, people: int) -> str:
     code = "LE-" + secrets.token_hex(3).upper()
-    _run("insert into bookings values (?, ?, ?, ?, ?)",
-         (code, _now(), experience_id, start.isoformat(timespec="minutes"), people))
+    _run(
+        "insert into bookings values (?, ?, ?, ?, ?)",
+        (code, _now(), experience_id, start.isoformat(timespec="minutes"), people),
+    )
     return code
 
 
@@ -164,11 +192,13 @@ def cancel_booking(code: str) -> bool:
 
 
 def booked_people(experience_id: str) -> int:
-    return _run("select coalesce(sum(people), 0) from bookings where experience_id = ?",
-                (experience_id,))[0][0]
+    return _run(
+        "select coalesce(sum(people), 0) from bookings where experience_id = ?", (experience_id,)
+    )[0][0]
 
 
 # ---------------------------------------------------------------- the served seed
+
 
 def current_seed(base: Seed) -> Seed:
     """Seed + provider listings + traveler ratings. Paused experiences keep their data but have
@@ -189,18 +219,30 @@ def current_seed(base: Seed) -> Seed:
 
 # ---------------------------------------------------------------- demand + feedback logs
 
+
 def log_demand(state: TravelerState, shown: list[str], excluded: dict[str, list[str]]) -> None:
-    _run("insert into demand (at, start_hour, duration_min, budget_inr, group_size, has_kids,"
-         " intents, shown, excluded) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-         (_now(), state.window_start.hour,
-          int((state.window_end - state.window_start).total_seconds() // 60), state.budget_inr,
-          len(state.group), int(any(t.age < 16 for t in state.group)),
-          json.dumps(state.intents), json.dumps(shown), json.dumps(excluded)))
+    _run(
+        "insert into demand (at, start_hour, duration_min, budget_inr, group_size, has_kids,"
+        " intents, shown, excluded) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            _now(),
+            state.window_start.hour,
+            int((state.window_end - state.window_start).total_seconds() // 60),
+            state.budget_inr,
+            len(state.group),
+            int(any(t.age < 16 for t in state.group)),
+            json.dumps(state.intents),
+            json.dumps(shown),
+            json.dumps(excluded),
+        ),
+    )
 
 
 def log_feedback(experience_id: str, kind: str, reason: str | None) -> None:
-    _run("insert into feedback (at, experience_id, kind, reason) values (?, ?, ?, ?)",
-         (_now(), experience_id, kind, reason))
+    _run(
+        "insert into feedback (at, experience_id, kind, reason) values (?, ?, ?, ?)",
+        (_now(), experience_id, kind, reason),
+    )
 
 
 def feedback_rows(experience_id: str) -> list[tuple[str, str | None]]:
@@ -208,8 +250,16 @@ def feedback_rows(experience_id: str) -> list[tuple[str, str | None]]:
 
 
 def demand_rows() -> list[dict]:
-    cols = ["start_hour", "duration_min", "budget_inr", "group_size", "has_kids", "intents",
-            "shown", "excluded"]
+    cols = [
+        "start_hour",
+        "duration_min",
+        "budget_inr",
+        "group_size",
+        "has_kids",
+        "intents",
+        "shown",
+        "excluded",
+    ]
     rows = _run(f"select {', '.join(cols)} from demand")
     out = [dict(zip(cols, r, strict=True)) for r in rows]
     for row in out:

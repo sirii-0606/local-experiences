@@ -72,6 +72,92 @@ export type WeatherHour = { at: string; condition: "rain" | "heat" | "clear"; te
 export type WeatherRisk = { stop: string; condition: string; message: string };
 export type ContextCheck = { available: boolean; risks: WeatherRisk[]; proposed: ContextEvent | null };
 
+export type WeatherSummary = {
+  condition: "rain" | "heat" | "clear";
+  temp_c: number;
+  precip_mm: number;
+  precip_prob: number;
+  humidity_pct: number;
+  wind_kmh: number;
+  description: string;
+  ai_guidance: string;
+  available: boolean;
+};
+
+export type SocialSignal = {
+  id: string;
+  source: "x_twitter" | "reddit" | "traffic_police" | "local_guide" | "crowd_report" | "instagram";
+  author: string;
+  handle: string;
+  avatar: string;
+  content: string;
+  tags: string[];
+  lat: number;
+  lon: number;
+  location_name: string;
+  timestamp: string;
+  sentiment: "positive" | "neutral" | "warning" | "critical";
+  weather_related: boolean;
+  verified: boolean;
+  impact_level: "low" | "medium" | "high";
+  relevance_score: number;
+};
+
+export type UserSocialReport = {
+  author: string;
+  content: string;
+  location_name: string;
+  lat: number;
+  lon: number;
+  sentiment?: "positive" | "neutral" | "warning" | "critical";
+  tags?: string[];
+  weather_related?: boolean;
+};
+
+export type SimulationScenario = {
+  name: string;
+  temp_c: number;
+  rain_intensity_mm_h: number;
+  duration_hours: number;
+  epicenter_lat: number;
+  epicenter_lon: number;
+  epicenter_name: string;
+  radius_km: number;
+  wind_kmh: number;
+};
+
+export type ImpactZonePolygon = {
+  name: string;
+  severity: "low" | "medium" | "high" | "extreme";
+  center: [number, number];
+  radius_meters: number;
+  description: string;
+  waterlogging_prob: number;
+  heat_index_c: number;
+};
+
+export type DigitalTwinMetrics = {
+  safety_score: number;
+  comfort_index: number;
+  transit_friction_multiplier: number;
+  added_transit_delay_min: number;
+  sheltered_ratio_pct: number;
+  weather_classification: "rain" | "heat" | "clear";
+};
+
+export type DigitalTwinResult = {
+  scenario: SimulationScenario;
+  metrics: DigitalTwinMetrics;
+  impact_zones: ImpactZonePolygon[];
+  original_itinerary: Itinerary;
+  adapted_itinerary: Itinerary;
+  changes: Change[];
+  vulnerable_stop_ids: string[];
+  protected_stop_ids: string[];
+  simulated_social_signals: SocialSignal[];
+  ai_executive_summary: string;
+};
+
 export type PlanResponse ={ itinerary: Itinerary; problems: string[] };
 export type DiscoverResponse = { recommendations: Recommendation[]; excluded: Record<string, string[]> };
 export type ChatResponse = DiscoverResponse & {
@@ -187,7 +273,19 @@ export const api = {
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
   event: (state: TravelerState, itinerary: Itinerary, event: ContextEvent) =>
     call<EventResponse>("/events", { state, itinerary, event }),
-  weather: (at: string) => call<{ available: boolean; hour: WeatherHour | null }>(`/weather?at=${encodeURIComponent(at)}`),
+  weather: (at: string) => call<{ available: boolean; hour: WeatherHour | null; summary?: WeatherSummary }>(`/weather?at=${encodeURIComponent(at)}`),
+  getSocialSignals: (params?: { condition?: string; lat?: number; lon?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.condition) q.set("condition", params.condition);
+    if (params?.lat !== undefined) q.set("lat", String(params.lat));
+    if (params?.lon !== undefined) q.set("lon", String(params.lon));
+    const qs = q.toString();
+    return call<{ signals: SocialSignal[]; trending_hashtags: Array<{ tag: string; count: number; trend: string; sentiment: string }> }>(`/social/signals${qs ? `?${qs}` : ""}`);
+  },
+  postSocialReport: (report: UserSocialReport) => call<SocialSignal>("/social/report", report),
+  getSimulationPresets: () => call<SimulationScenario[]>("/simulation/presets"),
+  runSimulation: (scenario: SimulationScenario, state: TravelerState, itinerary: Itinerary) =>
+    call<DigitalTwinResult>("/simulation/what-if", { scenario, state, itinerary }),
   contextCheck: (state: TravelerState, itinerary: Itinerary, now: string) =>
     call<ContextCheck>("/context/check", { state, itinerary, now }),
   feedback: (state: TravelerState, experience_id: string, kind: FeedbackKind, reason: string | null, at: string) =>

@@ -3,6 +3,7 @@
 Feasibility first (feasibility.check), then a weighted utility, then an MMR pass for diversity.
 Explanations are built from the same factors as the score, never from a separate narrative.
 """
+
 from collections.abc import Collection
 from datetime import datetime
 from statistics import mean
@@ -17,8 +18,13 @@ from app.seed import Seed
 
 # Weights from docs/ideation/decisions.md. Novelty is added on top, scaled by state.novelty.
 WEIGHTS = {
-    "preference": 0.25, "intent": 0.20, "spatial": 0.10, "budget": 0.10,
-    "quality": 0.15, "localness": 0.10, "context": 0.10,
+    "preference": 0.25,
+    "intent": 0.20,
+    "spatial": 0.10,
+    "budget": 0.10,
+    "quality": 0.15,
+    "localness": 0.10,
+    "context": 0.10,
     "learned": 0.20,  # -1..1 from this session's feedback; 0 (no effect) until there is some
 }
 MMR_LAMBDA = 0.8  # 1 = pure score, 0 = pure diversity
@@ -89,16 +95,22 @@ def _factors(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, conf: 
     }
 
 
-def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: dict,
-             f: dict) -> list[str]:
+def _reasons(
+    exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: dict, f: dict
+) -> list[str]:
     size = len(state.group)
     out = [
         f"{fit.km:.1f} km away, ~{fit.travel_min} min by {state.mode}"
-        if fit.travel_min else "right where you are",
+        if fit.travel_min
+        else "right where you are",
         f"{fit.start:%H:%M}–{fit.end:%H:%M}, "
-        + (f"in time for your next stop at {state.window_end:%H:%M}" if state.end_lat is not None
-           else f"done before your {state.window_end:%H:%M} cutoff"),
-        "free" if fit.cost_inr == 0
+        + (
+            f"in time for your next stop at {state.window_end:%H:%M}"
+            if state.end_lat is not None
+            else f"done before your {state.window_end:%H:%M} cutoff"
+        ),
+        "free"
+        if fit.cost_inr == 0
         else f"₹{fit.cost_inr} for {size}, within your ₹{state.budget_inr} budget",
     ]
     if hits := [t for t in state.intents if t in exp.tags]:
@@ -124,7 +136,8 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
     for attr, ev in low.items():
         label = CONFIDENCE_ATTRS[attr]
         out.append(
-            f"⚠ {label} last confirmed {ev.updated_at:%d %b %Y} ({ev.source})" if ev
+            f"⚠ {label} last confirmed {ev.updated_at:%d %b %Y} ({ev.source})"
+            if ev
             else f"⚠ {label} not independently confirmed"
         )
     return out
@@ -162,10 +175,18 @@ def discover(
         low = {a: exp.evidence.get(a) for a, c in confs.items() if c < LOW_CONFIDENCE}
         place = seed.places[exp.place_id]
         rec = Recommendation(
-            experience_id=exp.id, title=exp.title, score=round(score, 4),
-            lat=place.lat, lon=place.lon,
-            start=fit.start, end=fit.end, km=fit.km, travel_min=fit.travel_min,
-            cost_inr=fit.cost_inr, confidence=round(conf, 2), low_confidence=conf < LOW_CONFIDENCE,
+            experience_id=exp.id,
+            title=exp.title,
+            score=round(score, 4),
+            lat=place.lat,
+            lon=place.lon,
+            start=fit.start,
+            end=fit.end,
+            km=fit.km,
+            travel_min=fit.travel_min,
+            cost_inr=fit.cost_inr,
+            confidence=round(conf, 2),
+            low_confidence=conf < LOW_CONFIDENCE,
             factors={n: round(v, 3) for n, v in f.items()},
             reasons=_reasons(exp, fit, state, seed, low, f),
         )
@@ -174,8 +195,13 @@ def discover(
     # MMR: trade score against similarity to what's already picked (no five near-identical options).
     picked: list[tuple[Recommendation, set]] = []
     while scored and len(picked) < k:
-        best = max(scored, key=lambda it: MMR_LAMBDA * it[0].score - (1 - MMR_LAMBDA) * max(
-            (_jaccard(it[1], p[1]) for p in picked), default=0.0))
+        best = max(
+            scored,
+            key=lambda it: (
+                MMR_LAMBDA * it[0].score
+                - (1 - MMR_LAMBDA) * max((_jaccard(it[1], p[1]) for p in picked), default=0.0)
+            ),
+        )
         picked.append(best)
         scored.remove(best)
     return [r for r, _ in picked], excluded

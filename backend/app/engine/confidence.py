@@ -1,4 +1,5 @@
 """How much to trust one attribute of an experience (doc §6.3, §12.1)."""
+
 from datetime import date
 
 from app.models import Evidence, Experience, Provider
@@ -33,8 +34,11 @@ def with_ratings(exp: Experience, rows: list[tuple[date, int, bool | None]]) -> 
     if not rows:
         return exp
     total, n = sum(r for _, r, _ in rows), len(rows)
-    rating = (total / n if exp.rating is None
-              else (exp.rating * exp.review_count + total) / (exp.review_count + n))
+    rating = (
+        total / n
+        if exp.rating is None
+        else (exp.rating * exp.review_count + total) / (exp.review_count + n)
+    )
     evidence = dict(exp.evidence)
     confirmed = [d for d, _, ok in rows if ok is not False]
     if len(confirmed) > n - len(confirmed):
@@ -43,5 +47,10 @@ def with_ratings(exp: Experience, rows: list[tuple[date, int, bool | None]]) -> 
             ev = evidence.get(attr)
             if ev is None or (ev.source != "verified" and ev.updated_at <= latest):
                 evidence[attr] = Evidence(source="traveler", updated_at=latest)
-    return exp.model_copy(update={"rating": round(rating, 2), "review_count": exp.review_count + n,
-                                  "evidence": evidence})
+    return exp.model_copy(
+        update={
+            "rating": round(rating, 2),
+            "review_count": exp.review_count + n,
+            "evidence": evidence,
+        }
+    )

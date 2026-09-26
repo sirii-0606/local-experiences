@@ -2,6 +2,7 @@
 
 Pure-Python engine module.
 """
+
 from dataclasses import dataclass
 from datetime import date, time
 
@@ -138,20 +139,33 @@ def meal_suggestions(
 
     # Category buckets
     breakfast_ids = [
-        "ex-samrat-breakfast", "ex-rawat-kachori", "ex-gulab-chai",
-        "ex-pyaz-kachori", "ex-sahu-chai",
+        "ex-samrat-breakfast",
+        "ex-rawat-kachori",
+        "ex-gulab-chai",
+        "ex-pyaz-kachori",
+        "ex-sahu-chai",
     ]
     lunch_ids = [
-        "ex-lmb-thali", "ex-home-thali", "ex-amer-haveli-lunch",
-        "ex-anokhi-cafe", "ex-cooking-class",
+        "ex-lmb-thali",
+        "ex-home-thali",
+        "ex-amer-haveli-lunch",
+        "ex-anokhi-cafe",
+        "ex-cooking-class",
     ]
     snack_ids = [
-        "ex-tapri-central", "ex-masala-chowk", "ex-johari-sweets",
-        "ex-lassi", "ex-sahu-chai",
+        "ex-tapri-central",
+        "ex-masala-chowk",
+        "ex-johari-sweets",
+        "ex-lassi",
+        "ex-sahu-chai",
     ]
     dinner_ids = [
-        "ex-rooftop-dinner", "ex-1135-ad", "ex-handi-dinner",
-        "ex-village-dinner", "ex-sethi-bbq", "ex-pandit-pavbhaji",
+        "ex-rooftop-dinner",
+        "ex-1135-ad",
+        "ex-handi-dinner",
+        "ex-village-dinner",
+        "ex-sethi-bbq",
+        "ex-pandit-pavbhaji",
     ]
 
     ref_morning_stop = day_stops[0] if day_stops else None
@@ -215,9 +229,7 @@ def meal_suggestions(
             suggestions.append(b_sugg)
 
     if not has_lunch:
-        l_sugg = pick_for_category(
-            lunch_ids, ref_lunch_lat, ref_lunch_lon, "lunch", "12:30–14:30"
-        )
+        l_sugg = pick_for_category(lunch_ids, ref_lunch_lat, ref_lunch_lon, "lunch", "12:30–14:30")
         if l_sugg:
             suggestions.append(l_sugg)
 

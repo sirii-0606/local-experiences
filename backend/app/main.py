@@ -2,6 +2,7 @@
 
 Run: uvicorn app.main:app --reload   (interactive schema at /docs)
 """
+
 import os
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,19 @@ from app.models import (
     TravelerState,
 )
 from app.seed import Seed, load_seed
+from app.simulation import (
+    PRESET_SCENARIOS,
+    DigitalTwinResult,
+    SimulationScenario,
+    run_digital_twin_simulation,
+)
+from app.social import (
+    SocialSignal,
+    UserSocialReport,
+    add_social_report,
+    get_social_signals,
+    get_trending_hashtags,
+)
 
 SEED = load_seed()  # curated, read-only; provider listings/pauses are overlaid per request
 app = FastAPI(title="Local & Experiences API")
@@ -51,8 +65,11 @@ async def _prod_routing(request: Request, call_next):
         request.scope["path"] = path[4:] or "/"
         return await call_next(request)
     dist = _static_dir()
-    if dist and request.method in ("GET", "HEAD") and not path.startswith(
-            ("/docs", "/redoc", "/openapi.json", "/health")):
+    if (
+        dist
+        and request.method in ("GET", "HEAD")
+        and not path.startswith(("/docs", "/redoc", "/openapi.json", "/health"))
+    ):
         target = (dist / path.lstrip("/")).resolve()
         if target.is_relative_to(dist) and target.is_file():
             return FileResponse(target)
@@ -163,8 +180,11 @@ def catalog() -> dict:
         "experiences": list(s.experiences.values()),
         "provider_listings": store.listing_ids(),
         "paused": sorted(store.paused_ids()),
-        "vocabulary": {"tags": get_args(Tag), "categories": get_args(Category),
-                       "accessibility": get_args(Access)},
+        "vocabulary": {
+            "tags": get_args(Tag),
+            "categories": get_args(Category),
+            "accessibility": get_args(Access),
+        },
     }
 
 
@@ -182,8 +202,11 @@ def plan_(req: PlanRequest) -> PlanResponse:
     if req.add:
         it = insert(it, req.add, req.state, s)
         if it is None:
-            raise HTTPException(409, f"{s.experiences[req.add].title} doesn't fit around your "
-                                     "current plan. Remove or unlock a stop to make room.")
+            raise HTTPException(
+                409,
+                f"{s.experiences[req.add].title} doesn't fit around your "
+                "current plan. Remove or unlock a stop to make room.",
+            )
     it = plan(it, req.state, s, req.max_new)
     return PlanResponse(itinerary=it, problems=validate(it, req.state, s))
 
@@ -205,7 +228,11 @@ def chat(req: ChatRequest) -> ChatResponse:
     store.log_demand(state, [r.experience_id for r in recs], excluded)  # aggregates only
     it = plan(Itinerary(), state, s)
     return ChatResponse(
-        parser=parser, parsed=parsed, state=state, recommendations=recs, excluded=excluded,
+        parser=parser,
+        parsed=parsed,
+        state=state,
+        recommendations=recs,
+        excluded=excluded,
         plan=PlanResponse(itinerary=it, problems=validate(it, state, s)),
     )
 
@@ -214,7 +241,12 @@ def chat(req: ChatRequest) -> ChatResponse:
 def weather_now(at: datetime) -> dict:
     """Live conditions for the hour `at` (Jaipur centre). available=false when offline."""
     hours = weather.forecast(at.date())
-    return {"available": hours is not None, "hour": hours and weather.at_hour(hours, at)}
+    summary = weather.current_weather_summary(at)
+    return {
+        "available": hours is not None,
+        "hour": hours and weather.at_hour(hours, at),
+        "summary": summary.model_dump(),
+    }
 
 
 class ContextCheckRequest(BaseModel):
@@ -244,6 +276,43 @@ def context_check(req: ContextCheckRequest) -> ContextCheckResponse:
     return ContextCheckResponse(available=True, risks=risks, proposed=proposed)
 
 
+# ---------------------------------------------------------------- social signals & digital twin
+
+
+class SimulationRequest(BaseModel):
+    scenario: SimulationScenario
+    state: TravelerState
+    itinerary: Itinerary
+
+
+@app.get("/social/signals")
+def social_signals(
+    condition: str | None = None,
+    lat: float | None = None,
+    lon: float | None = None,
+) -> dict:
+    """Real-world social signals and trending community hashtags."""
+    sigs = get_social_signals(condition, lat, lon)
+    trends = get_trending_hashtags(condition)
+    return {"signals": sigs, "trending_hashtags": trends}
+
+
+@app.post("/social/report")
+def submit_social_report(report: UserSocialReport) -> SocialSignal:
+    """Submit a real-time crowdsourced traveler report or hazard update."""
+    return add_social_report(report)
+
+
+@app.get("/simulation/presets")
+def simulation_presets() -> list[SimulationScenario]:
+    """Preset weather impact scenarios for interactive Digital Twin testing."""
+    return PRESET_SCENARIOS
+
+
+@app.post("/simulation/what-if")
+def simulation_what_if(req: SimulationRequest) -> DigitalTwinResult:
+    """Run Digital Twin simulation with weather perturbations & plan repair."""
+    return run_digital_twin_simulation(req.scenario, req.state, req.itinerary, seed())
 
 
 class FeedbackRequest(BaseModel):
@@ -274,6 +343,7 @@ def feedback(req: FeedbackRequest) -> FeedbackResponse:
 
 # ---------------------------------------------------------------- bookings (M9 stub)
 
+
 class BookingRequest(BaseModel):
     state: TravelerState
     itinerary: Itinerary
@@ -302,18 +372,22 @@ def book(req: BookingRequest) -> BookingResponse:
         raise HTTPException(422, "add it to your plan before booking")
     if problems := [p for p in validate(req.itinerary, req.state, s) if stop.title in p]:
         raise HTTPException(409, f"can't book yet: {problems[0]}")
-    people, left = len(req.state.group), s.experiences[stop.experience_id].capacity - store.booked(
-        stop.experience_id, stop.start)
+    people, left = (
+        len(req.state.group),
+        s.experiences[stop.experience_id].capacity - store.booked(stop.experience_id, stop.start),
+    )
     if people > left:
-        raise HTTPException(409, f"only {max(left, 0)} spots left at {stop.start:%H:%M} "
-                                 f"for {people} of you")
+        raise HTTPException(
+            409, f"only {max(left, 0)} spots left at {stop.start:%H:%M} for {people} of you"
+        )
     code = store.add_booking(stop.experience_id, stop.start, people)
     it = req.itinerary.model_copy(deep=True)
     for x in it.stops:
         if x.experience_id == stop.experience_id and x.start == stop.start:
             x.status, x.locked = "confirmed", True
-    return BookingResponse(code=code, experience_id=stop.experience_id, start=stop.start,
-                           people=people, itinerary=it)
+    return BookingResponse(
+        code=code, experience_id=stop.experience_id, start=stop.start, people=people, itinerary=it
+    )
 
 
 @app.delete("/bookings/{code}")
@@ -324,6 +398,7 @@ def cancel_booking(code: str) -> dict:
 
 
 # ---------------------------------------------------------------- provider side
+
 
 def _require_owner(experience_id: str, token: str | None) -> None:
     """Provider listings change only with their edit token. Seed (curated) experiences are open
@@ -362,15 +437,17 @@ def provider_listing(experience_id: str) -> DraftResponse:
 
 
 @app.put("/providers/listings/{experience_id}")
-def provider_update(experience_id: str, req: PublishRequest,
-                    x_provider_token: str | None = Header(default=None)) -> Listing:
+def provider_update(
+    experience_id: str, req: PublishRequest, x_provider_token: str | None = Header(default=None)
+) -> Listing:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
     _require_owner(experience_id, x_provider_token)
     today = (req.today or now_ist()).date()
     try:
-        pv, pl, exp = provider.to_listing(req.draft, seed(), today,
-                                          key=provider.listing_key(experience_id))
+        pv, pl, exp = provider.to_listing(
+            req.draft, seed(), today, key=provider.listing_key(experience_id)
+        )
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     store.update_listing(pv, pl, exp)
@@ -378,8 +455,9 @@ def provider_update(experience_id: str, req: PublishRequest,
 
 
 @app.delete("/providers/listings/{experience_id}")
-def provider_delete(experience_id: str,
-                    x_provider_token: str | None = Header(default=None)) -> dict:
+def provider_delete(
+    experience_id: str, x_provider_token: str | None = Header(default=None)
+) -> dict:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
     _require_owner(experience_id, x_provider_token)
@@ -388,8 +466,9 @@ def provider_delete(experience_id: str,
 
 
 @app.post("/providers/availability")
-def provider_availability(req: PauseRequest,
-                          x_provider_token: str | None = Header(default=None)) -> dict:
+def provider_availability(
+    req: PauseRequest, x_provider_token: str | None = Header(default=None)
+) -> dict:
     _check_ids(seed(), req.experience_id)
     _require_owner(req.experience_id, x_provider_token)
     store.set_paused(req.experience_id, req.paused)
@@ -401,10 +480,14 @@ def provider_insights(experience_id: str) -> dict:
     s = seed()
     _check_ids(s, experience_id)
     exp = s.experiences[experience_id]
-    return {"experience_id": experience_id, "paused": experience_id in store.paused_ids(),
-            "booked_people": store.booked_people(experience_id),
-            "rating": exp.rating, "review_count": exp.review_count,
-            **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id))}
+    return {
+        "experience_id": experience_id,
+        "paused": experience_id in store.paused_ids(),
+        "booked_people": store.booked_people(experience_id),
+        "rating": exp.rating,
+        "review_count": exp.review_count,
+        **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id)),
+    }
 
 
 # ---------------------------------------------------------------- v2 website (additive)
