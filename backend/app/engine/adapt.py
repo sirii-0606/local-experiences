@@ -47,7 +47,9 @@ def _freeze_past(it: Itinerary, now) -> list[Stop]:
 def _new_state(state: TravelerState, event: ContextEvent, it: Itinerary, ongoing) -> TravelerState:
     """Where/when replanning starts, plus whatever the event changes about the traveler."""
     pos = (ongoing[-1].lat, ongoing[-1].lon) if ongoing else (state.lat, state.lon)
-    start = max([event.at] + [s.end for s in ongoing]) + timedelta(minutes=event.delay_min or 0)
+    # never before the traveler's own window: an early "we'll be late" pushes from window_start
+    start = max([event.at, state.window_start] + [s.end for s in ongoing]) + timedelta(
+        minutes=event.delay_min or 0)
     update = {"lat": pos[0], "lon": pos[1], "window_start": start}
     if event.kind == "weather":
         update["weather"] = event.weather

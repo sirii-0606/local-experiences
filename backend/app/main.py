@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.engine.adapt import Replan, replan
-from app.engine.itinerary import plan, validate
+from app.engine.itinerary import insert, plan, validate
 from app.engine.rank import Recommendation, discover
 from app.intent import ParsedRequest, now_ist, parse, to_state
 from app.models import ContextEvent, Itinerary, TravelerState
@@ -32,6 +32,7 @@ class PlanRequest(BaseModel):
     state: TravelerState
     itinerary: Itinerary = Itinerary()
     max_new: int = 3
+    add: str | None = None  # experience id the user picked: fitted into the first feasible gap
 
 
 class PlanResponse(BaseModel):
@@ -92,8 +93,14 @@ def discover_(req: DiscoverRequest) -> DiscoverResponse:
 
 @app.post("/plan")
 def plan_(req: PlanRequest) -> PlanResponse:
-    _check_ids(*(s.experience_id for s in req.itinerary.stops))
-    it = plan(req.itinerary, req.state, SEED, req.max_new)
+    _check_ids(req.add, *(s.experience_id for s in req.itinerary.stops))
+    it = req.itinerary
+    if req.add:
+        it = insert(it, req.add, req.state, SEED)
+        if it is None:
+            raise HTTPException(409, f"{SEED.experiences[req.add].title} doesn't fit around your "
+                                     "current plan. Remove or unlock a stop to make room.")
+    it = plan(it, req.state, SEED, req.max_new)
     return PlanResponse(itinerary=it, problems=validate(it, req.state, SEED))
 
 

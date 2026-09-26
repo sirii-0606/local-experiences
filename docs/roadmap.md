@@ -10,7 +10,7 @@ M2→M3→M4 is the critical path, because the engine is the product. Everything
 | M3 | ✅ | Itinerary engine: gaps, sequence feasibility, lock/flexible | A 90-min gap between fixed stops returns only sequence-feasible fills |
 | M4 | ✅ | Adaptation: closure, rain, delay, budget, tired → local replan with diff | Only the affected segment changes; locked stops untouched |
 | M5 | ✅ | FastAPI endpoints + LLM intent parser + rule fallback | Scenarios A and B work via `/chat` with and without an API key |
-| M6 | ⬜ | Traveler UI: chat, map, itinerary, badges, disruption panel + frontend CI | Scenarios A and B run in the browser |
+| M6 | ✅ | Traveler UI: chat, map, itinerary, badges, disruption panel + frontend CI | Scenarios A and B run in the browser |
 | M7 | ⬜ | Provider UI: onboarding, availability, demand insights | Scenario C: a new provider shows up in traveler results |
 | M8 | ⬜ | Feedback loop, group mode, README polish, demo rehearsal | A stranger can run it; 5-min demo rehearsed |
 | M9 | ⬜ | **Stretch, only after M8:** 360°/3D previews, real weather API, booking stub, Hindi UI, auth | Each item demoable without breaking the core |

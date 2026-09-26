@@ -3,7 +3,7 @@ from math import ceil, cos, hypot, radians
 
 from test_engine import HAWA_MAHAL, SAT, SCENARIO_A, SEED, assert_independently_feasible, state
 
-from app.engine.itinerary import fill_gap, gaps, plan, to_stop, validate
+from app.engine.itinerary import fill_gap, gaps, insert, plan, to_stop, validate
 from app.engine.rank import discover
 from app.models import Itinerary, Stop
 
@@ -90,6 +90,17 @@ def test_must_reach_end_point_in_time():
         assert_independently_feasible(r, s)
         assert r.end + timedelta(minutes=indep_travel((r.lat, r.lon), JUNCTION)) <= s.window_end
     assert any("to your next stop by 16:00" in x for rs in excluded.values() for x in rs)
+
+
+def test_insert_fits_a_chosen_experience_into_a_feasible_gap():
+    it, s = Itinerary(stops=[LUNCH, PALACE]), state(HAWA_MAHAL, SAT, 9, 20, 2000)
+    out = insert(it, "ex-kite-making", s, SEED)
+    assert out is not None and len(out.stops) == 3
+    assert validate(out, s, SEED) == []
+    assert_sequence_ok(out, s)
+    assert insert(out, "ex-kite-making", s, SEED) is None  # no duplicates
+    tight = state(HAWA_MAHAL, SAT, 12, 17, 2000)  # only 12:00-12:30 and 13:30-15:00 free
+    assert insert(Itinerary(stops=[LUNCH, PALACE]), "ex-amer-fort", tight, SEED) is None
 
 
 def test_relaxed_pace_leaves_breathing_room():

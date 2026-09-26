@@ -104,6 +104,14 @@ def test_locked_stop_at_risk_is_reported_not_moved():
     assert validate(out.itinerary, out.state, SEED)  # still honestly reported as broken
 
 
+def test_event_before_the_window_never_plans_before_it():
+    out = run("closure", 8, 0, experience_id="ex-kite-making")  # window opens at 09:00
+    assert out.state.window_start == at(9)
+    assert all(s.start >= at(9) for s in upcoming(out.itinerary))
+    late = run("delay", 8, 0, delay_min=40)  # "we'll be 40 min late" said before starting
+    assert late.state.window_start == at(9, 40)
+
+
 def test_irrelevant_change_is_a_no_op():
     out = run("weather", 11, 30, weather="clear")
     assert out.changes == []

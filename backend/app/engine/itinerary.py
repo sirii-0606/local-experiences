@@ -72,6 +72,19 @@ def to_stop(rec: Recommendation) -> Stop:
                 start=rec.start, end=rec.end, cost_inr=rec.cost_inr)
 
 
+def insert(it: Itinerary, experience_id: str, state: TravelerState, seed: Seed) -> Itinerary | None:
+    """Fit one chosen experience into the earliest gap where it's feasible; None if nowhere."""
+    exp = seed.experiences[experience_id]
+    only = Seed(seed.providers, seed.places, {exp.id: exp})
+    for gap in gaps(it, state, min_minutes=1):
+        if recs := fill_gap(it, gap, state, only, k=1):
+            out = it.model_copy(deep=True)
+            out.stops.append(to_stop(recs[0]))
+            out.stops.sort(key=lambda s: s.start)
+            return out
+    return None
+
+
 def plan(it: Itinerary, state: TravelerState, seed: Seed, max_new: int = 3) -> Itinerary:
     """Fill the itinerary's gaps, earliest first, around whatever is already planned.
 

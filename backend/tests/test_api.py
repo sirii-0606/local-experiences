@@ -71,6 +71,16 @@ def test_discover_and_plan_endpoints():
     assert p["problems"] == []
 
 
+def test_plan_add_fits_or_explains():
+    a = chat(SCENARIO_A)
+    # scenario A's plan (lassi 16:20, puppets 17:00-17:45) has no 60-min hole for Masala Chowk
+    r = client.post("/plan", json={"state": a["state"], "itinerary": a["plan"]["itinerary"],
+                                   "max_new": 0, "add": "ex-masala-chowk"})
+    assert r.status_code == 409 and "doesn't fit" in r.json()["detail"]
+    r = client.post("/plan", json={"state": a["state"], "max_new": 0, "add": "ex-masala-chowk"})
+    assert r.status_code == 200 and r.json()["problems"] == []
+
+
 def test_unknown_experience_is_rejected():
     state = chat(SCENARIO_A)["state"]
     r = client.post("/events", json={"state": state, "itinerary": {"stops": []}, "event": {

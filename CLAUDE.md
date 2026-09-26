@@ -17,5 +17,5 @@ Context-aware local experience discovery + planning platform (hackathon). Concep
 - Backend tests: `cd backend && .venv/Scripts/python -m pytest`
 - Backend lint: `cd backend && .venv/Scripts/ruff check .`
 - Backend run: `cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload` (schema at `/docs`, contract in `docs/api.md`)
-- Frontend (from M6): `cd frontend && npm run dev`
+- Frontend: `cd frontend && npm install && npm run dev` (Vite on :5173, proxies `/api` → :8000); type-check + build: `npm run build`
 - Context check: `python scripts/check_context.py <base-ref>`

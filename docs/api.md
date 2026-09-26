@@ -27,7 +27,7 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 | GET | `/catalog` | none | `{places[], providers[], experiences[]}`, i.e. everything the map and provider views need |
 | POST | `/chat` | `{text, state?, now?}` | `{parser, parsed, state, recommendations[], excluded{}, plan{itinerary, problems[]}}` |
 | POST | `/discover` | `{state, k?=5}` | `{recommendations[], excluded{}}` |
-| POST | `/plan` | `{state, itinerary?, max_new?=3}` | `{itinerary, problems[]}`. It fills gaps around existing stops; locked stops never move. |
+| POST | `/plan` | `{state, itinerary?, max_new?=3, add?}` | `{itinerary, problems[]}`. It fills gaps around existing stops; locked stops never move. `add` is an experience id: the engine fits it into the earliest feasible gap, or returns **409** with a readable `detail` if it fits nowhere. |
 | POST | `/events` | `{state, itinerary, event}` | `{itinerary, state, changes[], problems[]}` |
 
 Unknown experience ids return `422`. An empty `problems` means the whole plan is feasible.
@@ -35,7 +35,10 @@ Unknown experience ids return `422`. An empty `problems` means the whole plan is
 ## Flow for the traveler UI
 1. **First message.** Call `POST /chat {text, now?}`, then render `recommendations` (cards and map pins, using `lat`/`lon`), `plan.itinerary` (timeline) and, optionally, `excluded` (a "why not X?" panel). **Keep `state` and `plan.itinerary`.**
 2. **Refinement.** Call `POST /chat {text: "actually, something less crowded", state}`. It merges into the previous state: anything the text doesn't mention stays as it was.
-3. **User edits the plan** (lock, remove, or add a recommendation as a stop). Send the edited itinerary to `POST /plan` to fill the gaps again and re-check the plan.
+3. **User edits the plan.**
+   - To lock or remove a stop, send the edited itinerary to `POST /plan` with `max_new: 0`. That re-checks the plan without adding anything.
+   - To add a recommendation, send `add: <experience_id>`. Don't insert it at the recommendation's own time yourself; that time ignores the rest of the plan.
+   - To let the engine fill free time, send `max_new: 3`.
 4. **Something changes** (demo buttons: delay, rain, closure, tired, budget). Call `POST /events {state, itinerary, event}`, show `changes` as a diff, then **replace your `state` and `itinerary` with the response's.**
 
 ## Key shapes (abridged; the full schema is at `/docs`)
