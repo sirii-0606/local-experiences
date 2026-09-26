@@ -1,0 +1,3872 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Local & Experiences API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog": {
+      "get": {
+        "summary": "Catalog",
+        "description": "Everything the map and provider views need to render names and pins.",
+        "operationId": "catalog_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Catalog Catalog Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/discover": {
+      "post": {
+        "summary": "Discover ",
+        "operationId": "discover__discover_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan": {
+      "post": {
+        "summary": "Plan ",
+        "operationId": "plan__plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "post": {
+        "summary": "Events",
+        "operationId": "events_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "summary": "Chat",
+        "operationId": "chat_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/weather": {
+      "get": {
+        "summary": "Weather Now",
+        "description": "Live conditions for the hour `at` (Jaipur centre). available=false when offline.",
+        "operationId": "weather_now_weather_get",
+        "parameters": [
+          {
+            "name": "at",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "At"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Weather Now Weather Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/context/check": {
+      "post": {
+        "summary": "Context Check",
+        "description": "Detect a live weather risk to the plan and propose (not apply) a replan.",
+        "operationId": "context_check_context_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback": {
+      "post": {
+        "summary": "Feedback",
+        "description": "Accept / reject (with reason) / skip / rating. Returns the updated state and fresh\nrecommendations; the provider only ever sees aggregates (kind + reason, star ratings).",
+        "operationId": "feedback_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "summary": "Book",
+        "description": "Hold spots for a planned stop. No payment: a stub that respects capacity per start time.\n\nponytail: discovery still checks capacity per booking, not spots left per slot; a full slot\nis refused here with a clear reason. Move the per-slot count into feasibility if it matters.",
+        "operationId": "book_bookings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{code}": {
+      "delete": {
+        "summary": "Cancel Booking",
+        "operationId": "cancel_booking_bookings__code__delete",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Cancel Booking Bookings  Code  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/draft": {
+      "post": {
+        "summary": "Provider Draft",
+        "operationId": "provider_draft_providers_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/listings": {
+      "post": {
+        "summary": "Provider Publish",
+        "operationId": "provider_publish_providers_listings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/listings/{experience_id}": {
+      "get": {
+        "summary": "Provider Listing",
+        "description": "A provider listing as an editable draft (public data; editing needs the token).",
+        "operationId": "provider_listing_providers_listings__experience_id__get",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Provider Update",
+        "operationId": "provider_update_providers_listings__experience_id__put",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          },
+          {
+            "name": "x-provider-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Provider Delete",
+        "operationId": "provider_delete_providers_listings__experience_id__delete",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          },
+          {
+            "name": "x-provider-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Provider Delete Providers Listings  Experience Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/availability": {
+      "post": {
+        "summary": "Provider Availability",
+        "operationId": "provider_availability_providers_availability_post",
+        "parameters": [
+          {
+            "name": "x-provider-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Provider Availability Providers Availability Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/insights/{experience_id}": {
+      "get": {
+        "summary": "Provider Insights",
+        "operationId": "provider_insights_providers_insights__experience_id__get",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Provider Insights Providers Insights  Experience Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/profile": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Get Profile",
+        "operationId": "get_profile_me_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Put Profile",
+        "operationId": "put_profile_me_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Profile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/password": {
+      "put": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Change Password",
+        "operationId": "change_password_me_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/export": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Export",
+        "operationId": "export_me_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Export Me Export Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Delete Me",
+        "operationId": "delete_me_me_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Users",
+        "operationId": "users_admin_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserRow"
+                  },
+                  "type": "array",
+                  "title": "Response Users Admin Users Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{user_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Patch User",
+        "operationId": "patch_user_admin_users__user_id__patch",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/stats": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Stats",
+        "operationId": "stats_admin_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminStats": {
+        "properties": {
+          "users": {
+            "type": "integer",
+            "title": "Users"
+          },
+          "admins": {
+            "type": "integer",
+            "title": "Admins"
+          },
+          "providers": {
+            "type": "integer",
+            "title": "Providers"
+          },
+          "disabled": {
+            "type": "integer",
+            "title": "Disabled"
+          },
+          "active_sessions": {
+            "type": "integer",
+            "title": "Active Sessions"
+          },
+          "provider_listings": {
+            "type": "integer",
+            "title": "Provider Listings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "users",
+          "admins",
+          "providers",
+          "disabled",
+          "active_sessions",
+          "provider_listings"
+        ],
+        "title": "AdminStats"
+      },
+      "AdminUserPatch": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "traveler",
+                  "provider",
+                  "admin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "disabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled"
+          },
+          "temp_password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temp Password"
+          }
+        },
+        "type": "object",
+        "title": "AdminUserPatch"
+      },
+      "AdminUserRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "traveler",
+              "provider",
+              "admin"
+            ],
+            "title": "Role"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created"
+          },
+          "last_login": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "display_name",
+          "disabled",
+          "created",
+          "last_login"
+        ],
+        "title": "AdminUserRow",
+        "description": "What an admin may see about a user: account facts only, never profile data."
+      },
+      "AvailabilityWindow": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "time",
+            "title": "End"
+          },
+          "days": {
+            "items": {
+              "type": "integer",
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            "type": "array",
+            "title": "Days",
+            "default": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "slots": {
+            "items": {
+              "type": "string",
+              "format": "time"
+            },
+            "type": "array",
+            "title": "Slots",
+            "default": []
+          },
+          "on_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "AvailabilityWindow",
+        "description": "The experience must start and finish within [start, end].\n\n`slots` set → fixed start times only. `on_date` set → one-off event (festival, show)."
+      },
+      "BookingRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "itinerary",
+          "experience_id"
+        ],
+        "title": "BookingRequest"
+      },
+      "BookingResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "experience_id",
+          "start",
+          "people",
+          "itinerary"
+        ],
+        "title": "BookingResponse"
+      },
+      "Change": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "retimed",
+              "replaced",
+              "dropped",
+              "at_risk"
+            ],
+            "title": "Action"
+          },
+          "stop": {
+            "type": "string",
+            "title": "Stop"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "new_stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Stop"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "stop",
+          "reason"
+        ],
+        "title": "Change"
+      },
+      "ChatRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelerState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "now": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ChatRequest"
+      },
+      "ChatResponse": {
+        "properties": {
+          "parser": {
+            "type": "string",
+            "title": "Parser"
+          },
+          "parsed": {
+            "$ref": "#/components/schemas/ParsedRequest"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "excluded": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Excluded"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parser",
+          "parsed",
+          "state",
+          "recommendations",
+          "excluded",
+          "plan"
+        ],
+        "title": "ChatResponse"
+      },
+      "Companion": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 110.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "interests": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Interests",
+            "default": []
+          },
+          "dislikes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Dislikes",
+            "default": []
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "diet": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "vegetarian",
+                  "non_vegetarian",
+                  "vegan",
+                  "jain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Companion",
+        "description": "A person the user often travels with; reused when planning trips (P3)."
+      },
+      "ContextCheckRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "itinerary",
+          "now"
+        ],
+        "title": "ContextCheckRequest"
+      },
+      "ContextCheckResponse": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/Risk"
+            },
+            "type": "array",
+            "title": "Risks",
+            "default": []
+          },
+          "proposed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "ContextCheckResponse"
+      },
+      "ContextEvent": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "closure",
+              "provider_cancel",
+              "weather",
+              "delay",
+              "budget_change",
+              "fatigue"
+            ],
+            "title": "Kind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "experience_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience Id"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rain",
+                  "heat",
+                  "clear"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather"
+          },
+          "delay_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delay Min"
+          },
+          "budget_inr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Inr"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "at"
+        ],
+        "title": "ContextEvent"
+      },
+      "DeleteAccount": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "DeleteAccount"
+      },
+      "DiscoverRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "k": {
+            "type": "integer",
+            "title": "K",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "DiscoverRequest"
+      },
+      "DiscoverResponse": {
+        "properties": {
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "excluded": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommendations",
+          "excluded"
+        ],
+        "title": "DiscoverResponse"
+      },
+      "DraftRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "DraftRequest"
+      },
+      "DraftResponse": {
+        "properties": {
+          "parser": {
+            "type": "string",
+            "title": "Parser"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/ListingDraft"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parser",
+          "draft"
+        ],
+        "title": "DraftResponse"
+      },
+      "EventRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "event": {
+            "$ref": "#/components/schemas/ContextEvent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "itinerary",
+          "event"
+        ],
+        "title": "EventRequest"
+      },
+      "EventResponse": {
+        "properties": {
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itinerary",
+          "state",
+          "changes",
+          "problems"
+        ],
+        "title": "EventResponse"
+      },
+      "Evidence": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "provider",
+              "traveler",
+              "verified"
+            ],
+            "title": "Source"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "updated_at"
+        ],
+        "title": "Evidence",
+        "description": "Where one attribute's value came from and when it was last confirmed."
+      },
+      "Experience": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "place_id": {
+            "type": "string",
+            "title": "Place Id"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "food",
+              "culture",
+              "art",
+              "learning",
+              "adventure",
+              "shopping",
+              "nightlife",
+              "wellness",
+              "community",
+              "nature"
+            ],
+            "title": "Category"
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "duration_min": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Min"
+          },
+          "start_model": {
+            "type": "string",
+            "enum": [
+              "fixed_slot",
+              "rolling",
+              "reservation",
+              "drop_in"
+            ],
+            "title": "Start Model",
+            "default": "drop_in"
+          },
+          "price_inr": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Price Inr"
+          },
+          "price_model": {
+            "type": "string",
+            "enum": [
+              "per_person",
+              "per_group",
+              "free",
+              "donation"
+            ],
+            "title": "Price Model",
+            "default": "per_person"
+          },
+          "capacity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Capacity",
+            "default": 20
+          },
+          "min_age": {
+            "type": "integer",
+            "title": "Min Age",
+            "default": 0
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "indoor": {
+            "type": "boolean",
+            "title": "Indoor",
+            "default": false
+          },
+          "weather_sensitive": {
+            "type": "boolean",
+            "title": "Weather Sensitive",
+            "default": false
+          },
+          "tourist_index": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Tourist Index"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
+          "availability": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityWindow"
+            },
+            "type": "array",
+            "title": "Availability"
+          },
+          "evidence": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "object",
+            "title": "Evidence",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "provider_id",
+          "place_id",
+          "category",
+          "tags",
+          "description",
+          "duration_min",
+          "price_inr",
+          "tourist_index",
+          "availability"
+        ],
+        "title": "Experience"
+      },
+      "Feedback": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "reject",
+              "skip",
+              "rating"
+            ],
+            "title": "Kind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "as_described": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Described"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "kind",
+          "at"
+        ],
+        "title": "Feedback"
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "feedback"
+        ],
+        "title": "FeedbackRequest"
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "excluded": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Excluded"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommendations",
+          "excluded",
+          "state"
+        ],
+        "title": "FeedbackResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Itinerary": {
+        "properties": {
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/Stop"
+            },
+            "type": "array",
+            "title": "Stops",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Itinerary"
+      },
+      "Listing": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/Provider"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "experience": {
+            "$ref": "#/components/schemas/Experience"
+          },
+          "edit_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "place",
+          "experience"
+        ],
+        "title": "Listing"
+      },
+      "ListingDraft": {
+        "properties": {
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "food",
+              "culture",
+              "art",
+              "learning",
+              "adventure",
+              "shopping",
+              "nightlife",
+              "wellness",
+              "community",
+              "nature"
+            ],
+            "title": "Category",
+            "default": "community"
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
+          "near": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Near"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min",
+            "default": 60
+          },
+          "price_inr": {
+            "type": "integer",
+            "title": "Price Inr",
+            "default": 0
+          },
+          "price_model": {
+            "type": "string",
+            "enum": [
+              "per_person",
+              "per_group",
+              "free",
+              "donation"
+            ],
+            "title": "Price Model",
+            "default": "per_person"
+          },
+          "capacity": {
+            "type": "integer",
+            "title": "Capacity",
+            "default": 8
+          },
+          "min_age": {
+            "type": "integer",
+            "title": "Min Age",
+            "default": 0
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "indoor": {
+            "type": "boolean",
+            "title": "Indoor",
+            "default": true
+          },
+          "weather_sensitive": {
+            "type": "boolean",
+            "title": "Weather Sensitive",
+            "default": false
+          },
+          "open_time": {
+            "type": "string",
+            "title": "Open Time",
+            "default": "10:00"
+          },
+          "close_time": {
+            "type": "string",
+            "title": "Close Time",
+            "default": "18:00"
+          },
+          "days": {
+            "items": {
+              "type": "integer",
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            "type": "array",
+            "title": "Days",
+            "default": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "community_led": {
+            "type": "boolean",
+            "title": "Community Led",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ListingDraft"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "ParsedRequest": {
+        "properties": {
+          "near": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Near"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "budget_inr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Inr"
+          },
+          "group_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Size"
+          },
+          "adults": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adults"
+          },
+          "children": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children"
+          },
+          "child_ages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Child Ages",
+            "default": []
+          },
+          "seniors": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seniors"
+          },
+          "intents": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Intents",
+            "default": []
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "avoid_crowds": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Crowds"
+          },
+          "indoor_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Only"
+          },
+          "hidden_gems": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden Gems"
+          },
+          "raining": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raining"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "relaxed",
+                  "normal",
+                  "packed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "walk",
+                  "auto",
+                  "car"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "title": "ParsedRequest",
+        "description": "Only what the traveler said. None = not mentioned (keep previous value)."
+      },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange"
+      },
+      "PauseRequest": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "paused"
+        ],
+        "title": "PauseRequest"
+      },
+      "Place": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "neighbourhood": {
+            "type": "string",
+            "title": "Neighbourhood"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "neighbourhood",
+          "lat",
+          "lon"
+        ],
+        "title": "Place"
+      },
+      "PlanRequest": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TravelerState"
+          },
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary",
+            "default": {
+              "stops": []
+            }
+          },
+          "max_new": {
+            "type": "integer",
+            "title": "Max New",
+            "default": 3
+          },
+          "add": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Add"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "PlanRequest"
+      },
+      "PlanResponse": {
+        "properties": {
+          "itinerary": {
+            "$ref": "#/components/schemas/Itinerary"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itinerary",
+          "problems"
+        ],
+        "title": "PlanResponse"
+      },
+      "Profile": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 110.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "home_city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home City"
+          },
+          "interests": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Interests",
+            "default": []
+          },
+          "dislikes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Dislikes",
+            "default": []
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "walking_limit_km": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Walking Limit Km"
+          },
+          "needs_rest_breaks": {
+            "type": "boolean",
+            "title": "Needs Rest Breaks",
+            "default": false
+          },
+          "diet": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "vegetarian",
+                  "non_vegetarian",
+                  "vegan",
+                  "jain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diet"
+          },
+          "pace": {
+            "type": "string",
+            "enum": [
+              "relaxed",
+              "normal",
+              "packed"
+            ],
+            "title": "Pace",
+            "default": "normal"
+          },
+          "budget_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "budget",
+                  "mid",
+                  "premium"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Style"
+          },
+          "transport": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "walk",
+                "auto",
+                "bus",
+                "car"
+              ]
+            },
+            "type": "array",
+            "title": "Transport",
+            "default": []
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Languages",
+            "default": []
+          },
+          "companions": {
+            "items": {
+              "$ref": "#/components/schemas/Companion"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Companions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "Profile",
+        "description": "Everything used to personalise recommendations. All optional except the name.\nSensitive fields (age, accessibility, diet) are owner-only: never shown to admins/providers."
+      },
+      "Provider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "formal",
+              "informal"
+            ],
+            "title": "Kind"
+          },
+          "neighbourhood": {
+            "type": "string",
+            "title": "Neighbourhood"
+          },
+          "community_led": {
+            "type": "boolean",
+            "title": "Community Led",
+            "default": false
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "neighbourhood"
+        ],
+        "title": "Provider"
+      },
+      "PublishRequest": {
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/ListingDraft"
+          },
+          "today": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Today"
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft"
+        ],
+        "title": "PublishRequest"
+      },
+      "Recommendation": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "km": {
+            "type": "number",
+            "title": "Km"
+          },
+          "travel_min": {
+            "type": "integer",
+            "title": "Travel Min"
+          },
+          "cost_inr": {
+            "type": "integer",
+            "title": "Cost Inr"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "low_confidence": {
+            "type": "boolean",
+            "title": "Low Confidence"
+          },
+          "factors": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Factors"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "title",
+          "score",
+          "lat",
+          "lon",
+          "start",
+          "end",
+          "km",
+          "travel_min",
+          "cost_inr",
+          "confidence",
+          "low_confidence",
+          "factors",
+          "reasons"
+        ],
+        "title": "Recommendation"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "display_name"
+        ],
+        "title": "RegisterRequest"
+      },
+      "Risk": {
+        "properties": {
+          "stop": {
+            "type": "string",
+            "title": "Stop"
+          },
+          "condition": {
+            "type": "string",
+            "title": "Condition"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stop",
+          "condition",
+          "message"
+        ],
+        "title": "Risk"
+      },
+      "Stop": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "experience_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience Id"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "confirmed",
+              "active",
+              "completed",
+              "skipped",
+              "replaced"
+            ],
+            "title": "Status",
+            "default": "proposed"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          },
+          "cost_inr": {
+            "type": "integer",
+            "title": "Cost Inr",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "lat",
+          "lon",
+          "start",
+          "end"
+        ],
+        "title": "Stop",
+        "description": "One itinerary entry. experience_id=None for the traveler's own commitments (train, hotel)."
+      },
+      "Traveler": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": "me"
+          },
+          "age": {
+            "type": "integer",
+            "title": "Age",
+            "default": 30
+          },
+          "interests": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Interests",
+            "default": []
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Traveler",
+        "description": "Stable-ish profile of one person in the group."
+      },
+      "TravelerState": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window End"
+          },
+          "budget_inr": {
+            "type": "integer",
+            "title": "Budget Inr"
+          },
+          "group": {
+            "items": {
+              "$ref": "#/components/schemas/Traveler"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Group"
+          },
+          "intents": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Intents",
+            "default": []
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "auto",
+              "car"
+            ],
+            "title": "Mode",
+            "default": "auto"
+          },
+          "pace": {
+            "type": "string",
+            "enum": [
+              "relaxed",
+              "normal",
+              "packed"
+            ],
+            "title": "Pace",
+            "default": "normal"
+          },
+          "indoor_only": {
+            "type": "boolean",
+            "title": "Indoor Only",
+            "default": false
+          },
+          "max_distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Distance Km"
+          },
+          "avoid_crowds": {
+            "type": "boolean",
+            "title": "Avoid Crowds",
+            "default": false
+          },
+          "novelty": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Novelty",
+            "default": 0.15
+          },
+          "weather": {
+            "type": "string",
+            "enum": [
+              "clear",
+              "rain",
+              "heat"
+            ],
+            "title": "Weather",
+            "default": "clear"
+          },
+          "learned": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "object",
+            "title": "Learned",
+            "default": {}
+          },
+          "rejected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rejected",
+            "default": []
+          },
+          "end_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Lat"
+          },
+          "end_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Lon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "window_start",
+          "window_end",
+          "budget_inr"
+        ],
+        "title": "TravelerState",
+        "description": "The traveler/group situation right now (doc §5.1)."
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "traveler",
+              "provider",
+              "admin"
+            ],
+            "title": "Role"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created"
+          },
+          "onboarded": {
+            "type": "boolean",
+            "title": "Onboarded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "display_name",
+          "created",
+          "onboarded"
+        ],
+        "title": "User"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

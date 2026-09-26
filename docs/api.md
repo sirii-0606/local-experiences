@@ -101,3 +101,25 @@ Unknown experience ids return `422`. An empty `problems` means the whole plan is
 
 ## Demo reproducibility
 Pass `"now": "2026-09-26T15:30:00"` to `/chat` so the scenarios in `docs/ideation/mvp-scope.md` behave the same way every time. The seed's one-off events are on 2026-09-27 and 2026-10-03.
+
+## v2 website: accounts, profile, admin (P1)
+Contract-first: request and response models are in `backend/app/schemas.py`, mirrored in `frontend/src/types.ts`. The full schema snapshot is **`docs/openapi.json`**. `tests/test_contract.py` fails if the backend changes without it, so regenerate with `backend/.venv/Scripts/python scripts/openapi_snapshot.py` and tell the frontend team. The frontend can run against an in-memory mock with `VITE_API_MOCK=1`, and against any backend with `API_TARGET=http://host:port`.
+
+**Auth:** an HttpOnly `le_session` cookie (7 days, SameSite=Lax). Every write needs the header **`X-Requested-With: le`** (CSRF guard; `frontend/src/api.ts` sends it). 401 means not signed in, and 403 means the wrong role or a missing header. `WEBSITE_V2=0` unmounts all of these routes.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/auth/register` | `{email, password (8–128), display_name}` | 201 `User`, signed in. 409 if the email exists. |
+| POST | `/auth/login` | `{email, password}` | `User`. 401 on wrong credentials (the same message either way), 403 if disabled, **429** after 5 failures per email+IP in 15 min |
+| POST | `/auth/logout` | none | 204 |
+| GET | `/auth/me` | none | `User {id, email, role, display_name, created, onboarded}`, or 401 |
+| GET / PUT | `/me/profile` | `Profile` | Onboarding data: interests, dislikes, accessibility, diet, pace, transport, companions… **Owner-only.** GET returns a blank starting profile before onboarding. |
+| PUT | `/me/password` | `{current_password, new_password}` | 204. Signs out your other devices. |
+| GET | `/me/export` | none | Everything we hold about you (never the password hash) |
+| DELETE | `/me` | `{password}` | 204. Deletes the account, profile and sessions. 409 if you're the last admin. |
+| GET | `/admin/users` | none | `AdminUserRow[]`: **account facts only, never profile data** |
+| PATCH | `/admin/users/{id}` | `{role?, disabled?, temp_password?}` | Disabling or resetting signs that user out. The last admin can't be demoted or disabled (409). `temp_password` stands in for "forgot password" (there's no email service yet). |
+| GET | `/admin/stats` | none | `{users, admins, providers, disabled, active_sessions, provider_listings}` |
+
+**Admin account:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (8+ characters) in the backend's environment. The account is created, or promoted, on the first admin sign-in. There's no default admin password anywhere in the code.
+

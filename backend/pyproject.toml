@@ -22,3 +22,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]  # pinned so CI does not drift with ruff defaults
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom: these calls in defaults are evaluated once, by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "app.routes.deps.require_role"]

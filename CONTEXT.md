@@ -1,24 +1,27 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-13-demo-guide.md](docs/context/2026-09-26-13-demo-guide.md)_
+_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-14-website-p1-accounts.md](docs/context/2026-09-26-14-website-p1-accounts.md)_
 
 ## Where we are
-- **The core (M0–M8) is on `main`.** Waiting to be merged, each stacked on the previous one: `feat/m9-weather` (live weather), then `feat/ui-polish` (evaluation-ready UI and a hardened `dev.py`), then `feat/m9-backend` (ratings as evidence, provider edit tokens and edits, booking stub, `/` redirecting to `/docs`). Fast-forwarding `main` to `feat/m9-backend` lands all three. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
-- **Run everything:** `python scripts/dev.py [--reset]` → http://localhost:5173. The demo script is `docs/demo.md`.
-- **Engine** (`backend/app/engine/`): feasibility with reasons, confidence, ranking (utility + localness + learned taste + diversity) with explanations, gap-aware planning + `insert`, localized replanning, and learning from feedback.
-- **API** (`backend/app/main.py`, contract `docs/api.md`): `/chat`, `/discover`, `/plan`, `/events`, `/feedback` (including ratings), `/bookings`, `/weather`, `/context/check`, `/catalog`, plus `/providers/draft|listings[/{id} GET/PUT/DELETE]|availability|insights`. Provider listings need their `X-Provider-Token`.
-- **Live context** (`backend/app/weather.py`): Open-Meteo for the city centre. It detects plan risks and *proposes* a replan; the traveler confirms. Offline is harmless.
-- **AI** (`backend/app/intent.py`): `claude_parse` (claude-opus-5) for intents and listing drafts, with offline rule parsers. It's verified offline only.
-- **Data:** a read-only JSON seed plus a SQLite overlay (listings, pauses, demand log, feedback). Aggregates only; location is never stored.
-- **Web app** (`frontend/`): the Traveler tab (chat, cards, feedback, learned chips, group editor, map, plan, disruptions + live forecast, "why not") and the Provider tab (onboarding, insights, pause).
-- **Tests/CI:** backend 90 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
+- **`main` (`56097d9`) has everything through M9:**
+  - the core engine and app
+  - live weather, the evaluation UI, ratings as evidence, provider edit tokens, bookings
+  - the demo guide
+- **In progress: Website v2** on `feat/website-skeleton` (plan: [`docs/website-v2-plan.md`](docs/website-v2-plan.md), phases P1–P9).
+  - **P1 is done:** accounts, sessions, roles, admin, profile shell, and routed pages.
+  - **Working rule:** the backend is still in development, so v2 is **contract-first and additive** (`backend/app/schemas.py`, `docs/openapi.json` + contract test, new routers only, `WEBSITE_V2` kill switch, frontend mock mode `VITE_API_MOCK=1`, `API_TARGET`).
+- **Run it:**
+  - `python scripts/dev.py [--reset]` → http://localhost:5173. Set `ADMIN_EMAIL`/`ADMIN_PASSWORD` first for an admin account.
+  - Routes: `/` Explore, `/provider`, `/login`, `/register`, `/profile`, `/trips` (placeholder), `/admin`.
+- **Engine** (`backend/app/engine/`): feasibility, confidence, ranking and explanations, gap-aware planning, localized replanning, learning.
+- **API:** the existing endpoints in `docs/api.md` plus the v2 section (`/auth/*`, `/me/*`, `/admin/*`).
+- **Tests/CI:** backend 105 pass (1 skipped: live LLM), including the contract snapshot test. The frontend builds. CI runs backend, frontend and the context check.
 
 ## Next steps
-0. **First evaluation:** fast-forward `main` to `feat/m9-backend`, then on the evaluation machine run `python scripts/dev.py --reset` and follow `docs/demo.md`.
-1. (Weather is merged together with step 0.)
-2. **M9.2, post-visit ratings → traveler evidence → confidence.** The spec is in the latest context file.
-3. Then Hindi UI → 360° previews → provider accounts/edits/location picker → booking stub.
-4. **Team:** rehearse `docs/demo.md`, add README screenshots, and do one live LLM run.
+1. **P2, onboarding:** the 4-step `/onboarding`, a full preferences editor with companions, and Explore pre-filled from the profile (dislikes seed learned taste).
+2. **P3:** the trip model and "Plan a trip" wizard (stubs first). **P4:** multi-day scoring and shortlist (in person / AR / skip) and stays. **P5:** itinerary with meals, quick stops and group splits. **P6:** the feedback loop. **P7:** interactive itinerary with hover details and review sentiment. **P8:** print/PDF. **P9:** docs.
+3. **Parked:** Unity/AR immersive previews (plan appendix); the "AR" buttons in P4 are the hook.
+4. **Team:** rehearse `docs/demo.md` (the Explore flow is unchanged), README screenshots, and one live LLM run.
 
 ## Setup
-`python scripts/dev.py` (first run installs everything). For manual steps, see the README.
+`python scripts/dev.py` (first run installs everything). For manual steps, see the README. For frontend-only work: `cd frontend && VITE_API_MOCK=1 npm run dev`.

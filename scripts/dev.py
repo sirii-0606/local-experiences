@@ -77,6 +77,9 @@ try:
         print(f"\n  OK - Local & Experiences is running: {APP_URL}"
               "\n    API docs: http://localhost:8000/docs | demo script: docs/demo.md"
               "\n    Press Ctrl+C to stop.\n", flush=True)
+        if not os.environ.get("ADMIN_EMAIL"):
+            print("    Tip: set ADMIN_EMAIL and ADMIN_PASSWORD (8+ chars) before starting to get an"
+                  " admin sign-in.\n", flush=True)
         if "--no-browser" not in sys.argv:
             webbrowser.open(APP_URL)
     else:

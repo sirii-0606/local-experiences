@@ -142,8 +142,10 @@ export const tokens = {
   },
 };
 
-async function call<T>(path: string, body?: unknown, method?: string, token?: string): Promise<T> {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+// Shared by the explore/provider endpoints and the v2 website client (v2api.ts).
+// X-Requested-With is the CSRF guard the v2 routes require; session cookies go same-origin.
+export async function call<T>(path: string, body?: unknown, method?: string, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "content-type": "application/json", "x-requested-with": "le" };
   if (token) headers["x-provider-token"] = token;
   const r = await fetch(`/api${path}`, body === undefined && !method ? undefined : {
     method: method ?? "POST",
@@ -157,6 +159,7 @@ async function call<T>(path: string, body?: unknown, method?: string, token?: st
     if (Array.isArray(detail)) detail = detail.map((d: { msg?: string }) => d.msg).join("; "); // pydantic 422
     throw new Error(typeof detail === "string" ? detail : `${path} failed (${r.status})`);
   }
+  if (r.status === 204) return undefined as T; // logout, password change, delete: no body
   return r.json();
 }
 

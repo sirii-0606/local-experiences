@@ -37,3 +37,12 @@ Resolves the baseline doc's §16 open questions for the prototype. **Status: pro
 preference 0.25 · intent 0.20 · spatial 0.10 · budget 0.10 · quality×confidence 0.15 · localness 0.10 · context 0.10, **plus** `state.novelty × novelty` (novelty = 1 − tourist_index, or tourist_index when "iconic" is an intent). Then an MMR diversity re-rank with λ = 0.8 (similarity = Jaccard over tags + category + provider). *λ was 0.7, but that pushed intent-less items above intent matches.*
 
 Factor definitions: preference = group-fair tag overlap per member (capped at 3); intent = tag overlap (capped at 2); spatial = 1 − travel_min/60; budget = 1 − cost/budget; quality = Bayesian rating (prior 4.0 from 20 reviews) mapped 3–5 → 0–1, × confidence; context = mean(crowd fit, pace fit).
+
+## Website v2 (accounts, onboarding, trips)
+| Decision | Choice | Why |
+|---|---|---|
+| Auth | Email + password. `hashlib.scrypt` (n=2¹⁴, r=8, p=1, 16-byte salt), compared in constant time. Opaque session tokens (only the sha256 is stored), HttpOnly SameSite=Lax cookie, 7 days. CSRF via the `X-Requested-With: le` header. 5 failed logins per email+IP per 15 min. | Stdlib only, offline, no accounts with third parties (user's choice) |
+| Roles | `traveler` (default), `provider`, `admin`. The admin comes from env and is never hard-coded. The last admin is protected. | Least privilege; can't lock ourselves out |
+| Sensitive profile data | Age, accessibility and diet are **owner-only**: never in admin views, provider insights or logs. Exportable and deletable. | Privacy; the doc's §12.2 permission boundaries |
+| Backend still evolving | Contract-first (`schemas.py` + `docs/openapi.json` snapshot test), additive routers only (existing endpoints untouched), `WEBSITE_V2=0` kill switch. The frontend has a mock mode and `API_TARGET`. | The user said the backend isn't final: keep the frontend unblocked and changes visible |
+| Password reset | An admin sets a temporary password (which signs the user out) | There's no email service yet |

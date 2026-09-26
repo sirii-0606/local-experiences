@@ -379,3 +379,15 @@ def provider_insights(experience_id: str) -> dict:
             "booked_people": store.booked_people(experience_id),
             "rating": exp.rating, "review_count": exp.review_count,
             **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id))}
+
+
+# ---------------------------------------------------------------- v2 website (additive)
+# Accounts, profile, admin. Mounted beside the endpoints above without changing them;
+# WEBSITE_V2=0 turns the whole block off if the backend is mid-refactor.
+if os.environ.get("WEBSITE_V2", "1") == "1":
+    from app.routes import admin as admin_routes
+    from app.routes import auth as auth_routes
+    from app.routes import me as me_routes
+
+    for _router in (auth_routes.router, me_routes.router, admin_routes.router):
+        app.include_router(_router)
