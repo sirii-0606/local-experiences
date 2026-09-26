@@ -13,8 +13,13 @@ export type TravelerState = {
   avoid_crowds: boolean;
   indoor_only: boolean;
   weather: string;
+  learned: Record<string, number>;
+  rejected: string[];
   [k: string]: unknown;
 };
+
+export type Member = TravelerState["group"][number];
+export type FeedbackKind = "accept" | "reject" | "skip";
 
 export type Recommendation = {
   experience_id: string;
@@ -104,6 +109,8 @@ export type ListingDraft = {
 export type Insights = {
   experience_id: string;
   paused: boolean;
+  accepted: number;
+  passed: number;
   searches: number;
   matching_searches: number;
   shown: number;
@@ -141,6 +148,8 @@ export const api = {
     call<PlanResponse>("/plan", { state, itinerary, max_new, add }),
   event: (state: TravelerState, itinerary: Itinerary, event: ContextEvent) =>
     call<EventResponse>("/events", { state, itinerary, event }),
+  feedback: (state: TravelerState, experience_id: string, kind: FeedbackKind, reason: string | null, at: string) =>
+    call<DiscoverResponse & { state: TravelerState }>("/feedback", { state, feedback: { experience_id, kind, reason, at } }),
   draft: (text: string) => call<{ parser: string; draft: ListingDraft }>("/providers/draft", { text }),
   publish: (draft: ListingDraft, today: string) =>
     call<{ experience: { id: string; title: string } }>("/providers/listings", { draft, today }),

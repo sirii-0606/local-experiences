@@ -132,6 +132,17 @@ button.secondary { background: var(--bg); color: var(--ink); border: 1px solid v
 .hours i { display: block; width: 22px; background: var(--rec); border-radius: 4px 4px 0 0; }
 .row { display: flex; gap: 8px; margin: 12px 0 6px; flex-wrap: wrap; }
 
+.learned { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.chip.up { border-color: var(--ok); color: var(--ok); }
+.chip.down { border-color: var(--bad); color: var(--bad); }
+select.pass { font: inherit; font-size: 0.85rem; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.card .row { margin: 0; }
+.group-editor { margin-top: 12px; }
+.group-editor summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.member { display: grid; grid-template-columns: 1fr 56px 1.6fr auto auto; gap: 6px; align-items: center; margin-top: 8px; }
+.member input:not([type=checkbox]) { font: inherit; font-size: 0.85rem; min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.member .check { display: flex; align-items: center; gap: 2px; }
+
 @media (max-width: 900px) {
   .provider, .draft { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr; }

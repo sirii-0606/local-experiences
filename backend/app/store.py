@@ -23,6 +23,9 @@ create table if not exists demand (
     id integer primary key, at text not null, start_hour integer, duration_min integer,
     budget_inr integer, group_size integer, has_kids integer,
     intents text, shown text, excluded text);
+create table if not exists feedback (
+    id integer primary key, at text not null, experience_id text not null,
+    kind text not null, reason text);
 """
 
 
@@ -83,6 +86,15 @@ def log_demand(state: TravelerState, shown: list[str], excluded: dict[str, list[
           int((state.window_end - state.window_start).total_seconds() // 60), state.budget_inr,
           len(state.group), int(any(t.age < 16 for t in state.group)),
           json.dumps(state.intents), json.dumps(shown), json.dumps(excluded)))
+
+
+def log_feedback(experience_id: str, kind: str, reason: str | None) -> None:
+    _run("insert into feedback (at, experience_id, kind, reason) values (?, ?, ?, ?)",
+         (datetime.now().isoformat(timespec="seconds"), experience_id, kind, reason))
+
+
+def feedback_rows(experience_id: str) -> list[tuple[str, str | None]]:
+    return _run("select kind, reason from feedback where experience_id = ?", (experience_id,))
 
 
 def demand_rows() -> list[dict]:

@@ -14,6 +14,7 @@ Context-aware local experience discovery + planning platform (hackathon). Concep
 - Runtime data (provider listings, pauses, demand log) lives in SQLite via `backend/app/store.py`, overlaid onto the read-only JSON seed by `store.current_seed()`. Tests get a temp DB (`tests/conftest.py`). Never log location or free text.
 
 ## Commands
+- Everything at once: `python scripts/dev.py [--reset]` (installs on first run; API :8000 + web :5173). Demo script: `docs/demo.md`
 - Backend setup: `cd backend && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"` (use `.venv/bin/` on macOS/Linux)
 - Backend tests: `cd backend && .venv/Scripts/python -m pytest`
 - Backend lint: `cd backend && .venv/Scripts/ruff check .`

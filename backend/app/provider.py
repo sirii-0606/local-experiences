@@ -230,11 +230,26 @@ def _band(per_person: float) -> str:
                                    (float("inf"), "₹1000+")) if per_person < limit)
 
 
-def insights(exp: Experience, rows: list[dict]) -> dict:
-    """What travelers who *wanted* something like this asked for, and why they didn't get it."""
+FEEDBACK_REASONS = {
+    "not_interested": "travelers said: not for them", "too_expensive": "over their budget",
+    "too_far": "too far from them", "bad_time": "doesn't fit their free time or your hours",
+    None: "travelers passed without saying why",
+}
+
+
+def insights(exp: Experience, rows: list[dict], feedback: list[tuple[str, str | None]]) -> dict:
+    """What travelers who *wanted* something like this asked for, and why they didn't get it.
+
+    Combines engine exclusions (couldn't be recommended) with explicit traveler feedback
+    (was recommended, and they said no, and why).
+    """
     matching = [r for r in rows if set(r["intents"]) & set(exp.tags)]
     reasons = Counter(_bucket(x) for r in matching for x in r["excluded"].get(exp.id, []))
+    reasons.update(FEEDBACK_REASONS.get(reason, "other") for kind, reason in feedback
+                   if kind == "reject")
     return {
+        "accepted": sum(kind == "accept" for kind, _ in feedback),
+        "passed": sum(kind == "reject" for kind, _ in feedback),
         "searches": len(rows),
         "matching_searches": len(matching),
         "shown": sum(exp.id in r["shown"] for r in rows),

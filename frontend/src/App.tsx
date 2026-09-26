@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MapView from "./MapView";
 import ProviderView from "./ProviderView";
+import GroupEditor from "./GroupEditor";
 import { api } from "./api";
 import type { Catalog, Change, ContextEvent, Itinerary, Recommendation, Stop, TravelerState } from "./api";
 
@@ -71,7 +72,38 @@ export default function App() {
   });
 
   // The engine picks the time: first gap where it's reachable, open and in budget.
-  const addToPlan = (r: Recommendation) => replan(itinerary.stops, 0, r.experience_id);
+  // Adding is also an explicit "accept": it teaches the ranking what this traveler likes.
+  const addToPlan = (r: Recommendation) => run(async () => {
+    const p = await api.plan(state!, itinerary, 0, r.experience_id);
+    setItinerary(p.itinerary);
+    setProblems(p.problems);
+    const f = await api.feedback(state!, r.experience_id, "accept", null, `${clock}:00`);
+    setState(f.state);
+    setRecs(f.recommendations);
+    setExcluded(f.excluded);
+  });
+
+  const pass = (r: Recommendation, reason: string) => run(async () => {
+    const f = await api.feedback(state!, r.experience_id, "reject", reason === "none" ? null : reason, `${clock}:00`);
+    setState(f.state);
+    setRecs(f.recommendations);
+    setExcluded(f.excluded);
+  });
+
+  // State edited by the traveler (group, forgotten preferences): re-rank and re-check the plan.
+  const applyState = (next: TravelerState) => run(async () => {
+    const [d, p] = await Promise.all([api.discover(next), api.plan(next, itinerary, 0)]);
+    setState(next);
+    setRecs(d.recommendations);
+    setExcluded(d.excluded);
+    setItinerary(p.itinerary);
+    setProblems(p.problems);
+  });
+  const forget = (tag: string) => {
+    const learned = { ...state!.learned };
+    delete learned[tag];
+    applyState({ ...state!, learned });
+  };
 
   const trigger = (event: Omit<ContextEvent, "at">) => run(async () => {
     const out = await api.event(state!, itinerary, { ...event, at: `${clock}:00` } as ContextEvent);
@@ -132,6 +164,19 @@ export default function App() {
               {state.indoor_only && <span className="chip">indoors only</span>}
               {state.intents.map((t) => <span key={t} className="chip tag">{t}</span>)}
             </div>
+            {Object.keys(state.learned).length > 0 && (
+              <div className="learned">
+                <span className="muted small">Learned from you (tap to forget):</span>
+                <div className="chips">
+                  {Object.entries(state.learned).sort((a, b) => b[1] - a[1]).map(([t, v]) => (
+                    <button key={t} type="button" className={`chip ${v > 0 ? "up" : "down"}`} onClick={() => forget(t)}
+                      aria-label={`Forget that you ${v > 0 ? "like" : "dislike"} ${t}`}>{v > 0 ? "▲" : "▼"} {t} ✕</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <GroupEditor key={JSON.stringify(state.group)} group={state.group} tags={catalog?.vocabulary.tags ?? []} busy={busy}
+              onApply={(group) => applyState({ ...state, group })} />
           </section>
         )}
 
@@ -183,9 +228,22 @@ export default function App() {
                   </div>
                   <p className="meta">{hhmm(r.start)}–{hhmm(r.end)} · {r.cost_inr ? `₹${r.cost_inr}` : "free"} · {r.km} km</p>
                   <ul className="reasons">{r.reasons.slice(3).map((x) => <li key={x}>{x}</li>)}</ul>
-                  <button disabled={busy || planned.has(r.experience_id)} onClick={() => addToPlan(r)}>
-                    {planned.has(r.experience_id) ? "In plan" : "Add to plan"}
-                  </button>
+                  <div className="row">
+                    <button disabled={busy || planned.has(r.experience_id)} onClick={() => addToPlan(r)}>
+                      {planned.has(r.experience_id) ? "In plan" : "Add to plan"}
+                    </button>
+                    {!planned.has(r.experience_id) && (
+                      <select className="pass" aria-label={`Not for me: ${r.title}`} value="" disabled={busy}
+                        onChange={(e) => e.target.value && pass(r, e.target.value)}>
+                        <option value="">Not for me…</option>
+                        <option value="not_interested">Not my thing</option>
+                        <option value="too_expensive">Too expensive</option>
+                        <option value="too_far">Too far</option>
+                        <option value="bad_time">Wrong time</option>
+                        <option value="none">Just skip it</option>
+                      </select>
+                    )}
+                  </div>
                 </li>
               ))}
             </ol>

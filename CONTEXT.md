@@ -1,24 +1,23 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-08-m7-provider.md](docs/context/2026-09-26-08-m7-provider.md)_
+_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-09-m8-polish.md](docs/context/2026-09-26-09-m8-polish.md)_
 
 ## Where we are
-- **M0–M7 are done.** `main` has M6; `feat/m7-provider` is waiting to be merged. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
-- **Engine** (`backend/app/engine/`): feasibility, confidence, ranking + reasons, gap-aware planning + `insert`, and localized replanning.
-- **API** (`backend/app/main.py`): traveler endpoints (`/chat`, `/discover`, `/plan`, `/events`, `/catalog`) plus provider endpoints (`/providers/draft|listings|availability|insights`). The contract is `docs/api.md`.
-- **AI** (`backend/app/intent.py`): `claude_parse` (claude-opus-5, structured output, refusal fallback) for traveler intents and provider drafts, with offline rule parsers as fallback. It's verified offline only.
-- **Runtime data** (`backend/app/store.py`): SQLite overlay on the JSON seed for provider listings and pauses, plus an aggregate-only demand log. Delete `backend/data/local.db` to reset a demo.
-- **Web app** (`frontend/`), with Traveler and Provider tabs:
-  - Traveler: chat, cards with reasons and confidence, map, plan timeline with lock/remove/fill/add, disruption panel with a diff, "why not".
-  - Provider: free text → editable draft → publish; demand insights with lost-demand reasons and tips; pause/resume.
-- **Scenarios A, B and C** all run end to end in the browser.
-- **Tests/CI:** backend 59 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
-- **Team:** 5 people. The work split is in `docs/roadmap.md`. Stretch items come last, as M9.
+- **All core milestones (M0–M8) are built.** `main` has M7; `feat/m8-polish` is waiting to be merged. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
+- **Run everything:** `python scripts/dev.py [--reset]` → http://localhost:5173. The demo script is `docs/demo.md`.
+- **Engine** (`backend/app/engine/`): feasibility with reasons, confidence, ranking (utility + localness + learned taste + diversity) with explanations, gap-aware planning + `insert`, localized replanning, and learning from feedback.
+- **API** (`backend/app/main.py`, contract `docs/api.md`): `/chat`, `/discover`, `/plan`, `/events`, `/feedback`, `/catalog`, plus `/providers/draft|listings|availability|insights`.
+- **AI** (`backend/app/intent.py`): `claude_parse` (claude-opus-5, structured output, refusal fallback) for intents and listing drafts, with offline rule parsers. It's verified offline only.
+- **Data:** a read-only JSON seed (50 Jaipur experiences) plus a SQLite overlay (`store.py`) for listings, pauses, the demand log and feedback. Aggregates only; location is never stored.
+- **Web app** (`frontend/`):
+  - Traveler: chat, cards with reasons and confidence and feedback, learned chips (forgettable), group editor, map, plan timeline, disruption diff, "why not".
+  - Provider: free-text onboarding → reviewed draft → publish; insights with lost-demand reasons and tips; pause.
+- **Tests/CI:** backend 66 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
+- **Team:** 5 people. Stretch items are M9.
 
 ## Next steps
-- **M8:** feedback loop (accept/reject shifts ranking and evidence), group-mode UI, demo polish (screenshots, one-command start, rehearsal), and one live LLM run.
-- **M9 stretch** (after M8): 360°/3D previews, real weather API, booking stub, Hindi UI, provider auth, listing edits, and a map location picker.
+1. Merge M8. Then, as a team: rehearse `docs/demo.md`, add README screenshots, do one live LLM run (`RUN_LLM_TESTS=1`), and review the seed data.
+2. **M9 stretch**, in order: live weather (Open-Meteo), post-visit ratings as evidence, Hindi UI, 360° previews, provider accounts, listing edits and a location picker, and a booking stub. Details are in the latest context file.
 
 ## Setup
-Backend: `cd backend && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]" && .venv/Scripts/python -m uvicorn app.main:app --reload`
-Frontend: `cd frontend && npm install && npm run dev`, then open http://localhost:5173
+`python scripts/dev.py` (first run installs the backend venv and frontend node_modules). For manual steps, see the README.

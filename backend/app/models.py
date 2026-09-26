@@ -112,6 +112,10 @@ class TravelerState(BaseModel):
     avoid_crowds: bool = False
     novelty: float = Field(default=0.15, ge=0, le=1)  # appetite for hidden/local vs iconic
     weather: Literal["clear", "rain", "heat"] = "clear"  # current context (doc §5.1)
+    # Learned from feedback this session (doc §5.2): tag -> -1..1. Visible and resettable by the
+    # traveler, kept apart from what they explicitly asked for (`intents`).
+    learned: dict[Tag, float] = {}
+    rejected: list[str] = []  # experience ids the traveler said no to: never shown again
     # Where you must be by window_end (hotel, station, next booking). None = no return trip.
     end_lat: float | None = None
     end_lon: float | None = None

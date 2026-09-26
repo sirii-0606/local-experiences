@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.engine.confidence import LOW_CONFIDENCE, attr_confidence
 from app.engine.feasibility import Fit, check
+from app.engine.learn import NOT_TASTE
 from app.models import Experience, TravelerState
 from app.seed import Seed
 
@@ -18,6 +19,7 @@ from app.seed import Seed
 WEIGHTS = {
     "preference": 0.25, "intent": 0.20, "spatial": 0.10, "budget": 0.10,
     "quality": 0.15, "localness": 0.10, "context": 0.10,
+    "learned": 0.20,  # -1..1 from this session's feedback; 0 (no effect) until there is some
 }
 MMR_LAMBDA = 0.8  # 1 = pure score, 0 = pure diversity
 CONFIDENCE_ATTRS = {"availability": "hours", "price_inr": "price", "accessibility": "accessibility"}
@@ -69,7 +71,10 @@ def _factors(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, conf: 
     if state.weather == "heat" and exp.weather_sensitive and not exp.indoor:
         pace *= 0.5  # soft: outdoors in the heat is possible, just less appealing
     wants_iconic = "iconic" in state.intents
+    # averaged over all of its taste tags, so one shared generic tag isn't "similar"
+    taste = tags - NOT_TASTE
     return {
+        "learned": sum(state.learned.get(t, 0.0) for t in taste) / len(taste) if taste else 0.0,
         # group fairness: don't let one member be miserable (decisions.md)
         "preference": 0.7 * mean(per_member) + 0.3 * min(per_member),
         "intent": _overlap(state.intents, tags, 2),
@@ -84,7 +89,8 @@ def _factors(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, conf: 
     }
 
 
-def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: dict) -> list[str]:
+def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: dict,
+             f: dict) -> list[str]:
     size = len(state.group)
     out = [
         f"{fit.km:.1f} km away, ~{fit.travel_min} min by {state.mode}"
@@ -97,6 +103,16 @@ def _reasons(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, low: d
     ]
     if hits := [t for t in state.intents if t in exp.tags]:
         out.append("matches " + ", ".join(hits))
+    if size > 1 and any(t.interests for t in state.group):
+        fans = [t.name for t in state.group if set(t.interests) & set(exp.tags)]
+        if len(fans) == size:
+            out.append("something for everyone in your group")
+        elif fans:
+            out.append("especially for " + ", ".join(fans))
+    if f["learned"] > 0.1:
+        out.append("similar to things you liked")
+    elif f["learned"] < -0.1:
+        out.append("similar to things you passed on")
     if seed.providers[exp.provider_id].community_led:
         out.append("run by a local community host")
     if exp.tourist_index <= 0.2:
@@ -131,6 +147,9 @@ def discover(
     for exp in seed.experiences.values():
         if exp.id in skip:
             continue
+        if exp.id in state.rejected:
+            excluded[exp.id] = ["you said no to this earlier"]
+            continue
         fit = check(exp, state, seed)
         if not fit.ok:
             excluded[exp.id] = fit.reasons
@@ -148,7 +167,7 @@ def discover(
             start=fit.start, end=fit.end, km=fit.km, travel_min=fit.travel_min,
             cost_inr=fit.cost_inr, confidence=round(conf, 2), low_confidence=conf < LOW_CONFIDENCE,
             factors={n: round(v, 3) for n, v in f.items()},
-            reasons=_reasons(exp, fit, state, seed, low),
+            reasons=_reasons(exp, fit, state, seed, low, f),
         )
         scored.append((rec, set(exp.tags) | {exp.category, exp.provider_id}))
 

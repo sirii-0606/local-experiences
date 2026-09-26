@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from app import provider, store
 from app.engine.adapt import Replan, replan
 from app.engine.itinerary import insert, plan, validate
+from app.engine.learn import learn
 from app.engine.rank import Recommendation, discover
 from app.intent import ParsedRequest, now_ist, parse, to_state
 from app.models import (
@@ -18,6 +19,7 @@ from app.models import (
     Category,
     ContextEvent,
     Experience,
+    Feedback,
     Itinerary,
     Place,
     Provider,
@@ -173,6 +175,27 @@ def chat(req: ChatRequest) -> ChatResponse:
     )
 
 
+class FeedbackRequest(BaseModel):
+    state: TravelerState
+    feedback: Feedback
+
+
+class FeedbackResponse(DiscoverResponse):
+    state: TravelerState
+
+
+@app.post("/feedback")
+def feedback(req: FeedbackRequest) -> FeedbackResponse:
+    """Accept / reject (with reason) / skip. Returns the updated state and fresh recommendations;
+    the provider only ever sees the aggregate (kind + reason)."""
+    s = seed()
+    _check_ids(s, req.feedback.experience_id)
+    state = learn(req.state, s.experiences[req.feedback.experience_id], req.feedback)
+    store.log_feedback(req.feedback.experience_id, req.feedback.kind, req.feedback.reason)
+    recs, excluded = discover(state, s)
+    return FeedbackResponse(state=state, recommendations=recs, excluded=excluded)
+
+
 # ---------------------------------------------------------------- provider side (M7)
 
 @app.post("/providers/draft")
@@ -204,4 +227,5 @@ def provider_insights(experience_id: str) -> dict:
     s = seed()
     _check_ids(s, experience_id)
     return {"experience_id": experience_id, "paused": experience_id in store.paused_ids(),
-            **provider.insights(s.experiences[experience_id], store.demand_rows())}
+            **provider.insights(s.experiences[experience_id], store.demand_rows(),
+                                store.feedback_rows(experience_id))}

@@ -1,35 +1,58 @@
 # Local & Experiences
 
-An intelligent local discovery and experience platform. It answers *"What should I do next, given my situation?"* rather than *"What exists nearby?"*: it filters local experiences by what is actually feasible (time, budget, distance, hours, group, accessibility, existing itinerary), ranks them with reasons you can read, replans when something changes, and helps local providers reach travelers who genuinely fit.
+**An intelligent local discovery and experience platform (Jaipur prototype).** It answers *"What can we actually do next, given our situation?"*, not *"What exists nearby?"*.
 
-**Status:** M7 (engine, API, traveler app, provider onboarding + demand insights). See [`docs/roadmap.md`](docs/roadmap.md) and [`CONTEXT.md`](CONTEXT.md).
+- **For travelers:** it filters local experiences by what is **feasible**: free time including travel, opening hours and slots, budget for the whole group, ages, accessibility, weather, and the rest of the plan. It ranks them with **reasons you can read**, builds a plan around your existing commitments, and **repairs only the affected part** when something changes (a delay, rain, a closure, tiredness, a budget cut).
+- **For local providers:** an artisan describes their offering in their own words and gets a structured listing. They then see **aggregate demand**, and **why interested travelers didn't pick them**.
 
-## Run it
-Use two terminals:
+**Status:** core milestones M0–M8 are done. See [`docs/roadmap.md`](docs/roadmap.md) and the latest [`CONTEXT.md`](CONTEXT.md).
+
+## Run it (one command)
+You need Python 3.12+ and Node 22+.
+```bash
+python scripts/dev.py            # first run installs everything; then open http://localhost:5173
+python scripts/dev.py --reset    # same, with a clean demo database
+```
+It works fully offline. If `ANTHROPIC_API_KEY` is set, Claude parses free text instead of the offline rule parser; the engine's results don't depend on which parser ran. The 5-minute walkthrough is in **[`docs/demo.md`](docs/demo.md)**.
+
+<details><summary>Manual setup / tests</summary>
+
 ```bash
 cd backend
 python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"   # .venv/bin on macOS/Linux
-.venv/Scripts/python -m pytest                                          # no network needed
-.venv/Scripts/python -m uvicorn app.main:app --reload                   # API on :8000, schema at /docs
+.venv/Scripts/python -m pytest                                          # 66 tests, no network
+.venv/Scripts/python -m uvicorn app.main:app --reload                   # API :8000, schema at /docs
+cd ../frontend && npm install && npm run dev                            # web app :5173
 ```
-```bash
-cd frontend
-npm install
-npm run dev                                                             # http://localhost:5173
+</details>
+
+## How it works
 ```
-In the app, click **Send** on the pre-filled family example to get recommendations, a map and a plan. Then use **Something changed?** (late, rain, closure, tired, budget) to see local replanning. The demo clock is fixed at 26 Sep 2026 15:30 so results are reproducible. In the **Provider** tab, click **Draft my listing**, then **Publish**. A new artisan goes live, is recommended to matching travelers, and sees aggregate demand and why they lost bookings. Delete `backend/data/local.db` to reset. The chat works offline. Set `ANTHROPIC_API_KEY` to have Claude parse free text instead. See [`docs/api.md`](docs/api.md).
+ chat text ──► intent parser (Claude structured output │ offline rules) ──► TravelerState
+                                                                              │
+ JSON seed + SQLite overlay (provider listings, pauses) ──► ENGINE ◄──────────┘
+   feasibility (hard constraints, with reasons) → ranking (weighted utility + confidence
+   + localness + learned taste, then diversity) → explanations from the same factors
+   → itinerary gaps / fill / validate → localized replanning on events → learning from feedback
+                                                                              │
+ React + Leaflet: traveler (chat, cards, map, plan, disruptions) · provider (onboarding, insights)
+```
+- **The engine is the product.** It's pure Python in `backend/app/engine/`, with no I/O. Every recommendation is re-checked in tests by an **independent validator**.
+- **Claude only extracts** intent and listing drafts, and falls back to rules on any failure. It never ranks or decides.
+- **Trust:** each attribute has a confidence based on its source and how recent it is. Low confidence is **flagged, never hidden**.
+- **Privacy:** location is never stored. Providers see aggregates only.
 
 ## Docs
-- Concept baseline: [`docs/ideation/`](docs/ideation/) (original docx + text copy)
-- Prototype decisions: [`docs/ideation/decisions.md`](docs/ideation/decisions.md)
-- MVP scope, metrics, demo script: [`docs/ideation/mvp-scope.md`](docs/ideation/mvp-scope.md)
-- API contract: [`docs/api.md`](docs/api.md)
-- Change history with next steps: [`docs/context/`](docs/context/)
+- Concept baseline: [`docs/ideation/`](docs/ideation/) (the original ideation document and a text copy)
+- Every design decision, with the numbers: [`docs/ideation/decisions.md`](docs/ideation/decisions.md)
+- MVP scope, success metrics, scenarios: [`docs/ideation/mvp-scope.md`](docs/ideation/mvp-scope.md)
+- API contract: [`docs/api.md`](docs/api.md) · Demo script: [`docs/demo.md`](docs/demo.md)
+- Change history, each entry with "how to proceed next": [`docs/context/`](docs/context/)
 
 ## Stack
-FastAPI + Pydantic (engine and API), React + Vite + Leaflet (UI), SQLite, and the Claude API for intent parsing, with a rule-based fallback.
+Python 3.12 · FastAPI · Pydantic · SQLite (stdlib) · Anthropic SDK (`claude-opus-5`) · React 19 · TypeScript · Vite · Leaflet + OpenStreetMap. Seed data: 50 Jaipur experiences. The monuments are real; **all businesses are fictional**.
 
 ## Contributing
 1. Branch from `main` as `feat/…`, `fix/…` or `docs/…`, and use conventional commits.
-2. Add a `docs/context/YYYY-MM-DD-NN-slug.md` file and update `CONTEXT.md` in every PR. CI enforces this.
-3. Open a PR using the template and squash merge.
+2. Every change adds a `docs/context/YYYY-MM-DD-NN-slug.md` file and updates `CONTEXT.md`. CI enforces this.
+3. CI runs backend ruff + pytest, the frontend type-check + build, and the context check.

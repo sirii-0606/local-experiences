@@ -125,7 +125,8 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
               <div><strong>{ins.shown_to_matching}</strong><span>times you were recommended to them</span></div>
               <div><strong>{ins.with_kids}</strong><span>of those were families with kids</span></div>
             </div>
-            {ins.searches === 0 && <p className="muted">No traveler searches yet. Chat in the Traveler tab, then refresh.</p>}
+            <p className="muted">✓ {ins.accepted} added to a plan · ✕ {ins.passed} said "not for me"</p>
+            {ins.searches === 0 &&<p className="muted">No traveler searches yet. Chat in the Traveler tab, then refresh.</p>}
             {ins.why_not_chosen.length > 0 && (
               <><h3>Why interested travelers didn't get you</h3>
                 <ul className="bars">{ins.why_not_chosen.map(([r, n]) => <li key={r}><span>{r}</span><b>{n}</b></li>)}</ul></>
