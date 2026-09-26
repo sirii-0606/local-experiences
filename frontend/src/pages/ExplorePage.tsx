@@ -181,17 +181,26 @@ export default function ExplorePage() {
     <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
       <div className={`busy-bar ${busy ? "on" : ""}`} aria-hidden="true" />
 
-      {/* 1. CINEMATIC HERO SECTION (Voyagenix Reference Style) */}
+      {/* 1. CINEMATIC HERO SECTION (Unmapped & Voyagenix Hybrid Reference) */}
       <section className="jaipur-hero-container">
         <div className="jaipur-hero-backdrop" />
         <div className="jaipur-hero-frame">
-          <div className="hero-tag">
-            <span>👑</span> Authentic Jaipur Heritage &amp; Artisans
+          <div className="brand-script" style={{ marginBottom: "0.5rem", color: "var(--marigold)" }}>
+            TrueLocal Jaipur
           </div>
-          <h1>Experience The Pink City Like Never Before</h1>
+          <div className="hero-tag">
+            <span>👑</span> Local Experiences, Intelligently Planned
+          </div>
+          <h1>TRAVEL BEYOND THE GUIDEBOOK</h1>
           <p className="hero-subtitle">
             Discover centuries-old block printing workshops, hidden stepwells, and sunset bastions dynamically adapted to your real-time pace and weather.
           </p>
+
+          {/* Unmapped Hero Pill CTA */}
+          <div className="hero-cta-group" style={{ marginBottom: "2.25rem" }}>
+            <a href="#engine-workspace" className="hero-cta-btn">START EXPLORING</a>
+            <a href="#engine-workspace" className="hero-cta-arrow" aria-label="Start exploring">↗</a>
+          </div>
 
           {/* Floating Glass Quick-Planner Bar */}
           <form className="glass-planner-bar" onSubmit={handleQuickPlan}>

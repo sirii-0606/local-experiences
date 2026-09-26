@@ -1,17 +1,21 @@
-# Jaipur Luxury UI Redesign (Voyagenix, MNTN & Luxury Escapes Style)
+# TrueLocal: Jaipur Luxury UI Redesign (Unmapped, Voyagenix, MNTN & Luxury Escapes Style)
 
 ## What changed
-1. **Visual Design System & Typography**:
-   - `frontend/index.html`: Loaded luxury Google Fonts: `Playfair Display`, `Cinzel`, `Plus Jakarta Sans`, and `Rozha One`.
+1. **Brand Identity & Typography**:
+   - Project Name: **TrueLocal**
+   - Tagline: **"Local Experiences, Intelligently Planned"**
+   - `frontend/index.html`: Loaded luxury Google Fonts: `Caveat` (cursive script accent), `Cinzel`, `Playfair Display`, `Plus Jakarta Sans`, and `Rozha One`.
    - `frontend/src/styles.css`: Added complete luxury design system tokens:
      - Jaipur Sandstone Terracotta (`#c85a32`, `#d97760`), Royal Indigo (`#141738`, `#263388`), Marigold Gold & Saffron (`#e5a93c`, `#c48817`), Emerald (`#1b4332`), and Marble Lime-Wash (`#f8eeea`).
      - Glassmorphism classes (`.glass-planner-bar`, `.jaipur-hero-frame`, `.glass-pill`, `.gold-gradient`).
+     - Marquee ribbon (`.top-marquee-bar`, `.marquee-track`) and Pinterest Unmapped action pills (`.hero-cta-btn`, `.hero-cta-arrow`).
      - Sanganer butti motifs and subtle Jharokha arch radii.
-2. **Floating Glassmorphic Header & Luxury Heritage Footer (`Layout.tsx`)**:
-   - Upgraded `<header>` to `.luxury-header` with brand crest (`🏛️ Jaipur Experiences`), rounded pill navigation tabs, demo clock, live weather indicator with diurnal temperatures, and traveler profile menu.
+2. **Top Infinite Marquee Ticker & Luxury Header (`Layout.tsx`)**:
+   - Added top infinite marquee banner: `CURATED BY LOCALS · TRUELOCAL JAIPUR · 100% VERIFIED MASTERS · LOCAL EXPERIENCES, INTELLIGENTLY PLANNED · ...`
+   - Upgraded `<header>` to `.luxury-header` with brand crest (`🏛️ TrueLocal`), rounded pill navigation tabs, demo clock, live weather indicator with diurnal temperatures, and traveler profile menu.
    - Added `.luxury-footer` with multi-column layout, curated experience links, traveler tools, and a 6-item photo collage gallery.
 3. **Cinematic Hero & Quick Planner (`ExplorePage.tsx`)**:
-   - Built a full-bleed Jaipur golden-hour hero banner with frosted glassmorphic quick planner (`Where in Jaipur`, `Time Window`, `Travelers & Ages`, `Budget INR`, `Vibe / Style`, `Curate My Plan →`).
+   - Built a full-bleed Jaipur golden-hour hero banner with script accent (`TrueLocal Jaipur`), bold display title (`TRAVEL BEYOND THE GUIDEBOOK`), Unmapped pill CTA (`START EXPLORING ↗`), and frosted glassmorphic quick planner (`Location / Area`, `Time Window`, `Group & Ages`, `Budget INR`, `Vibe / Interest`, `Curate My Plan →`).
    - Integrated quick destination pill chips (`🏛️ Hawa Mahal`, `🎨 Sanganer Block-Printing`, `🌅 Nahargarh Sunset Bastion`, `🍲 Johari Night Food Walk`).
 4. **Value Proposition Ribbon**:
    - Added 4 luxury trust badges: *100% Verified Local Masters*, *Diurnal Weather Engine*, *Centroid-Matched Stays*, and *AR & 360° Virtual Preview*.
@@ -34,4 +38,4 @@
 ## Current state
 - Backend: 116 tests passing (115 passed, 1 skipped), `ruff check .` clean.
 - Frontend: TypeScript clean build (`tsc --noEmit && vite build`).
-- Modern luxury UI inspired by Voyagenix, MNTN, and Luxury Travel Escapes live.
+- Modern luxury UI inspired by Unmapped, Voyagenix, MNTN, and Luxury Travel Escapes live.

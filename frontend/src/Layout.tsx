@@ -13,13 +13,21 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      {/* Top Infinite Marquee Ticker (Unmapped Reference Style) */}
+      <div className="top-marquee-bar" aria-label="Curated highlights ticker">
+        <div className="marquee-track">
+          <span>CURATED BY LOCALS <span className="marquee-dot">·</span> TRUELOCAL JAIPUR <span className="marquee-dot">·</span> 100% VERIFIED MASTERS <span className="marquee-dot">·</span> LOCAL EXPERIENCES, INTELLIGENTLY PLANNED <span className="marquee-dot">·</span> DIURNAL WEATHER ADAPTED <span className="marquee-dot">·</span> AUTHENTIC SANGAER CRAFT <span className="marquee-dot">·</span> HERITAGE BASTIONS</span>
+          <span>CURATED BY LOCALS <span className="marquee-dot">·</span> TRUELOCAL JAIPUR <span className="marquee-dot">·</span> 100% VERIFIED MASTERS <span className="marquee-dot">·</span> LOCAL EXPERIENCES, INTELLIGENTLY PLANNED <span className="marquee-dot">·</span> DIURNAL WEATHER ADAPTED <span className="marquee-dot">·</span> AUTHENTIC SANGAER CRAFT <span className="marquee-dot">·</span> HERITAGE BASTIONS</span>
+        </div>
+      </div>
+
       {/* Floating Glassmorphic Header */}
       <header className="luxury-header">
         <Link to="/" className="brand-crest">
           <div className="crest-icon">🏛️</div>
           <div>
-            <h1>Jaipur Experiences</h1>
-            <p className="sub">Curated Heritage &amp; Artisans</p>
+            <h1>TrueLocal</h1>
+            <p className="sub">Local Experiences, Intelligently Planned</p>
           </div>
         </Link>
 
@@ -66,10 +74,10 @@ export default function Layout() {
             <div className="footer-brand">
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "0.75rem" }}>
                 <span style={{ fontSize: "1.8rem" }}>🏵️</span>
-                <h3 style={{ margin: 0 }}>Jaipur Local &amp; Experiences</h3>
+                <h3 style={{ margin: 0 }}>TrueLocal</h3>
               </div>
               <p>
-                Feasible, authentic cultural discoveries crafted directly with master artisans, historians, and heritage havelis of the Pink City.
+                Local Experiences, Intelligently Planned. Feasible, authentic cultural discoveries crafted directly with master artisans, historians, and heritage havelis of Jaipur.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
                 <span className="chip mini" style={{ background: "rgba(255,255,255,0.08)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -119,7 +127,7 @@ export default function Layout() {
           </div>
 
           <div className="footer-bottom-bar">
-            <span>© {new Date().getFullYear()} Local &amp; Experiences · Jaipur Cultural Tourism Platform</span>
+            <span>© {new Date().getFullYear()} TrueLocal · Local Experiences, Intelligently Planned</span>
             <span>Handcrafted with Rajasthan Sanganer Block-Print Design Language</span>
           </div>
         </div>

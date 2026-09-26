@@ -427,8 +427,36 @@ a.button.mini { padding: 5px 12px; font-size: 0.82rem; }
 }
 
 /* ==========================================================================
-   JAIPUR LUXURY DESIGN SYSTEM EXTENSIONS (Voyagenix, MNTN & Luxury Escapes)
-   ========================================================================== */
+/* Top Infinite Marquee Ticker (Unmapped Style) */
+.top-marquee-bar {
+  background: var(--gold-gradient);
+  color: #140810;
+  font-weight: 800;
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 6px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  user-select: none;
+}
+
+.marquee-track {
+  display: inline-flex;
+  gap: 2rem;
+  animation: marquee 28s linear infinite;
+  padding-left: 2rem;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-dot {
+  opacity: 0.5;
+}
 
 /* Full-width App & Header Structure */
 .app-shell {
@@ -438,6 +466,64 @@ a.button.mini { padding: 5px 12px; font-size: 0.82rem; }
   background: var(--bg);
   color: var(--ink);
   width: 100%;
+}
+
+.brand-script {
+  font-family: 'Caveat', cursive;
+  font-size: 1.8rem;
+  color: #ffffff;
+  line-height: 1;
+}
+
+/* Unmapped Style Hero Main Action Pill */
+.hero-cta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2rem;
+  text-decoration: none;
+}
+
+.hero-cta-btn {
+  background: #ffffff;
+  color: #0d1224;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hero-cta-btn:hover {
+  background: #f8eeea;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.hero-cta-arrow {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0d1224;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  border: 0;
+  transition: all 0.15s ease;
+}
+
+.hero-cta-arrow:hover {
+  background: #f8eeea;
+  transform: translate(2px, -2px);
 }
 
 .luxury-header {
