@@ -5,6 +5,32 @@ import type { Stop } from "../api";
 import type { Trip, TripStop, TripSuggestions } from "../types";
 import { v2 } from "../v2api";
 
+function parseLocalDate(dateStr: string): [number, number, number] {
+  const parts = dateStr.slice(0, 10).split("-").map(Number);
+  return [parts[0] || 2026, (parts[1] || 1) - 1, parts[2] || 1];
+}
+
+function getDaysBetween(startStr: string, endStr: string): string[] {
+  const [sy, sm, sd] = parseLocalDate(startStr);
+  const [ey, em, ed] = parseLocalDate(endStr);
+  const s = new Date(sy, sm, sd);
+  const e = new Date(ey, em, ed);
+  const diffDays = Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const days: string[] = [];
+  for (let i = 0; i <= diffDays; i++) {
+    const d = new Date(sy, sm, sd + i);
+    days.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  }
+  return days.length > 0 ? days : [startStr.slice(0, 10)];
+}
+
+function formatDayLabel(dateStr: string): string {
+  const [y, m, d] = parseLocalDate(dateStr);
+  const date = new Date(y, m, d);
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
 export default function TripItineraryPage() {
   const { id } = useParams();
   const tripId = Number(id);
@@ -13,6 +39,7 @@ export default function TripItineraryPage() {
   const [suggestions, setSuggestions] = useState<TripSuggestions | null>(null);
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [acceptedSplits, setAcceptedSplits] = useState<Record<string, boolean>>({});
 
@@ -31,6 +58,22 @@ export default function TripItineraryPage() {
       .finally(() => setLoading(false));
   }, [tripId]);
 
+  const handleGenerateItinerary = async () => {
+    if (!trip) return;
+    setGenerating(true);
+    setError("");
+    try {
+      const updated = await v2.generateItinerary(tripId);
+      setTrip(updated);
+      const suggs = await v2.suggestions(tripId).catch(() => null);
+      if (suggs) setSuggestions(suggs);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <section className="page narrow">
@@ -39,7 +82,7 @@ export default function TripItineraryPage() {
     );
   }
 
-  if (error || !trip) {
+  if (error && !trip) {
     return (
       <section className="page narrow">
         <p className="error" role="alert">{error || "Trip not found"}</p>
@@ -48,18 +91,10 @@ export default function TripItineraryPage() {
     );
   }
 
-  const startDate = new Date(trip.start_date);
-  const endDate = new Date(trip.end_date);
-  const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+  if (!trip) return null;
 
-  const daysList: string[] = [];
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    daysList.push(d.toISOString().slice(0, 10));
-  }
-
-  const activeDate = daysList[activeDayIdx] || trip.start_date;
+  const daysList = getDaysBetween(trip.start_date, trip.end_date);
+  const activeDate = daysList[activeDayIdx] || trip.start_date.slice(0, 10);
   const stops = trip.itinerary?.stops ?? [];
   const dayStops = stops.filter((s) => s.start.startsWith(activeDate));
 
@@ -109,8 +144,7 @@ export default function TripItineraryPage() {
       <div style={{ display: "flex", gap: "0.5rem", borderBottom: "2px solid var(--line)", marginBottom: "1.5rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
         {daysList.map((dStr, idx) => {
           const isActive = idx === activeDayIdx;
-          const dObj = new Date(dStr);
-          const dayName = dObj.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          const dayName = formatDayLabel(dStr);
           return (
             <button
               key={dStr}
@@ -143,10 +177,20 @@ export default function TripItineraryPage() {
           
           {dayStops.length === 0 ? (
             <div className="panel" style={{ textAlign: "center", padding: "2rem" }}>
-              <p className="muted">No scheduled activities yet for this day.</p>
-              <Link to={`/trips/${tripId}/shortlist`} className="primary button">
-                Add activities from Shortlist
-              </Link>
+              <p className="muted" style={{ marginBottom: "1rem" }}>No scheduled activities yet for this day.</p>
+              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={generating}
+                  onClick={handleGenerateItinerary}
+                >
+                  {generating ? "Planning itinerary…" : "⚡ Generate Itinerary Now"}
+                </button>
+                <Link to={`/trips/${tripId}/shortlist`} className="secondary button">
+                  Select Shortlist & Stays
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="timeline" style={{ position: "relative", paddingLeft: "1.5rem", borderLeft: "3px solid var(--line)" }}>

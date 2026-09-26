@@ -4811,6 +4811,16 @@
             ],
             "title": "Stay Id"
           },
+          "itinerary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Itinerary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4944,6 +4954,16 @@
               }
             ],
             "title": "Stay Id"
+          },
+          "itinerary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Itinerary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

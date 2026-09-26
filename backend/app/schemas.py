@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models import Access, Tag
+from app.models import Access, Itinerary, Tag
 
 Role = Literal["traveler", "provider", "admin"]
 Diet = Literal["vegetarian", "non_vegetarian", "vegan", "jain"]
@@ -233,6 +233,7 @@ class TripDraft(BaseModel):
     must_see: list[str] = Field(default=[], max_length=20)  # experience ids
     shortlist: dict[str, ShortlistDecision] = Field(default_factory=dict)
     stay_id: str | None = None
+    itinerary: Itinerary | None = None
 
     @model_validator(mode="after")
     def _dates(self) -> "TripDraft":

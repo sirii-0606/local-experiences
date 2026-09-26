@@ -330,33 +330,50 @@ export const mockV2: V2 = {
   async generateItinerary(tripId) {
     const u = need();
     const t = findTrip(u, tripId);
-    const startDate = new Date(t.start_date);
-    const endDate = new Date(t.end_date);
-    const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+    
+    // Parse dates cleanly
+    const [sy, sm, sd] = t.start_date.split("-").map(Number);
+    const [ey, em, ed] = t.end_date.split("-").map(Number);
+    const sDate = new Date(sy, sm - 1, sd);
+    const eDate = new Date(ey, em - 1, ed);
+    const totalDays = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1);
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const days: string[] = [];
+    for (let d = 0; d < totalDays; d++) {
+      const cur = new Date(sy, sm - 1, sd + d);
+      days.push(`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`);
+    }
 
     const mockPool = [
-      { title: "Hawa Mahal: Palace of Winds", id: "exp-hawa-mahal", lat: 26.9239, lon: 75.8267, dur: 90, cost: 300 },
-      { title: "Jantar Mantar observatory", id: "exp-jantar-mantar", lat: 26.9248, lon: 75.8246, dur: 60, cost: 200 },
-      { title: "City Palace museum & courtyards", id: "exp-city-palace", lat: 26.9258, lon: 75.8237, dur: 90, cost: 400 },
-      { title: "Kite-making with a patang family", id: "exp-kite-making", lat: 26.9221, lon: 75.8251, dur: 60, cost: 200 },
-      { title: "Blue pottery painting workshop", id: "exp-blue-pottery", lat: 26.9205, lon: 75.8280, dur: 60, cost: 500 },
-      { title: "Albert Hall Museum (day & night viewing)", id: "exp-albert-hall", lat: 26.9116, lon: 75.8195, dur: 75, cost: 150 },
-      { title: "Nahargarh Fort sunset over the Pink City", id: "exp-nahargarh", lat: 26.9372, lon: 75.8155, dur: 120, cost: 200 },
-      { title: "Galta Ji temple & springs", id: "exp-galtaji", lat: 26.9162, lon: 75.8569, dur: 90, cost: 100 },
+      { title: "Hawa Mahal: Palace of Winds", id: "ex-hawa-mahal", lat: 26.9239, lon: 75.8267, dur: 90, cost: 300 },
+      { title: "Jantar Mantar observatory", id: "ex-jantar-mantar", lat: 26.9248, lon: 75.8246, dur: 60, cost: 200 },
+      { title: "City Palace museum & courtyards", id: "ex-city-palace", lat: 26.9258, lon: 75.8237, dur: 90, cost: 400 },
+      { title: "Hand block-printing workshop", id: "ex-block-print-workshop", lat: 26.9205, lon: 75.8280, dur: 60, cost: 500 },
+      { title: "Nahargarh Fort sunset over the Pink City", id: "ex-nahargarh-sunset", lat: 26.9372, lon: 75.8155, dur: 120, cost: 200 },
+      { title: "Johari Bazaar street-food walk", id: "ex-street-food-walk", lat: 26.9162, lon: 75.8569, dur: 90, cost: 100 },
+      { title: "Amer Fort", id: "ex-amer-fort", lat: 26.9855, lon: 75.8513, dur: 120, cost: 500 },
+      { title: "Rajasthani home cooking class with Meena Devi", id: "ex-cooking-class", lat: 26.9124, lon: 75.7873, dur: 90, cost: 800 },
     ];
+
+    const shortlistedInPerson = Object.entries(t.shortlist ?? {})
+      .filter(([_, dec]) => dec === "in_person")
+      .map(([id]) => id);
+
+    let activePool = mockPool.filter((m) => shortlistedInPerson.includes(m.id));
+    if (activePool.length === 0) {
+      activePool = mockPool;
+    }
 
     const stops: any[] = [];
     let poolIdx = 0;
 
-    for (let d = 0; d < totalDays; d++) {
-      const cur = new Date(startDate);
-      cur.setDate(cur.getDate() + d);
-      const dayStr = cur.toISOString().slice(0, 10);
+    for (let d = 0; d < days.length; d++) {
+      const dayStr = days[d];
 
-      // Add 2 stops per day
-      const s1 = mockPool[poolIdx % mockPool.length];
+      const s1 = activePool[poolIdx % activePool.length];
       poolIdx++;
-      const s2 = mockPool[poolIdx % mockPool.length];
+      const s2 = activePool[poolIdx % activePool.length];
       poolIdx++;
 
       stops.push({
@@ -368,7 +385,7 @@ export const mockV2: V2 = {
         end: `${dayStr}T11:30:00`,
         status: "proposed",
         locked: false,
-        cost_inr: s1.cost,
+        cost_inr: s1.cost * (t.travelers?.length || 1),
       });
 
       stops.push({
@@ -380,7 +397,7 @@ export const mockV2: V2 = {
         end: `${dayStr}T15:30:00`,
         status: "proposed",
         locked: false,
-        cost_inr: s2.cost,
+        cost_inr: s2.cost * (t.travelers?.length || 1),
       });
     }
 

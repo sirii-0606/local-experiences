@@ -160,6 +160,16 @@ def test_trip_endpoints_e2e():
     # 6. Generate itinerary
     r = client.post(f"/trips/{trip_id}/itinerary/generate", cookies=cookies, headers=headers)
     assert r.status_code == 200
+    gen_data = r.json()
+    assert gen_data["itinerary"] is not None
+    assert len(gen_data["itinerary"]["stops"]) > 0
+
+    # 6b. Verify get trip returns itinerary
+    r = client.get(f"/trips/{trip_id}", cookies=cookies, headers=headers)
+    assert r.status_code == 200
+    trip_data = r.json()
+    assert trip_data["itinerary"] is not None
+    assert len(trip_data["itinerary"]["stops"]) > 0
 
     # 7. Suggestions
     r = client.get(f"/trips/{trip_id}/suggestions", cookies=cookies, headers=headers)
