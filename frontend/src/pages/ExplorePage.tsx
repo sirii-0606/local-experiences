@@ -228,14 +228,14 @@ export default function ExplorePage() {
 
         {!state && (
           <section className="panel welcome">
-            <h2>Try it in 3 steps</h2>
+            <h2 className="display">Try it in three steps</h2>
             <ol className="steps">
               <li>
                 <strong>Describe your situation.</strong> Who's with you, where, how long, your budget and what you feel like.
-                <button disabled={busy} onClick={() => send(EXAMPLES[0])}>▶ Try the family example</button>
+                <button disabled={busy} onClick={() => send(EXAMPLES[0])}>Try the family example</button>
               </li>
               <li><strong>Change something.</strong> Late, rain, a closure, tired kids, less money: only the affected stops are replanned, and you see why.</li>
-              <li><strong>Switch to 🏪 Provider.</strong> A local artisan lists themselves in their own words, goes live, and sees who wanted them and why they lost bookings.</li>
+              <li><strong>Open For hosts.</strong> A local artisan lists themselves in their own words, goes live, and sees who wanted them and why they lost bookings.</li>
             </ol>
             <p className="muted small">Every option is checked for travel time, opening hours, budget for the whole group, ages, accessibility and weather, and it tells you why it was picked or ruled out.</p>
           </section>

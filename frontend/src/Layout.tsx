@@ -14,17 +14,17 @@ export default function Layout() {
     <div className="app">
       <header>
         <div className="brand">
-          <span className="logo" aria-hidden="true">📍</span>
+          <span className="logo" aria-hidden="true" />
           <div>
-            <h1>Local &amp; Experiences <span>Jaipur</span></h1>
-            <p className="tagline">What can you actually do next, and why?</p>
+            <h1>Local &amp; Experiences</h1>
+            <p className="tagline">What you can actually do next in Jaipur, and why</p>
           </div>
         </div>
         <nav className="tabs" aria-label="Main">
-          <NavLink to="/" end className={tab}>🧭 Explore</NavLink>
-          <NavLink to="/trips" className={tab}>🗺 Plan a trip</NavLink>
-          <NavLink to="/provider" className={tab}>🏪 Provider</NavLink>
-          {user?.role === "admin" && <NavLink to="/admin" className={tab}>🛡 Admin</NavLink>}
+          <NavLink to="/" end className={tab}>Explore</NavLink>
+          <NavLink to="/trips" className={tab}>Plan a trip</NavLink>
+          <NavLink to="/provider" className={tab}>For hosts</NavLink>
+          {user?.role === "admin" && <NavLink to="/admin" className={tab}>Admin</NavLink>}
         </nav>
         <div className="header-right">
           <label className="clock">Demo clock
@@ -32,11 +32,11 @@ export default function Layout() {
           </label>
           <span className="chip live-weather" title="Live forecast for Jaipur at the demo clock hour (Open-Meteo)">
             {live === null ? "…" : live === "offline" ? "live weather offline"
-              : `${ICON[live.condition]} ${live.temp_c.toFixed(0)}°C${live.precip_prob ? ` · ${live.precip_prob}% rain` : ""} · live`}
+              : `${ICON[live.condition]} ${live.temp_c.toFixed(0)}°C${live.precip_prob ? `, ${live.precip_prob}% chance of rain` : ""}`}
           </span>
           {user ? (
             <span className="user-menu">
-              <NavLink to="/profile" className="chip">👤 {user.display_name}</NavLink>
+              <NavLink to="/profile" className="chip">{user.display_name}</NavLink>
               <button className="secondary mini" onClick={async () => { await signOut(); navigate("/"); }}>Sign out</button>
             </span>
           ) : (
