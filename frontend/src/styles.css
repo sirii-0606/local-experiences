@@ -138,6 +138,9 @@ button.chip:hover:not(:disabled) { box-shadow: none; border-color: var(--accent)
 .reasons li.caution { color: var(--warn); }
 .reasons li.caution::marker { content: "⚠ "; }
 .card .row { margin: 0 0 0 34px; }
+.stop-extra { grid-column: 2 / 4; display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+button.mini { padding: 5px 10px; font-size: 0.82rem; }
+.note { margin: 10px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--rec-soft); color: var(--rec); font-size: 0.88rem; font-weight: 600; }
 .in-plan-tag { color: var(--accent); font-weight: 600; font-size: 0.88rem; }
 select.pass { font: inherit; font-size: 0.85rem; padding: 7px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
 

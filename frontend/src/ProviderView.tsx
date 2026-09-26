@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "./api";
+import { api, tokens } from "./api";
 import type { Catalog, Insights, ListingDraft } from "./api";
 
 const EXAMPLE = "I'm Salim, a lac bangle maker in Maniharon ka Rasta near Tripolia Bazaar. Our family has made bangles for five generations. Visitors can watch and make their own bangle, 45 minutes, ₹250 per person, open 11am to 7pm, closed on Friday. Kids welcome, up to 6 people.";
@@ -33,12 +33,33 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
     setNotice("");
   });
 
+  const [editing, setEditing] = useState<string | null>(null);
   const publish = () => run(async () => {
-    const res = await api.publish(draft!, `${clock}:00`);
+    if (editing) {
+      const res = await api.updateListing(editing, draft!, `${clock}:00`);
+      setNotice(`Saved: "${res.experience.title}" is updated for travelers.`);
+    } else {
+      const res = await api.publish(draft!, `${clock}:00`);
+      tokens.set(res.experience.id, res.edit_token); // only this browser can edit it later
+      setNotice(`Live: "${res.experience.title}". Travelers near ${draft!.near} interested in ${draft!.tags.slice(0, 3).join(", ")} can now be matched with it.`);
+      setSelected(res.experience.id);
+    }
     await onChanged();
-    setNotice(`Live: "${res.experience.title}". Travelers near ${draft!.near} interested in ${draft!.tags.slice(0, 3).join(", ")} can now be matched with it.`);
     setDraft(null);
-    setSelected(res.experience.id);
+    setEditing(null);
+    setIns(await api.insights(editing ?? selected));
+  });
+  const startEdit = (id: string) => run(async () => {
+    setDraft((await api.listing(id)).draft);
+    setEditing(id);
+    setParser("stored");
+    setNotice("");
+  });
+  const remove = (id: string) => run(async () => {
+    await api.deleteListing(id);
+    await onChanged();
+    setNotice("Listing removed. Travelers won't see it any more.");
+    setSelected("ex-cooking-class");
   });
 
   const set = <K extends keyof ListingDraft>(k: K, v: ListingDraft[K]) => setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -58,7 +79,7 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
 
         {draft && (
           <form className="draft" onSubmit={(e) => { e.preventDefault(); publish(); }}>
-            <p className="muted small">Drafted by {parser === "llm" ? "Claude" : "the offline parser"}. Edit anything that's wrong.</p>
+            <p className="muted small">{editing ? "Editing your live listing." : `Drafted by ${parser === "llm" ? "Claude" : "the offline parser"}. Edit anything that's wrong.`}</p>
             <label>Title<input value={draft.title} onChange={(e) => set("title", e.target.value)} /></label>
             <label>Your name / business<input value={draft.provider_name} onChange={(e) => set("provider_name", e.target.value)} /></label>
             <label className="wide">Description<textarea rows={2} value={draft.description} onChange={(e) => set("description", e.target.value)} /></label>
@@ -106,7 +127,7 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
               <label className="check"><input type="checkbox" checked={draft.weather_sensitive} onChange={(e) => set("weather_sensitive", e.target.checked)} />depends on weather</label>
               <label className="check"><input type="checkbox" checked={draft.community_led} onChange={(e) => set("community_led", e.target.checked)} />family / community run</label>
             </fieldset>
-            <button className="wide" disabled={busy}>Publish</button>
+            <button className="wide" disabled={busy}>{editing ? "Save changes" : "Publish"}</button>
           </form>
         )}
       </section>
@@ -125,7 +146,8 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
               <div><strong>{ins.shown_to_matching}</strong><span>times you were recommended to them</span></div>
               <div><strong>{ins.with_kids}</strong><span>of those were families with kids</span></div>
             </div>
-            <p className="muted">✓ {ins.accepted} added to a plan · ✕ {ins.passed} said "not for me"</p>
+            <p className="muted">✓ {ins.accepted} added to a plan · ✕ {ins.passed} said "not for me" · 🎟 {ins.booked_people} booked
+              {ins.rating !== null && ` · ★ ${ins.rating.toFixed(1)} (${ins.review_count} reviews)`}</p>
             {ins.searches === 0 &&<p className="muted">No traveler searches yet. Chat in the Traveler tab, then refresh.</p>}
             {ins.why_not_chosen.length > 0 && (
               <><h3>Why interested travelers didn't get you</h3>
@@ -142,11 +164,18 @@ export default function ProviderView({ catalog, clock, onChanged }: { catalog: C
             {ins.also_wanted.length > 0 && <p className="muted">They also wanted: {ins.also_wanted.map(([t]) => t).join(", ")}</p>}
             <div className="row">
               <button disabled={busy} onClick={() => loadInsights(selected)}>Refresh</button>
-              <button disabled={busy} className={ins.paused ? "" : "secondary"}
-                onClick={() => run(async () => { await api.pause(selected, !ins.paused); await onChanged(); setIns(await api.insights(selected)); })}>
-                {ins.paused ? "Resume bookings" : "Pause (not available today)"}
-              </button>
+              {(!mine.has(selected) || tokens.get(selected)) && (
+                <button disabled={busy} className={ins.paused ? "" : "secondary"}
+                  onClick={() => run(async () => { await api.pause(selected, !ins.paused); await onChanged(); setIns(await api.insights(selected)); })}>
+                  {ins.paused ? "Resume bookings" : "Pause (not available today)"}
+                </button>
+              )}
+              {mine.has(selected) && tokens.get(selected) && <>
+                <button disabled={busy} className="secondary" onClick={() => startEdit(selected)}>Edit listing</button>
+                <button disabled={busy} className="secondary" onClick={() => remove(selected)}>Remove listing</button>
+              </>}
             </div>
+            {mine.has(selected) && !tokens.get(selected) && <p className="muted small">Listed from another browser: only its owner can edit, pause or remove it.</p>}
             <p className="muted small">Aggregates only: we never share who searched or where they were.</p>
           </>
         )}

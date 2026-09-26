@@ -115,6 +115,9 @@ export type Insights = {
   paused: boolean;
   accepted: number;
   passed: number;
+  booked_people: number;
+  rating: number | null;
+  review_count: number;
   searches: number;
   matching_searches: number;
   shown: number;
@@ -127,11 +130,25 @@ export type Insights = {
   also_wanted: [string, number][];
 };
 
-async function call<T>(path: string, body?: unknown): Promise<T> {
-  const r = await fetch(`/api${path}`, body === undefined ? undefined : {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+// Provider edit tokens, kept only in this browser. Losing one means the listing can't be edited.
+const TOKENS_KEY = "le.providerTokens";
+export const tokens = {
+  all(): Record<string, string> {
+    try { return JSON.parse(localStorage.getItem(TOKENS_KEY) ?? "{}"); } catch { return {}; }
+  },
+  get(id: string): string | undefined { return tokens.all()[id]; },
+  set(id: string, token: string) {
+    try { localStorage.setItem(TOKENS_KEY, JSON.stringify({ ...tokens.all(), [id]: token })); } catch { /* private mode */ }
+  },
+};
+
+async function call<T>(path: string, body?: unknown, method?: string, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers["x-provider-token"] = token;
+  const r = await fetch(`/api${path}`, body === undefined && !method ? undefined : {
+    method: method ?? "POST",
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!r.ok) {
     const text = await r.text();
@@ -159,8 +176,16 @@ export const api = {
     call<DiscoverResponse & { state: TravelerState }>("/feedback", { state, feedback: { experience_id, kind, reason, at } }),
   draft: (text: string) => call<{ parser: string; draft: ListingDraft }>("/providers/draft", { text }),
   publish: (draft: ListingDraft, today: string) =>
-    call<{ experience: { id: string; title: string } }>("/providers/listings", { draft, today }),
+    call<{ experience: { id: string; title: string }; edit_token: string }>("/providers/listings", { draft, today }),
+  listing: (id: string) => call<{ draft: ListingDraft }>(`/providers/listings/${encodeURIComponent(id)}`),
+  updateListing: (id: string, draft: ListingDraft, today: string) =>
+    call<{ experience: { id: string; title: string } }>(`/providers/listings/${encodeURIComponent(id)}`, { draft, today }, "PUT", tokens.get(id)),
+  deleteListing: (id: string) => call<{ deleted: boolean }>(`/providers/listings/${encodeURIComponent(id)}`, undefined, "DELETE", tokens.get(id)),
   pause: (experience_id: string, paused: boolean) =>
-    call<{ paused: boolean }>("/providers/availability", { experience_id, paused }),
+    call<{ paused: boolean }>("/providers/availability", { experience_id, paused }, "POST", tokens.get(experience_id)),
+  book: (state: TravelerState, itinerary: Itinerary, experience_id: string) =>
+    call<{ code: string; people: number; start: string; itinerary: Itinerary }>("/bookings", { state, itinerary, experience_id }),
+  rate: (state: TravelerState, experience_id: string, rating: number, as_described: boolean | null, at: string) =>
+    call<DiscoverResponse & { state: TravelerState }>("/feedback", { state, feedback: { experience_id, kind: "rating", rating, as_described, at } }),
   insights: (id: string) => call<Insights>(`/providers/insights/${encodeURIComponent(id)}`),
 };

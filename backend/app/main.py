@@ -2,10 +2,12 @@
 
 Run: uvicorn app.main:app --reload   (interactive schema at /docs)
 """
+import os
 from datetime import datetime
 from typing import get_args
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from app import provider, store, weather
@@ -101,6 +103,7 @@ class Listing(BaseModel):
     provider: Provider
     place: Place
     experience: Experience
+    edit_token: str | None = None  # returned once, on publish: needed to edit/pause/delete
 
 
 class PauseRequest(BaseModel):
@@ -111,6 +114,12 @@ class PauseRequest(BaseModel):
 def _check_ids(s: Seed, *ids: str | None) -> None:
     if bad := [i for i in ids if i and i not in s.experiences]:
         raise HTTPException(422, f"unknown experience id(s): {bad}")
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Opening the API in a browser lands on the interactive docs, not a bare 404."""
+    return RedirectResponse("/docs")
 
 
 @app.get("/health")
@@ -209,6 +218,8 @@ def context_check(req: ContextCheckRequest) -> ContextCheckResponse:
     return ContextCheckResponse(available=True, risks=risks, proposed=proposed)
 
 
+
+
 class FeedbackRequest(BaseModel):
     state: TravelerState
     feedback: Feedback
@@ -220,17 +231,83 @@ class FeedbackResponse(DiscoverResponse):
 
 @app.post("/feedback")
 def feedback(req: FeedbackRequest) -> FeedbackResponse:
-    """Accept / reject (with reason) / skip. Returns the updated state and fresh recommendations;
-    the provider only ever sees the aggregate (kind + reason)."""
-    s = seed()
-    _check_ids(s, req.feedback.experience_id)
-    state = learn(req.state, s.experiences[req.feedback.experience_id], req.feedback)
-    store.log_feedback(req.feedback.experience_id, req.feedback.kind, req.feedback.reason)
+    """Accept / reject (with reason) / skip / rating. Returns the updated state and fresh
+    recommendations; the provider only ever sees aggregates (kind + reason, star ratings)."""
+    s, fb = seed(), req.feedback
+    _check_ids(s, fb.experience_id)
+    if fb.kind == "rating":
+        if fb.rating is None:
+            raise HTTPException(422, "a rating needs 1-5 stars")
+        store.add_rating(fb.experience_id, fb.rating, fb.as_described, fb.at)
+        s = seed()  # the rating is now evidence: re-rank with it
+    state = learn(req.state, s.experiences[fb.experience_id], fb)
+    store.log_feedback(fb.experience_id, fb.kind, fb.reason)
     recs, excluded = discover(state, s)
     return FeedbackResponse(state=state, recommendations=recs, excluded=excluded)
 
 
-# ---------------------------------------------------------------- provider side (M7)
+# ---------------------------------------------------------------- bookings (M9 stub)
+
+class BookingRequest(BaseModel):
+    state: TravelerState
+    itinerary: Itinerary
+    experience_id: str  # a stop already in the itinerary
+
+
+class BookingResponse(BaseModel):
+    code: str
+    experience_id: str
+    start: datetime
+    people: int
+    itinerary: Itinerary  # the booked stop is now confirmed + locked
+
+
+@app.post("/bookings")
+def book(req: BookingRequest) -> BookingResponse:
+    """Hold spots for a planned stop. No payment: a stub that respects capacity per start time.
+
+    ponytail: discovery still checks capacity per booking, not spots left per slot; a full slot
+    is refused here with a clear reason. Move the per-slot count into feasibility if it matters.
+    """
+    s = seed()
+    _check_ids(s, req.experience_id)
+    stop = next((x for x in upcoming(req.itinerary) if x.experience_id == req.experience_id), None)
+    if stop is None:
+        raise HTTPException(422, "add it to your plan before booking")
+    if problems := [p for p in validate(req.itinerary, req.state, s) if stop.title in p]:
+        raise HTTPException(409, f"can't book yet: {problems[0]}")
+    people, left = len(req.state.group), s.experiences[stop.experience_id].capacity - store.booked(
+        stop.experience_id, stop.start)
+    if people > left:
+        raise HTTPException(409, f"only {max(left, 0)} spots left at {stop.start:%H:%M} "
+                                 f"for {people} of you")
+    code = store.add_booking(stop.experience_id, stop.start, people)
+    it = req.itinerary.model_copy(deep=True)
+    for x in it.stops:
+        if x.experience_id == stop.experience_id and x.start == stop.start:
+            x.status, x.locked = "confirmed", True
+    return BookingResponse(code=code, experience_id=stop.experience_id, start=stop.start,
+                           people=people, itinerary=it)
+
+
+@app.delete("/bookings/{code}")
+def cancel_booking(code: str) -> dict:
+    if not store.cancel_booking(code):
+        raise HTTPException(404, "no booking with that code")
+    return {"code": code, "cancelled": True}
+
+
+# ---------------------------------------------------------------- provider side
+
+def _require_owner(experience_id: str, token: str | None) -> None:
+    """Provider listings change only with their edit token. Seed (curated) experiences are open
+    in the demo; set SEED_ADMIN_TOKEN to lock them too."""
+    if store.is_listing(experience_id):
+        if not store.owns(experience_id, token):
+            raise HTTPException(403, "only the listing's owner can change it (edit token needed)")
+    elif (admin := os.environ.get("SEED_ADMIN_TOKEN")) and token != admin:
+        raise HTTPException(403, "curated experiences need the admin token")
+
 
 @app.post("/providers/draft")
 def provider_draft(req: DraftRequest) -> DraftResponse:
@@ -245,13 +322,50 @@ def provider_publish(req: PublishRequest) -> Listing:
         pv, pl, exp = provider.to_listing(req.draft, seed(), today)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
-    store.add_listing(pv, pl, exp)
+    token = store.add_listing(pv, pl, exp)
+    return Listing(provider=pv, place=pl, experience=exp, edit_token=token)
+
+
+@app.get("/providers/listings/{experience_id}")
+def provider_listing(experience_id: str) -> DraftResponse:
+    """A provider listing as an editable draft (public data; editing needs the token)."""
+    found = store.get_listing(experience_id)
+    if found is None:
+        raise HTTPException(404, "not a provider listing")
+    return DraftResponse(parser="stored", draft=provider.to_draft(*found, SEED))
+
+
+@app.put("/providers/listings/{experience_id}")
+def provider_update(experience_id: str, req: PublishRequest,
+                    x_provider_token: str | None = Header(default=None)) -> Listing:
+    if not store.is_listing(experience_id):
+        raise HTTPException(404, "not a provider listing")
+    _require_owner(experience_id, x_provider_token)
+    today = (req.today or now_ist()).date()
+    try:
+        pv, pl, exp = provider.to_listing(req.draft, seed(), today,
+                                          key=provider.listing_key(experience_id))
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    store.update_listing(pv, pl, exp)
     return Listing(provider=pv, place=pl, experience=exp)
 
 
+@app.delete("/providers/listings/{experience_id}")
+def provider_delete(experience_id: str,
+                    x_provider_token: str | None = Header(default=None)) -> dict:
+    if not store.is_listing(experience_id):
+        raise HTTPException(404, "not a provider listing")
+    _require_owner(experience_id, x_provider_token)
+    store.delete_listing(experience_id)
+    return {"experience_id": experience_id, "deleted": True}
+
+
 @app.post("/providers/availability")
-def provider_availability(req: PauseRequest) -> dict:
+def provider_availability(req: PauseRequest,
+                          x_provider_token: str | None = Header(default=None)) -> dict:
     _check_ids(seed(), req.experience_id)
+    _require_owner(req.experience_id, x_provider_token)
     store.set_paused(req.experience_id, req.paused)
     return {"experience_id": req.experience_id, "paused": req.paused}
 
@@ -260,6 +374,8 @@ def provider_availability(req: PauseRequest) -> dict:
 def provider_insights(experience_id: str) -> dict:
     s = seed()
     _check_ids(s, experience_id)
+    exp = s.experiences[experience_id]
     return {"experience_id": experience_id, "paused": experience_id in store.paused_ids(),
-            **provider.insights(s.experiences[experience_id], store.demand_rows(),
-                                store.feedback_rows(experience_id))}
+            "booked_people": store.booked_people(experience_id),
+            "rating": exp.rating, "review_count": exp.review_count,
+            **provider.insights(exp, store.demand_rows(), store.feedback_rows(experience_id))}

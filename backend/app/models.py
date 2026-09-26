@@ -154,4 +154,5 @@ class Feedback(BaseModel):
     kind: Literal["accept", "reject", "skip", "rating"]
     at: datetime
     reason: str | None = None  # reject chip: too_far, too_expensive, not_interested, ...
-    rating: int | None = Field(default=None, ge=1, le=5)
+    rating: int | None = Field(default=None, ge=1, le=5)  # kind="rating": after a visit
+    as_described: bool | None = None  # kind="rating": was it on, at the listed price/hours?

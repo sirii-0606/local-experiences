@@ -157,8 +157,12 @@ def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:32] or "listing"
 
 
-def to_listing(d: ListingDraft, seed: Seed, today: date) -> tuple[Provider, Place, Experience]:
-    """Validate a reviewed draft (trust boundary) and build the entities. ValueError = bad draft."""
+def to_listing(d: ListingDraft, seed: Seed, today: date,
+               key: str | None = None) -> tuple[Provider, Place, Experience]:
+    """Validate a reviewed draft (trust boundary) and build the entities. ValueError = bad draft.
+
+    `key`: reuse an existing listing's ids (an edit) instead of minting new ones.
+    """
     near = next((p for p in seed.places.values() if p.name == d.near), None)
     if near is None:
         raise ValueError("pick the nearest landmark from the list so travelers can find you")
@@ -172,7 +176,7 @@ def to_listing(d: ListingDraft, seed: Seed, today: date) -> tuple[Provider, Plac
         raise ValueError("choose at least one day")
     if not d.tags:
         raise ValueError("add at least one tag so travelers with that interest are matched")
-    key = f"{_slug(d.title)}-{uuid.uuid4().hex[:4]}"
+    key = key or f"{_slug(d.title)}-{uuid.uuid4().hex[:4]}"
     name = d.provider_name.strip() or d.title.strip()
     provider = Provider(id=f"pv-u-{key}", name=name, kind="informal",
                         neighbourhood=near.neighbourhood, community_led=d.community_led)
@@ -191,6 +195,25 @@ def to_listing(d: ListingDraft, seed: Seed, today: date) -> tuple[Provider, Plac
         | ({"accessibility": said} if d.accessibility else {}),
     )
     return provider, place, exp
+
+
+def listing_key(experience_id: str) -> str:
+    return experience_id.removeprefix("ex-u-")
+
+
+def to_draft(provider: Provider, place: Place, exp: Experience, base: Seed) -> ListingDraft:
+    """A stored listing back as an editable draft (the inverse of to_listing)."""
+    near = next((p.name for p in base.places.values()
+                 if (p.lat, p.lon) == (place.lat, place.lon)), None)
+    w = exp.availability[0]
+    return ListingDraft(
+        provider_name=provider.name, title=exp.title, description=exp.description,
+        category=exp.category, tags=exp.tags, near=near, duration_min=exp.duration_min,
+        price_inr=exp.price_inr, price_model=exp.price_model, capacity=exp.capacity,
+        min_age=exp.min_age, accessibility=exp.accessibility, indoor=exp.indoor,
+        weather_sensitive=exp.weather_sensitive, open_time=f"{w.start:%H:%M}",
+        close_time=f"{w.end:%H:%M}", days=w.days, community_led=provider.community_led,
+    )
 
 
 # ---------------------------------------------------------------- demand insights (doc §10.3)

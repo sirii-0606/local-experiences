@@ -77,6 +77,7 @@ export default function App() {
     setProblems(plan.problems);
     setChanges(null);
     setForecastCheck(null);
+    setPlanNote("");
     setMsgs((m) =>[...m, { role: "user", text: msg },
       { role: "bot", text: describe(res.state, res.parser, res.recommendations.length, Object.keys(res.excluded).length) }]);
     setText("");
@@ -116,6 +117,23 @@ export default function App() {
     setItinerary(p.itinerary);
     setProblems(p.problems);
   });
+  // Booking stub: holds spots (no payment), confirms and locks the stop.
+  const [planNote, setPlanNote] = useState("");
+  const bookStop = (s: Stop) => run(async () => {
+    const b = await api.book(state!, itinerary, s.experience_id!);
+    setItinerary(b.itinerary);
+    setPlanNote(`🎟 Booked ${s.title} for ${b.people} at ${hhmm(b.start)}. Reference ${b.code}. The stop is now locked.`);
+  });
+  // Post-visit rating: good visits become traveler evidence, so confidence goes up for everyone.
+  const rateStop = (s: Stop, value: string) => run(async () => {
+    const [stars, flag] = value.split("-");
+    const f = await api.rate(state!, s.experience_id!, Number(stars), flag !== "no", `${clock}:00`);
+    setState(f.state);
+    setRecs(f.recommendations);
+    setExcluded(f.excluded);
+    setPlanNote(`Thanks! Your rating of ${s.title} now helps other travelers.`);
+  });
+
   const forget = (tag: string) => {
     const learned = { ...state!.learned };
     delete learned[tag];
@@ -296,6 +314,24 @@ export default function App() {
                     <span className="time">{hhmm(s.start)}–{hhmm(s.end)}</span>
                     <span className="stop-title">{s.title}</span>
                     <span className="stop-meta">{s.cost_inr ? `₹${s.cost_inr}` : "free"}{s.status !== "proposed" && ` · ${s.status}`}{s.locked && " · locked"}</span>
+                    {s.experience_id && LIVE(s) && (s.status === "proposed" || s.status === "completed" || s.end <= `${clock}:00`) && (
+                      <span className="stop-extra">
+                        {s.status === "proposed" && s.end > `${clock}:00` && (
+                          <button className="mini" disabled={busy} onClick={() => bookStop(s)}>🎟 Book</button>
+                        )}
+                        {(s.status === "completed" || s.end <= `${clock}:00`) && (
+                          <select className="pass" aria-label={`Rate your visit to ${s.title}`} value="" disabled={busy}
+                            onChange={(e) => e.target.value && rateStop(s, e.target.value)}>
+                            <option value="">How was it?</option>
+                            <option value="5">★★★★★ As listed, loved it</option>
+                            <option value="4">★★★★ As listed, good</option>
+                            <option value="3">★★★ As listed, okay</option>
+                            <option value="2-no">★★ Not as described</option>
+                            <option value="1-no">★ Not as described</option>
+                          </select>
+                        )}
+                      </span>
+                    )}
                     {LIVE(s) && s.status !== "completed" && (
                       <span className="stop-actions">
                         <button className="icon" aria-label={s.locked ? "Unlock" : "Lock"} title={s.locked ? "Locked: replanning won't move it" : "Lock this stop"}
@@ -310,6 +346,7 @@ export default function App() {
               <button className="secondary" disabled={busy} onClick={() => replan(itinerary.stops, 3)}>✨ Fill free time</button>
               {problems.length > 0 && <ul className="problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>}
               {problems.length === 0 && itinerary.stops.length > 0 && <p className="ok">✓ Every stop is reachable, open and within budget.</p>}
+              {planNote && <p className="note" role="status">{planNote}</p>}
             </section>
 
             <section className="panel">

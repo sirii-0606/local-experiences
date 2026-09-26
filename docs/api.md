@@ -23,6 +23,7 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
+| GET | `/` | none | Redirects to `/docs`, the interactive API docs |
 | GET | `/health` | none | `{ok, experiences}` |
 | GET | `/catalog` | none | `{places[], providers[], experiences[], provider_listings[], paused[], vocabulary{tags, categories, accessibility}}`, i.e. everything the map and provider views need |
 | POST | `/chat` | `{text, state?, now?}` | `{parser, parsed, state, recommendations[], excluded{}, plan{itinerary, problems[]}}` |
@@ -32,10 +33,16 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 | GET | `/weather?at=ISO` | none | `{available, hour: {at, condition: rain\|heat\|clear, temp_c, precip_mm, precip_prob}}`. Live Open-Meteo data for the Jaipur centre; `available: false` when offline. |
 | POST | `/context/check` | `{state, itinerary, now}` | `{available, risks[{stop, condition, message}], proposed: ContextEvent\|null}`. Finds upcoming outdoor, weather-sensitive stops that overlap forecast rain or heat. It **proposes** a weather event and never applies it; send `proposed` to `/events` if the traveler agrees. |
 | POST | `/feedback` | `{state, feedback: {experience_id, kind: accept\|reject\|skip, reason?, at}}` | `{state, recommendations[], excluded{}}`. Reject hides the item (`state.rejected`). Only `not_interested` (strong) or no reason (weak) change `state.learned`; price, distance and time reasons don't. Keep the returned `state`. |
+| POST | `/feedback` (rating) | `{state, feedback: {experience_id, kind: "rating", rating: 1-5, as_described?, at}}` | Post-visit rating. It updates the rating and review count. When most visitors say it was as described, their latest visit becomes **traveler evidence** for hours and price, so confidence rises and the ⚠ badge can clear. It never replaces a verified check. Returns re-ranked recommendations. |
+| POST | `/bookings` | `{state, itinerary, experience_id}` | `{code, experience_id, start, people, itinerary}`. A **stub** with no payment: it holds spots for a stop already in the plan and marks it confirmed and locked. **409** with a readable reason if the stop doesn't validate or the start time is full (capacity minus booked people). |
+| DELETE | `/bookings/{code}` | none | Cancels a booking and frees its spots. **404** if the code is unknown. |
 | POST | `/providers/draft` | `{text}` | `{parser, draft: ListingDraft}`. Free text becomes an editable draft; nothing is saved. |
-| POST | `/providers/listings` | `{draft, today?}` | `{provider, place, experience}`. Validates the reviewed draft and publishes it. A bad draft returns **422** with a readable `detail` (unknown landmark, hours shorter than the experience, no tags, no days). |
-| POST | `/providers/availability` | `{experience_id, paused}` | Pauses or resumes any experience. While paused it isn't recommended, and replanning treats it as unavailable. |
-| GET | `/providers/insights/{experience_id}` | none | Aggregate demand: `matching_searches`, `shown`, `shown_to_matching`, `why_not_chosen[[reason, n]]`, `tips[]`, `start_hours`, `budget_per_person`, `with_kids`, `also_wanted`, `paused` |
+| POST | `/providers/listings` | `{draft, today?}` | `{provider, place, experience, edit_token}`. **Keep `edit_token`:** it's shown only once and is needed to edit, pause or remove the listing (the web app keeps it in the browser's localStorage). Validates the reviewed draft and publishes it. A bad draft returns **422** with a readable `detail` (unknown landmark, hours shorter than the experience, no tags, no days). |
+| POST | `/providers/availability` | `{experience_id, paused}` + header `X-Provider-Token` for provider listings | Pauses or resumes an experience. A provider listing needs its edit token (**403** otherwise). Curated seed experiences are open in the demo; set `SEED_ADMIN_TOKEN` to lock them. |
+| GET | `/providers/listings/{id}` | none | `{draft}`: a provider listing as an editable draft |
+| PUT | `/providers/listings/{id}` | `{draft, today?}` + `X-Provider-Token` | Edits in place (same id). **403** without the token. |
+| DELETE | `/providers/listings/{id}` | `X-Provider-Token` | Removes the listing, its owner record and any pause |
+| GET | `/providers/insights/{experience_id}` | none | Aggregate demand: `booked_people`, `rating`, `review_count`, `accepted`, `passed`, `matching_searches`, `shown`, `shown_to_matching`, `why_not_chosen[[reason, n]]`, `tips[]`, `start_hours`, `budget_per_person`, `with_kids`, `also_wanted`, `paused` |
 
 Unknown experience ids return `422`. An empty `problems` means the whole plan is feasible.
 
