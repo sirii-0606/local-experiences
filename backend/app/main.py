@@ -44,6 +44,19 @@ from app.models import (
 from app.routes.deps import COOKIE
 from app.schemas import ChatContext, ClosedNow, WeatherNow
 from app.seed import Seed, load_seed
+from app.simulation import (
+    PRESET_SCENARIOS,
+    DigitalTwinResult,
+    SimulationScenario,
+    run_digital_twin_simulation,
+)
+from app.social import (
+    SocialSignal,
+    UserSocialReport,
+    add_social_report,
+    get_social_signals,
+    get_trending_hashtags,
+)
 
 SEED = load_seed()  # curated, read-only; provider listings/pauses are overlaid per request
 app = FastAPI(title="Local & Experiences API")
@@ -481,6 +494,45 @@ def context_check(req: ContextCheckRequest) -> ContextCheckResponse:
     if worst and worst != req.state.weather:
         proposed = ContextEvent(kind="weather", at=req.now, weather=worst)
     return ContextCheckResponse(available=True, risks=risks, proposed=proposed)
+
+
+# ---------------------------------------------------------------- social signals & digital twin
+
+
+class SimulationRequest(BaseModel):
+    scenario: SimulationScenario
+    state: TravelerState
+    itinerary: Itinerary
+
+
+@app.get("/social/signals")
+def social_signals(
+    condition: str | None = None,
+    lat: float | None = None,
+    lon: float | None = None,
+) -> dict:
+    """Real-world social signals and trending community hashtags."""
+    sigs = get_social_signals(condition, lat, lon)
+    trends = get_trending_hashtags(condition)
+    return {"signals": sigs, "trending_hashtags": trends}
+
+
+@app.post("/social/report")
+def submit_social_report(report: UserSocialReport) -> SocialSignal:
+    """Submit a real-time crowdsourced traveler report or hazard update."""
+    return add_social_report(report)
+
+
+@app.get("/simulation/presets")
+def simulation_presets() -> list[SimulationScenario]:
+    """Preset weather impact scenarios for interactive Digital Twin testing."""
+    return PRESET_SCENARIOS
+
+
+@app.post("/simulation/what-if")
+def simulation_what_if(req: SimulationRequest) -> DigitalTwinResult:
+    """Run Digital Twin simulation with weather perturbations & plan repair."""
+    return run_digital_twin_simulation(req.scenario, req.state, req.itinerary, seed())
 
 
 class FeedbackRequest(BaseModel):

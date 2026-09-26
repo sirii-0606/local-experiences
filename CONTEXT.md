@@ -37,6 +37,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-01-any-city-
 - **Accounts:** sessions, roles, admin (who never sees profile data), trips CRUD.
 - **Providers:** free text → draft → listing, anywhere (pin + area). Pause, edit token, demand insights, and the traveler segments each listing fits.
 - **Calendar:** `.ics` with travel-aware reminders, plus Google Calendar links per stop.
+- **Social signals and digital twin** (teammate, [2026-09-27-21](docs/context/2026-09-27-21-additional-integration-tasks.md)): `/social/signals`, `/social/report`, `/simulation/presets`, `/simulation/what-if` (weather what-if with plan repair via `replan()`), plus map layers and modals in Explore. Jaipur-scoped. **The social feed is hardcoded sample posts**, some attributed to real-sounding accounts: label it as demo data or replace it before anyone treats it as live.
 
 ## Verified scenarios (live data, real server, rule parser)
 - **76-year-old, family, heritage, 6 PM in Pune, "not any park"**

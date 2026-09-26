@@ -125,7 +125,8 @@ def draft_rules(text: str, seed: Seed) -> ListingDraft:
     d.category = next((c for tags, c in CATEGORY_BY_TAG if tags & set(d.tags)), "community")
     d.community_led = bool(
         re.search(
-            r"family business|our family|community|cooperative|collective|women|generation|hereditary",
+            r"family business|our family|community|cooperative|collective|women|"
+            r"generation|hereditary",
             t,
         )
     )

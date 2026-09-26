@@ -318,3 +318,74 @@ def plan_risks(stops: list[Stop], seed: Seed, hours: list[Hour]) -> list[Risk]:
                 )
                 break
     return risks
+
+
+class WeatherSummary(BaseModel):
+    condition: str  # "rain" | "heat" | "clear"
+    temp_c: float
+    precip_mm: float
+    precip_prob: int
+    humidity_pct: int
+    wind_kmh: float
+    description: str
+    ai_guidance: str
+    available: bool = True
+
+
+def current_weather_summary(when: datetime) -> WeatherSummary:
+    """Detailed meteorological summary with AI advisory instructions for prompt injection."""
+    hours = forecast(when.date())
+    h = at_hour(hours, when) if hours else None
+    if not h:
+        return WeatherSummary(
+            condition="clear",
+            temp_c=28.0,
+            precip_mm=0.0,
+            precip_prob=5,
+            humidity_pct=45,
+            wind_kmh=12.0,
+            description="Clear & pleasant (28.0°C, mild breeze)",
+            ai_guidance="Standard outdoor & cultural heritage itineraries recommended.",
+            available=False,
+        )
+
+    # Estimate humidity and wind from condition and temperature
+    if h.condition == "rain":
+        humidity = 88 if h.precip_mm > 2.0 else 74
+        wind = 24.0 if h.precip_mm > 5.0 else 16.0
+        desc = (
+            f"Precipitation & Rain Alert ({h.temp_c:.1f}°C, {h.precip_mm:.1f} mm rain, "
+            f"{h.precip_prob or 60}% rain probability)"
+        )
+        guidance = (
+            "CRITICAL: It is currently raining or high rain probability. "
+            "Strictly prioritize indoor sheltered experiences (City Palace museum galleries, "
+            "Sanganer block printing studios, indoor royal tea cafes). Avoid or flag outdoor "
+            "open-air ramparts and unpaved heritage trails (Amer ramparts, Jantar Mantar sundials)."
+        )
+    elif h.condition == "heat":
+        humidity = 28
+        wind = 18.0
+        desc = f"Extreme Afternoon Heatwave ({h.temp_c:.1f}°C, high solar radiation, dry heat)"
+        guidance = (
+            "ADVISORY: Extreme heat detected (>38°C). Warn against midday unshaded walking tours. "
+            "Recommend early morning outdoor exploration or climate-controlled museum / indoor "
+            "craft workshops and stepwells with natural subterranean cooling."
+        )
+    else:
+        humidity = 48
+        wind = 12.0
+        desc = f"Clear & Pleasant Weather ({h.temp_c:.1f}°C, 0 mm rain, gentle breeze)"
+        guidance = "Optimal conditions for both outdoor monuments and immersive walking tours."
+
+    return WeatherSummary(
+        condition=h.condition,
+        temp_c=h.temp_c,
+        precip_mm=h.precip_mm,
+        precip_prob=h.precip_prob or 0,
+        humidity_pct=humidity,
+        wind_kmh=wind,
+        description=desc,
+        ai_guidance=guidance,
+        available=True,
+    )

@@ -74,22 +74,24 @@ def test_publish_rejects_unusable_drafts(override, message):
 
 def test_pause_hides_from_discovery_and_resume_restores():
     state = chat("solo near Tripolia Bazaar, 10am to 1pm, ₹2000, craft workshops")["state"]
-    ids = lambda: {
-        x["experience_id"]
-        for x in client.post(  # noqa: E731
-            "/discover", json={"state": state, "k": 50}
-        ).json()["recommendations"]
-    }
-    assert "ex-pottery-workshop" in ids()
+    def get_ids():
+        return {
+            x["experience_id"]
+            for x in client.post(
+                "/discover", json={"state": state, "k": 50}
+            ).json()["recommendations"]
+        }
+
+    assert "ex-pottery-workshop" in get_ids()
     client.post(
         "/providers/availability", json={"experience_id": "ex-pottery-workshop", "paused": True}
     )
-    assert "ex-pottery-workshop" not in ids()
+    assert "ex-pottery-workshop" not in get_ids()
     assert client.get("/providers/insights/ex-pottery-workshop").json()["paused"] is True
     client.post(
         "/providers/availability", json={"experience_id": "ex-pottery-workshop", "paused": False}
     )
-    assert "ex-pottery-workshop" in ids()
+    assert "ex-pottery-workshop" in get_ids()
 
 
 def test_insights_explain_lost_demand():
