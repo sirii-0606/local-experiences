@@ -1097,6 +1097,195 @@
           }
         }
       }
+    },
+    "/trips": {
+      "get": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "List Trips",
+        "operationId": "list_trips_trips_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  },
+                  "type": "array",
+                  "title": "Response List Trips Trips Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Create Trip",
+        "operationId": "create_trip_trips_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}": {
+      "get": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Get Trip",
+        "operationId": "get_trip_trips__trip_id__get",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Update Trip",
+        "operationId": "update_trip_trips__trip_id__put",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Delete Trip",
+        "operationId": "delete_trip_trips__trip_id__delete",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3389,6 +3578,48 @@
         ],
         "title": "Risk"
       },
+      "StayPref": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "any",
+              "hotel",
+              "homestay",
+              "hostel"
+            ],
+            "title": "Type",
+            "default": "any"
+          },
+          "max_per_night_inr": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Night Inr"
+          },
+          "area": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          }
+        },
+        "type": "object",
+        "title": "StayPref"
+      },
       "Stop": {
         "properties": {
           "title": {
@@ -3782,6 +4013,383 @@
         ],
         "title": "TravelerState",
         "description": "The traveler/group situation right now (doc §5.1)."
+      },
+      "Trip": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "destination": {
+            "type": "string",
+            "const": "jaipur",
+            "title": "Destination",
+            "default": "jaipur"
+          },
+          "origin_city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin City"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "day_start": {
+            "type": "string",
+            "format": "time",
+            "title": "Day Start",
+            "default": "09:30:00"
+          },
+          "day_end": {
+            "type": "string",
+            "format": "time",
+            "title": "Day End",
+            "default": "20:30:00"
+          },
+          "budget_inr": {
+            "type": "integer",
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Budget Inr"
+          },
+          "stay": {
+            "$ref": "#/components/schemas/StayPref",
+            "default": {
+              "type": "any"
+            }
+          },
+          "travelers": {
+            "items": {
+              "$ref": "#/components/schemas/TripTraveler"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Travelers"
+          },
+          "use_my_prefs_for_all": {
+            "type": "boolean",
+            "title": "Use My Prefs For All",
+            "default": false
+          },
+          "must_see": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Must See",
+            "default": []
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "start_date",
+          "end_date",
+          "budget_inr",
+          "travelers",
+          "id",
+          "created",
+          "updated"
+        ],
+        "title": "Trip"
+      },
+      "TripDraft": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "destination": {
+            "type": "string",
+            "const": "jaipur",
+            "title": "Destination",
+            "default": "jaipur"
+          },
+          "origin_city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin City"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "day_start": {
+            "type": "string",
+            "format": "time",
+            "title": "Day Start",
+            "default": "09:30:00"
+          },
+          "day_end": {
+            "type": "string",
+            "format": "time",
+            "title": "Day End",
+            "default": "20:30:00"
+          },
+          "budget_inr": {
+            "type": "integer",
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Budget Inr"
+          },
+          "stay": {
+            "$ref": "#/components/schemas/StayPref",
+            "default": {
+              "type": "any"
+            }
+          },
+          "travelers": {
+            "items": {
+              "$ref": "#/components/schemas/TripTraveler"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Travelers"
+          },
+          "use_my_prefs_for_all": {
+            "type": "boolean",
+            "title": "Use My Prefs For All",
+            "default": false
+          },
+          "must_see": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Must See",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "start_date",
+          "end_date",
+          "budget_inr",
+          "travelers"
+        ],
+        "title": "TripDraft",
+        "description": "What the \"Plan a trip\" wizard collects. Shortlist, stay pick, itinerary, splits and\nfeedback are added as optional fields in P4-P6, so drafts saved now stay valid."
+      },
+      "TripTraveler": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 110.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "interests": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Interests",
+            "default": []
+          },
+          "dislikes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "local-food",
+                "street-food",
+                "fine-dining",
+                "vegetarian",
+                "sweets",
+                "chai",
+                "heritage",
+                "history",
+                "architecture",
+                "museum",
+                "spiritual",
+                "craft",
+                "art",
+                "music",
+                "dance",
+                "performance",
+                "workshop",
+                "hands-on",
+                "shopping",
+                "market",
+                "textiles",
+                "jewellery",
+                "nature",
+                "wildlife",
+                "sunset",
+                "sunrise",
+                "viewpoint",
+                "photography",
+                "adventure",
+                "active",
+                "wellness",
+                "relaxed",
+                "nightlife",
+                "evening",
+                "social",
+                "romantic",
+                "family",
+                "kids",
+                "learning",
+                "community",
+                "walking-tour",
+                "hidden-gem",
+                "iconic"
+              ]
+            },
+            "type": "array",
+            "title": "Dislikes",
+            "default": []
+          },
+          "accessibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "wheelchair",
+                "step_free",
+                "seating",
+                "quiet"
+              ]
+            },
+            "type": "array",
+            "title": "Accessibility",
+            "default": []
+          },
+          "diet": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "vegetarian",
+                  "non_vegetarian",
+                  "vegan",
+                  "jain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diet"
+          },
+          "is_me": {
+            "type": "boolean",
+            "title": "Is Me",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TripTraveler",
+        "description": "One person on a trip. `is_me` marks the account owner (their profile can fill it in)."
       },
       "User": {
         "properties": {

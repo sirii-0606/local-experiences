@@ -1,14 +1,14 @@
-"""Contract for the v2 website endpoints (accounts, profile, admin; trips from P3).
+"""Contract for the v2 website endpoints (accounts, profile, admin, trips).
 
 Contract-first: the frontend builds against these shapes (mirrored in frontend/src/types.ts,
 mocked in frontend/src/mocks/) while the backend behind them is still evolving.
 The OpenAPI snapshot in docs/openapi.json is checked by tests/test_contract.py.
 """
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models import Access, Tag
 
@@ -109,3 +109,51 @@ class AdminStats(BaseModel):
     disabled: int
     active_sessions: int
     provider_listings: int
+
+
+# ---------------------------------------------------------------- trips (P3)
+MAX_TRIP_DAYS = 7
+
+
+class TripTraveler(Companion):
+    """One person on a trip. `is_me` marks the account owner (their profile can fill it in)."""
+    is_me: bool = False
+
+
+class StayPref(BaseModel):
+    type: Literal["any", "hotel", "homestay", "hostel"] = "any"
+    max_per_night_inr: int | None = Field(default=None, ge=0, le=500_000)
+    area: str | None = Field(default=None, max_length=60)  # None = near the must-sees
+
+
+class TripDraft(BaseModel):
+    """What the "Plan a trip" wizard collects. Shortlist, stay pick, itinerary, splits and
+    feedback are added as optional fields in P4-P6, so drafts saved now stay valid."""
+    title: str = Field(min_length=1, max_length=80)
+    destination: Literal["jaipur"] = "jaipur"  # the only city with data; others "coming soon"
+    origin_city: str | None = Field(default=None, max_length=60)
+    start_date: date
+    end_date: date
+    day_start: time = time(9, 30)
+    day_end: time = time(20, 30)
+    budget_inr: int = Field(ge=0, le=10_000_000)  # total for the whole trip and group
+    stay: StayPref = StayPref()
+    travelers: list[TripTraveler] = Field(min_length=1, max_length=12)
+    use_my_prefs_for_all: bool = False
+    must_see: list[str] = Field(default=[], max_length=20)  # experience ids
+
+    @model_validator(mode="after")
+    def _dates(self) -> "TripDraft":
+        if self.end_date < self.start_date:
+            raise ValueError("the trip can't end before it starts")
+        if (self.end_date - self.start_date).days >= MAX_TRIP_DAYS:
+            raise ValueError(f"trips can be at most {MAX_TRIP_DAYS} days")
+        if self.day_end <= self.day_start:
+            raise ValueError("each day must end after it starts")
+        return self
+
+
+class Trip(TripDraft):
+    id: int
+    created: datetime
+    updated: datetime

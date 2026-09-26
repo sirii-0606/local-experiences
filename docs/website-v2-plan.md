@@ -114,6 +114,7 @@ Nothing is built until approval. Branch `feat/website-skeleton` off `main` (`560
 - **Privacy:** accessibility, age and diet never reach providers or admin views. Admin sees only email, role, status and dates.
 
 ### P3 — Trip model + "Plan a trip" wizard (~1 d)
+> **Status (2026-09-26): built**, without stubs (plain CRUD needed no stub phase). Differences from this plan: the stay step asks for stay type, price cap and area, and the number of people comes from the travelers step. `stays.json` moves to P4, where it's first used. The P4–P6 fields (`shortlist`, `stay_id`, `itinerary`, `splits`, `feedback`) are added as optional fields when their phases land. `/trips/:id` reopens the wizard for editing.
 - **`Trip`**, stored as JSON in a `trips(id, user_id, created, updated, json)` table:
   - title, destination (only **Jaipur** is enabled; others shown as "coming soon"), origin city, start/end date (≤ 7 days)
   - daily window (default 09:30–20:30), total budget, stay preference (type hotel/homestay/hostel/any, max per night, area or "near a must-see")

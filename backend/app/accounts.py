@@ -1,4 +1,4 @@
-"""Accounts: users, password hashing, sessions, profiles (stdlib only: hashlib.scrypt + sqlite3).
+"""Accounts: users, password hashing, sessions, profiles, trips (stdlib: hashlib.scrypt + sqlite3).
 
 Passwords: scrypt (n=2^14, r=8, p=1) with a random 16-byte salt, compared in constant time.
 Sessions: random 32-byte tokens; only their sha256 is stored, 7-day expiry, revocable.
@@ -15,7 +15,7 @@ from collections import defaultdict, deque
 from contextlib import closing
 from datetime import datetime, timedelta
 
-from app.schemas import AdminStats, AdminUserRow, Profile, Role, User
+from app.schemas import AdminStats, AdminUserRow, Profile, Role, Trip, TripDraft, User
 from app.store import db_path
 
 SCHEMA = """
@@ -26,6 +26,9 @@ create table if not exists users (
 create table if not exists sessions (
     token_hash text primary key, user_id integer not null, expires text not null);
 create table if not exists profiles (user_id integer primary key, json text not null);
+create table if not exists trips (
+    id integer primary key autoincrement, user_id integer not null,
+    created text not null, updated text not null, json text not null);
 """
 SESSION_DAYS = 7
 SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -104,7 +107,7 @@ def update(user_id: int, **fields) -> None:
 
 def delete(user_id: int) -> None:
     for sql in ("delete from sessions where user_id = ?", "delete from profiles where user_id = ?",
-                "delete from users where id = ?"):
+                "delete from trips where user_id = ?", "delete from users where id = ?"):
         _db(sql, (user_id,))
 
 
@@ -201,7 +204,46 @@ def export(user_id: int) -> dict:
     u = get(user_id)
     p = get_profile(user_id)
     return {"account": public(u).model_dump(mode="json"),
-            "profile": json.loads(p.model_dump_json()) if p else None}
+            "profile": json.loads(p.model_dump_json()) if p else None,
+            "trips": [t.model_dump(mode="json") for t in list_trips(user_id)]}
+
+
+# ---------------------------------------------------------------- trips (P3)
+# Stored as the TripDraft JSON; id, owner and timestamps are columns. Every query is scoped to
+# the owner, so another user's trip id simply doesn't exist for you.
+
+def _trip(r: tuple) -> Trip:
+    return Trip(id=r[0], created=r[1], updated=r[2], **json.loads(r[3]))
+
+
+def list_trips(user_id: int) -> list[Trip]:
+    rows, _ = _db("select id, created, updated, json from trips where user_id = ?", (user_id,))
+    return sorted((_trip(r) for r in rows), key=lambda t: (t.start_date, t.id))
+
+
+def get_trip(user_id: int, trip_id: int) -> Trip | None:
+    rows, _ = _db("select id, created, updated, json from trips where id = ? and user_id = ?",
+                  (trip_id, user_id))
+    return _trip(rows[0]) if rows else None
+
+
+def create_trip(user_id: int, draft: TripDraft) -> Trip:
+    now = _now().isoformat()
+    _, tid = _db("insert into trips (user_id, created, updated, json) values (?, ?, ?, ?)",
+                 (user_id, now, now, draft.model_dump_json()))
+    return get_trip(user_id, tid)
+
+
+def update_trip(user_id: int, trip_id: int, draft: TripDraft) -> Trip | None:
+    _db("update trips set updated = ?, json = ? where id = ? and user_id = ?",
+        (_now().isoformat(), draft.model_dump_json(), trip_id, user_id))
+    return get_trip(user_id, trip_id)
+
+
+def delete_trip(user_id: int, trip_id: int) -> bool:
+    found = get_trip(user_id, trip_id) is not None
+    _db("delete from trips where id = ? and user_id = ?", (trip_id, user_id))
+    return found
 
 
 # ---------------------------------------------------------------- stats + login throttle

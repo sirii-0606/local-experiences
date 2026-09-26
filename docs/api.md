@@ -102,7 +102,7 @@ Unknown experience ids return `422`. An empty `problems` means the whole plan is
 ## Demo reproducibility
 Pass `"now": "2026-09-26T15:30:00"` to `/chat` so the scenarios in `docs/ideation/mvp-scope.md` behave the same way every time. The seed's one-off events are on 2026-09-27 and 2026-10-03.
 
-## v2 website: accounts, profile, admin (P1)
+## v2 website: accounts, profile, admin (P1), trips (P3)
 Contract-first: request and response models are in `backend/app/schemas.py`, mirrored in `frontend/src/types.ts`. The full schema snapshot is **`docs/openapi.json`**. `tests/test_contract.py` fails if the backend changes without it, so regenerate with `backend/.venv/Scripts/python scripts/openapi_snapshot.py` and tell the frontend team. The frontend can run against an in-memory mock with `VITE_API_MOCK=1`, and against any backend with `API_TARGET=http://host:port`.
 
 **Auth:** an HttpOnly `le_session` cookie (7 days, SameSite=Lax). Every write needs the header **`X-Requested-With: le`** (CSRF guard; `frontend/src/api.ts` sends it). 401 means not signed in, and 403 means the wrong role or a missing header. `WEBSITE_V2=0` unmounts all of these routes.
@@ -122,4 +122,19 @@ Contract-first: request and response models are in `backend/app/schemas.py`, mir
 | GET | `/admin/stats` | none | `{users, admins, providers, disabled, active_sessions, provider_listings}` |
 
 **Admin account:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (8+ characters) in the backend's environment. The account is created, or promoted, on the first admin sign-in. There's no default admin password anywhere in the code.
+
+### Trips (P3)
+Signed-in only (401 otherwise). A trip is private to its owner: another user's trip id answers **404**, never 403. Writes need `X-Requested-With: le`.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/trips` | none | `Trip[]`, sorted by start date |
+| POST | `/trips` | `TripDraft` | 201 `Trip` |
+| GET | `/trips/{id}` | none | `Trip`, or 404 |
+| PUT | `/trips/{id}` | `TripDraft` | `Trip` (a full replace; rename = PUT with a new title), or 404 |
+| DELETE | `/trips/{id}` | none | 204, or 404 |
+
+**`TripDraft`:** `{title (1–80), destination: "jaipur", origin_city?, start_date, end_date, day_start = "09:30", day_end = "20:30", budget_inr (total, for the whole group), stay: {type: any|hotel|homestay|hostel, max_per_night_inr?, area?}, travelers: TripTraveler[1–12], use_my_prefs_for_all, must_see: experience_id[≤20]}`. `TripTraveler` is a `Companion` plus `is_me`. **`Trip`** = `TripDraft` + `{id, created, updated}`.
+
+**422 when:** the trip ends before it starts, lasts more than 7 days, a day ends before it starts, there are no travelers, the destination isn't Jaipur, or a must-see id isn't in the catalog. `/me/export` includes trips; `DELETE /me` deletes them. The shortlist, stay pick, itinerary, splits and feedback arrive as optional fields in P4–P6, so saved drafts stay valid.
 
