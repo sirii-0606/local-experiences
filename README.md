@@ -51,7 +51,14 @@ cd ../frontend && npm install && npm run dev                            # web ap
 - **Trust:** each attribute has a confidence based on its source and how recent it is. Low confidence is **flagged, never hidden**.
 - **Privacy:** location is never stored. Providers see aggregates only.
 
+## Key Advanced Features
+- **Google Calendar Integration**: Connect your Google Calendar via OAuth 2.0 to automatically import external commitments (flights, meetings, hotel check-ins) as locked unmovable stops, and export confirmed itineraries directly to Google Calendar.
+- **Dynamic Context & User Account History**: Retains your long-term search history, learned taste preferences, and rejected places across logins to personalize future trip plans.
+- **Manual Stop Deletion & Instant Dynamic Replanning**: Manually delete any suggested stop from an itinerary (`DELETE /trips/{id}/stops/{experience_id}`), update your negative taste preferences instantly, and watch the engine automatically repair the schedule and fill time gaps.
+
 ## Docs
+- New Features Architecture & Implementation: [`docs/NEW_FEATURES_IMPLEMENTATION.md`](docs/NEW_FEATURES_IMPLEMENTATION.md)
+- Multi-Source Live APIs & YouTube AI Pipeline: [`docs/MULTI_SOURCE_API_AND_YOUTUBE_PIPELINE.md`](docs/MULTI_SOURCE_API_AND_YOUTUBE_PIPELINE.md)
 - Concept baseline: [`docs/ideation/`](docs/ideation/) (the original ideation document and a text copy)
 - Every design decision, with the numbers: [`docs/ideation/decisions.md`](docs/ideation/decisions.md)
 - MVP scope, success metrics, scenarios: [`docs/ideation/mvp-scope.md`](docs/ideation/mvp-scope.md)

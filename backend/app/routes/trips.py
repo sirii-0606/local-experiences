@@ -15,6 +15,7 @@ from app.schemas import (
     SplitSuggestion,
     Stay,
     StayRecommendation,
+    StopDeleteResponse,
     Trip,
     TripDraft,
     TripSuggestions,
@@ -179,3 +180,63 @@ def get_trip_suggestions(trip_id: int, user: dict = Depends(current_user)) -> Tr
             for sp in splits
         ],
     )
+
+
+@router.delete("/{trip_id}/stops/{experience_id}", response_model=StopDeleteResponse)
+def delete_trip_stop(trip_id: int, experience_id: str, user: dict = Depends(current_user)) -> StopDeleteResponse:
+    """Manually deletes a stop from a trip, updates rejected preferences, and dynamically replans."""
+    from app.engine import learn
+    from app.engine import trip as trip_engine
+    from app.main import seed
+
+    t = _found(accounts.get_trip(user["id"], trip_id))
+    s = seed()
+
+    shortlist = dict(t.shortlist)
+    shortlist[experience_id] = "skip"
+
+    deleted_title = experience_id
+    if t.itinerary and t.itinerary.stops:
+        for stop in t.itinerary.stops:
+            if stop.experience_id == experience_id or stop.title == experience_id:
+                stop.status = "skipped"
+                deleted_title = stop.title
+
+    exp = s.experiences.get(experience_id)
+    learned_delta = {}
+    if exp:
+        from app.models import Feedback
+        place = s.places.get(exp.place_id)
+        dummy_state = TravelerState(
+            lat=place.lat if place else 26.9124,
+            lon=place.lon if place else 75.7873,
+            window_start=datetime.combine(t.start_date, t.day_start),
+            window_end=datetime.combine(t.start_date, t.day_end),
+            budget_inr=t.budget_inr,
+        )
+        fb = Feedback(at=datetime.now(), experience_id=experience_id, kind="reject", reason="not_interested")
+        learned_state = learn.learn(dummy_state, exp, fb)
+        learned_delta = learned_state.learned
+
+    accounts.add_user_history(user["id"], "stop_deleted", {
+        "trip_id": trip_id,
+        "experience_id": experience_id,
+        "title": deleted_title,
+        "learned_delta": learned_delta,
+    })
+
+    draft_dict = t.model_dump()
+    draft_dict["shortlist"] = shortlist
+    t_updated = TripDraft.model_validate(draft_dict)
+
+    new_it = trip_engine.build_itinerary(t_updated, s)
+    draft_dict["itinerary"] = new_it.model_dump()
+    final_trip = accounts.update_trip(user["id"], trip_id, TripDraft.model_validate(draft_dict)) or t
+
+    changes = [
+        f"Removed '{deleted_title}' from itinerary and added to user rejected preferences.",
+        "Dynamically replanned itinerary gaps around remaining activities.",
+    ]
+
+    return StopDeleteResponse(trip=final_trip, deleted_stop_title=deleted_title, changes=changes)
+

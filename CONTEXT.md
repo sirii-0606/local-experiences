@@ -1,29 +1,15 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-20-jaipur-luxury-ui-redesign.md](docs/context/2026-09-26-20-jaipur-luxury-ui-redesign.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-21-google-calendar-history-stop-deletion.md](docs/context/2026-09-27-21-google-calendar-history-stop-deletion.md)_
 
 ## Where we are
-- **`main` (`56097d9`) has everything through M9:**
-  - the core engine and app
-  - live weather, the evaluation UI, ratings as evidence, provider edit tokens, bookings
-  - the demo guide
-- **Website v2 in progress:**
-  - **P1 is done:** accounts, sessions, roles, admin, profile shell, and routed pages.
-  - **P3 is done:** the trips dashboard `/trips` and the 4-step "Plan a trip" wizard `/trips/new`, which also edits at `/trips/:id`.
-  - **P4 is done:** multi-day candidate scoring, travel mode times table, 3-way shortlist (*In Person* / *AR Preview* / *Skip*), `stays.json` seed, and stay recommendation by centroid of in-person activity picks.
-  - **P5 is done:** multi-day itinerary builder starting & ending at stay, nearby meal suggestions (lunch & dinner windows), quick stops (≤45m en-route), driver/guide suggestions, and auto-suggested group splits.
-  - **Design identity "Sanganer block print"** across the whole app: lime-wash, indigo and rani tokens; Rozha One + Hind; a block-print motif border; trip covers as dyed swatches.
-  - **Working rule:** contract-first and additive (`backend/app/schemas.py`, `docs/openapi.json` + contract test, new routers only, `WEBSITE_V2` kill switch, frontend mock mode `VITE_API_MOCK=1`, `API_TARGET`).
-- **Run it:**
-  - `python scripts/dev.py [--reset]` → http://localhost:5173. Set `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` for an admin account.
-  - Routes: `/` Explore, `/provider`, `/login`, `/register`, `/profile`, `/trips`, `/trips/new`, `/trips/:id`, `/trips/:id/shortlist`, `/trips/:id/itinerary`, `/admin`.
-- **Engine** (`backend/app/engine/`): feasibility, confidence, ranking and explanations, gap-aware planning, multi-day scoring (`trip.py`), nearby suggestions (`nearby.py`), localized replanning, learning.
-- **Tests/CI:** backend 116 tests (115 passed, 1 skipped: live LLM), frontend builds cleanly.
+- **`main` has everything through M9 & Website v2 P1–P5.**
+- **Feature branch `feat/calendar-history-stop-deletion` built and verified:**
+  - **Google Calendar Integration Backend & Engine Sync (`backend/app/engine/calendar_sync.py` & `routes/calendar.py`):** OAuth 2.0 flow, token storage in SQLite, inbound event parsing into locked engine stops, outbound trip export to Google Calendar.
+  - **Dynamic User Account History & Context Retention (`user_history` table in `accounts.py`):** Persistent tracking of user queries, taste adjustments (`learned`), and rejected places (`rejected`) seeded into new sessions.
+  - **Manual Stop Deletion & Instant Dynamic Replanning (`DELETE /trips/{id}/stops/{experience_id}` in `routes/trips.py`):** Delete any stop, record negative taste feedback, and dynamically repair/refill the itinerary.
+- **Tests/CI:** Backend 123 tests passing 100% (122 passed, 1 skipped: live LLM). OpenAPI snapshot updated in `docs/openapi.json`.
 
 ## Next steps
-1. **P2, onboarding**: the 4-step `/onboarding`, a full preferences editor with companions, and Explore pre-filled from the profile.
-2. Later: **P6** feedback loop ("too hectic" / "too expensive"). **P7** interactive cards with review sentiment. **P8** print/PDF view.
-3. User-requested additional features.
-
-## Setup
-`python scripts/dev.py` (first run installs everything). For frontend-only work: `cd frontend && VITE_API_MOCK=1 npm run dev`.
+1. Merge `feat/calendar-history-stop-deletion` into `main`.
+2. Connect optional frontend UI trigger buttons for Google Calendar OAuth and sync.

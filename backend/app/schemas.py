@@ -259,3 +259,33 @@ class Trip(TripDraft):
     id: int
     created: datetime
     updated: datetime
+
+
+# ---------------------------------------------------------------- Google Calendar & Replanning
+class GoogleOAuthUrlResponse(BaseModel):
+    auth_url: str
+
+
+class CalendarStatusResponse(BaseModel):
+    connected: bool
+    provider: str = "google"
+    calendar_id: str = "primary"
+    scopes: str = ""
+    created_at: datetime | None = None
+
+
+class CalendarSyncInboundResponse(BaseModel):
+    added_events_count: int
+    trip: Trip
+
+
+class CalendarSyncOutboundResponse(BaseModel):
+    synced_events_count: int
+    calendar_id: str = "primary"
+
+
+class StopDeleteResponse(BaseModel):
+    trip: Trip
+    deleted_stop_title: str
+    changes: list[str] = Field(default_factory=list)
+

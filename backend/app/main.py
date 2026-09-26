@@ -387,8 +387,9 @@ def provider_insights(experience_id: str) -> dict:
 if os.environ.get("WEBSITE_V2", "1") == "1":
     from app.routes import admin as admin_routes
     from app.routes import auth as auth_routes
+    from app.routes import calendar as calendar_routes
     from app.routes import me as me_routes
     from app.routes import trips as trip_routes
 
-    for _router in (auth_routes.router, me_routes.router, admin_routes.router, trip_routes.router):
+    for _router in (auth_routes.router, me_routes.router, admin_routes.router, trip_routes.router, calendar_routes.router):
         app.include_router(_router)

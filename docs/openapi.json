@@ -1487,6 +1487,275 @@
           }
         }
       }
+    },
+    "/trips/{trip_id}/stops/{experience_id}": {
+      "delete": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Delete Trip Stop",
+        "description": "Manually deletes a stop from a trip, updates rejected preferences, and dynamically replans.",
+        "operationId": "delete_trip_stop_trips__trip_id__stops__experience_id__delete",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          },
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experience Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/auth-url": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Get Auth Url",
+        "description": "Generates the Google OAuth 2.0 authorization URL for calendar scopes.",
+        "operationId": "get_auth_url_calendar_auth_url_get",
+        "parameters": [
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "http://localhost:5173/calendar/callback",
+              "title": "Redirect Uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleOAuthUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/callback": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Auth Callback",
+        "description": "OAuth callback: exchanges auth code for access/refresh tokens and stores them.",
+        "operationId": "auth_callback_calendar_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/calendar/status": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Get Calendar Status",
+        "description": "Checks whether the user has an active Google Calendar integration.",
+        "operationId": "get_calendar_status_me_calendar_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/calendar/sync-inbound": {
+      "post": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Sync Inbound Calendar",
+        "description": "Pull user's Google Calendar events and ingest them into the trip as locked stops.",
+        "operationId": "sync_inbound_calendar_trips__trip_id__calendar_sync_inbound_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSyncInboundResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}/calendar/sync-outbound": {
+      "post": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Sync Outbound Calendar",
+        "description": "Push accepted trip itinerary stops directly to user's Google Calendar.",
+        "operationId": "sync_outbound_calendar_trips__trip_id__calendar_sync_outbound_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSyncOutboundResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/calendar/disconnect": {
+      "delete": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Disconnect Calendar",
+        "description": "Disconnects Google Calendar integration and revokes saved OAuth tokens.",
+        "operationId": "disconnect_calendar_me_calendar_disconnect_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1753,6 +2022,81 @@
           "itinerary"
         ],
         "title": "BookingResponse"
+      },
+      "CalendarStatusResponse": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "google"
+          },
+          "calendar_id": {
+            "type": "string",
+            "title": "Calendar Id",
+            "default": "primary"
+          },
+          "scopes": {
+            "type": "string",
+            "title": "Scopes",
+            "default": ""
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "CalendarStatusResponse"
+      },
+      "CalendarSyncInboundResponse": {
+        "properties": {
+          "added_events_count": {
+            "type": "integer",
+            "title": "Added Events Count"
+          },
+          "trip": {
+            "$ref": "#/components/schemas/Trip"
+          }
+        },
+        "type": "object",
+        "required": [
+          "added_events_count",
+          "trip"
+        ],
+        "title": "CalendarSyncInboundResponse"
+      },
+      "CalendarSyncOutboundResponse": {
+        "properties": {
+          "synced_events_count": {
+            "type": "integer",
+            "title": "Synced Events Count"
+          },
+          "calendar_id": {
+            "type": "string",
+            "title": "Calendar Id",
+            "default": "primary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "synced_events_count"
+        ],
+        "title": "CalendarSyncOutboundResponse"
       },
       "Candidate": {
         "properties": {
@@ -2732,6 +3076,19 @@
           "state"
         ],
         "title": "FeedbackResponse"
+      },
+      "GoogleOAuthUrlResponse": {
+        "properties": {
+          "auth_url": {
+            "type": "string",
+            "title": "Auth Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auth_url"
+        ],
+        "title": "GoogleOAuthUrlResponse"
       },
       "GroupSplit": {
         "properties": {
@@ -4432,6 +4789,30 @@
         ],
         "title": "Stop",
         "description": "One itinerary entry. experience_id=None for the traveler's own commitments (train, hotel)."
+      },
+      "StopDeleteResponse": {
+        "properties": {
+          "trip": {
+            "$ref": "#/components/schemas/Trip"
+          },
+          "deleted_stop_title": {
+            "type": "string",
+            "title": "Deleted Stop Title"
+          },
+          "changes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip",
+          "deleted_stop_title"
+        ],
+        "title": "StopDeleteResponse"
       },
       "Traveler": {
         "properties": {

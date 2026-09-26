@@ -29,6 +29,13 @@ create table if not exists profiles (user_id integer primary key, json text not 
 create table if not exists trips (
     id integer primary key autoincrement, user_id integer not null,
     created text not null, updated text not null, json text not null);
+create table if not exists user_oauth_tokens (
+    user_id integer primary key, provider text not null, access_token text not null,
+    refresh_token text not null, expires_at text not null, scopes text not null,
+    calendar_id text default 'primary', created_at text not null);
+create table if not exists user_history (
+    id integer primary key autoincrement, user_id integer not null,
+    created text not null, kind text not null, data_json text not null);
 """
 SESSION_DAYS = 7
 SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -107,7 +114,8 @@ def update(user_id: int, **fields) -> None:
 
 def delete(user_id: int) -> None:
     for sql in ("delete from sessions where user_id = ?", "delete from profiles where user_id = ?",
-                "delete from trips where user_id = ?", "delete from users where id = ?"):
+                "delete from trips where user_id = ?", "delete from user_oauth_tokens where user_id = ?",
+                "delete from user_history where user_id = ?", "delete from users where id = ?"):
         _db(sql, (user_id,))
 
 
@@ -276,3 +284,78 @@ def record_failure(email: str, ip: str) -> None:
 
 def clear_failures(email: str, ip: str) -> None:
     _failures.pop((email, ip), None)
+
+
+# ---------------------------------------------------------------- OAuth tokens (Google Calendar)
+
+def save_oauth_tokens(user_id: int, provider: str, access_token: str, refresh_token: str,
+                      expires_at: str, scopes: str, calendar_id: str = "primary") -> None:
+    now = _now().isoformat()
+    _db("insert or replace into user_oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scopes, calendar_id, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, provider, access_token, refresh_token, expires_at, scopes, calendar_id, now))
+
+
+def get_oauth_tokens(user_id: int, provider: str = "google") -> dict | None:
+    rows, _ = _db("select user_id, provider, access_token, refresh_token, expires_at, scopes, calendar_id, created_at from user_oauth_tokens where user_id = ? and provider = ?",
+                  (user_id, provider))
+    if not rows:
+        return None
+    r = rows[0]
+    return {
+        "user_id": r[0], "provider": r[1], "access_token": r[2], "refresh_token": r[3],
+        "expires_at": r[4], "scopes": r[5], "calendar_id": r[6], "created_at": r[7]
+    }
+
+
+def delete_oauth_tokens(user_id: int, provider: str = "google") -> bool:
+    found = get_oauth_tokens(user_id, provider) is not None
+    _db("delete from user_oauth_tokens where user_id = ? and provider = ?", (user_id, provider))
+    return found
+
+
+# ---------------------------------------------------------------- User History & Dynamic Context
+
+def add_user_history(user_id: int, kind: str, data: dict) -> None:
+    """Record an interaction/search/feedback event for long-term user context retention."""
+    now = _now().isoformat()
+    _db("insert into user_history (user_id, created, kind, data_json) values (?, ?, ?, ?)",
+        (user_id, now, kind, json.dumps(data)))
+
+
+def get_user_history(user_id: int, kind: str | None = None, limit: int = 50) -> list[dict]:
+    if kind:
+        rows, _ = _db("select id, created, kind, data_json from user_history where user_id = ? and kind = ? order by id desc limit ?",
+                      (user_id, kind, limit))
+    else:
+        rows, _ = _db("select id, created, kind, data_json from user_history where user_id = ? order by id desc limit ?",
+                      (user_id, limit))
+    return [{"id": r[0], "created": r[1], "kind": r[2], "data": json.loads(r[3])} for r in rows]
+
+
+def get_user_context_summary(user_id: int) -> dict:
+    """Accumulates user history: learned tag preferences, rejected experiences, past searches."""
+    history = get_user_history(user_id, limit=100)
+    learned: dict[str, float] = defaultdict(float)
+    rejected: set[str] = set()
+
+    for item in history:
+        kind = item["kind"]
+        data = item["data"]
+        if kind == "feedback":
+            for tag, delta in data.get("learned_delta", {}).items():
+                learned[tag] += float(delta)
+        elif kind == "stop_deleted":
+            if exp_id := data.get("experience_id"):
+                rejected.add(exp_id)
+        elif kind == "chat" or kind == "discover":
+            if rej := data.get("rejected"):
+                rejected.update(rej)
+
+    # Normalize learned weights to [-1.0, 1.0]
+    norm_learned = {k: max(-1.0, min(1.0, v)) for k, v in learned.items() if abs(v) > 0.01}
+    return {
+        "learned": norm_learned,
+        "rejected": sorted(rejected),
+        "history_count": len(history),
+    }
+
