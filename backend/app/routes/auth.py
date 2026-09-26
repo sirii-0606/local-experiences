@@ -15,6 +15,8 @@ router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(csrf)])
 
 
 def _ip(request: Request) -> str:
+    if xff := request.headers.get("x-forwarded-for"):
+        return xff.split(",")[0].strip()
     return request.client.host if request.client else "?"
 
 

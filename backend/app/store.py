@@ -44,11 +44,14 @@ DEFAULT_DB = Path(__file__).resolve().parents[1] / "data" / "local.db"
 
 
 def db_path() -> Path:
-    return Path(os.environ.get("DB_PATH", DEFAULT_DB))
+    p = Path(os.environ.get("DB_PATH", DEFAULT_DB))
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
 
 
 def _run(sql: str, args: tuple = ()) -> list[tuple]:
-    with closing(sqlite3.connect(db_path())) as c:
+    with closing(sqlite3.connect(db_path(), timeout=10)) as c:
+        c.execute("pragma journal_mode=wal")
         c.executescript(SCHEMA)
         rows = c.execute(sql, args).fetchall()
         c.commit()

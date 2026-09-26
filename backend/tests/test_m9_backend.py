@@ -160,3 +160,18 @@ def test_booking_needs_the_stop_in_the_plan():
 def test_root_opens_the_docs():
     r = client.get("/", follow_redirects=False)
     assert r.status_code in (302, 307) and r.headers["location"] == "/docs"
+
+
+def test_prod_api_prefix_and_static_spa(tmp_path, monkeypatch):
+    assert client.get("/api/health").json()["ok"] is True
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text("<!doctype html><title>LE</title>", encoding="utf-8")
+    (dist / "assets" / "app.js").write_text("console.log('ok')", encoding="utf-8")
+    monkeypatch.setenv("STATIC_DIR", str(dist))
+    assert "<!doctype html>" in client.get("/").text
+    assert "<!doctype html>" in client.get("/trips/new").text
+    assert "console.log('ok')" in client.get("/assets/app.js").text
+    assert client.get("/api/health").json()["ok"] is True
+    assert client.get("/health").json()["ok"] is True
+

@@ -36,8 +36,9 @@ def require_role(*roles: Role):
 
 
 def set_session_cookie(response: Response, request: Request, token: str) -> None:
+    https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
     response.set_cookie(COOKIE, token, max_age=accounts.SESSION_DAYS * 86400, httponly=True,
-                        samesite="lax", secure=request.url.scheme == "https", path="/")
+                        samesite="lax", secure=https, path="/")
 
 
 def clear_session_cookie(response: Response) -> None:

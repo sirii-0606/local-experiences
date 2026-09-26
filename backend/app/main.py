@@ -4,10 +4,11 @@ Run: uvicorn app.main:app --reload   (interactive schema at /docs)
 """
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import get_args
 
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app import provider, store, weather
@@ -32,6 +33,31 @@ from app.seed import Seed, load_seed
 
 SEED = load_seed()  # curated, read-only; provider listings/pauses are overlaid per request
 app = FastAPI(title="Local & Experiences API")
+
+
+def _static_dir() -> Path | None:
+    if raw := os.environ.get("STATIC_DIR"):
+        d = Path(raw).resolve()
+        if (d / "index.html").is_file():
+            return d
+    return None
+
+
+@app.middleware("http")
+async def _prod_routing(request: Request, call_next):
+    """Strip /api so the built UI works without Vite's dev proxy, and serve STATIC_DIR when set."""
+    path = request.scope["path"]
+    if path == "/api" or path.startswith("/api/"):
+        request.scope["path"] = path[4:] or "/"
+        return await call_next(request)
+    dist = _static_dir()
+    if dist and request.method in ("GET", "HEAD") and not path.startswith(
+            ("/docs", "/redoc", "/openapi.json", "/health")):
+        target = (dist / path.lstrip("/")).resolve()
+        if target.is_relative_to(dist) and target.is_file():
+            return FileResponse(target)
+        return FileResponse(dist / "index.html")
+    return await call_next(request)
 
 
 def seed() -> Seed:

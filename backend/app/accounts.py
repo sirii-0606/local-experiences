@@ -36,7 +36,8 @@ SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 
 def _db(sql: str, args: tuple = ()) -> tuple[list[tuple], int | None]:
     """(rows, lastrowid). New tables live beside store.py's in the same SQLite file."""
-    with closing(sqlite3.connect(db_path())) as c:
+    with closing(sqlite3.connect(db_path(), timeout=10)) as c:
+        c.execute("pragma journal_mode=wal")
         c.executescript(SCHEMA)
         cur = c.execute(sql, args)
         rows = cur.fetchall()

@@ -55,7 +55,7 @@ cd ../frontend && npm install && npm run dev                            # web ap
 - Concept baseline: [`docs/ideation/`](docs/ideation/) (the original ideation document and a text copy)
 - Every design decision, with the numbers: [`docs/ideation/decisions.md`](docs/ideation/decisions.md)
 - MVP scope, success metrics, scenarios: [`docs/ideation/mvp-scope.md`](docs/ideation/mvp-scope.md)
-- API contract: [`docs/api.md`](docs/api.md) · Demo script: [`docs/demo.md`](docs/demo.md)
+- API contract: [`docs/api.md`](docs/api.md) · Demo script: [`docs/demo.md`](docs/demo.md) · AWS EC2 deploy & fast updates: [`docs/deploy-ec2.md`](docs/deploy-ec2.md)
 - Change history, each entry with "how to proceed next": [`docs/context/`](docs/context/)
 
 ## Stack

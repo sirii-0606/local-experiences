@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-80}:8000"
+    environment:
+      - DB_PATH=/data/local.db
+      - STATIC_DIR=/app/frontend/dist
+      - WEBSITE_V2=${WEBSITE_V2:-1}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SEED_ADMIN_TOKEN=${SEED_ADMIN_TOKEN:-}
+    volumes:
+      - le_data:/data
+    restart: unless-stopped
+
+volumes:
+  le_data:

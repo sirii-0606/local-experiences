@@ -1,0 +1,42 @@
+name: deploy-ec2
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy on EC2"
+        required: false
+        default: "main"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_PATH: ${{ secrets.EC2_PATH }}
+    steps:
+      - name: Check if EC2 secrets are configured
+        id: check
+        run: |
+          if [ -n "${EC2_HOST}" ] && [ -n "${EC2_SSH_KEY}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping auto-deploy: set EC2_HOST and EC2_SSH_KEY repo secrets to enable."
+          fi
+
+      - name: Deploy latest code to AWS EC2
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          TARGET_USER="${EC2_USER:-ubuntu}"
+          TARGET_PATH="${EC2_PATH:-~/local-experiences}"
+          TARGET_BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=accept-new \
+            "${TARGET_USER}@${EC2_HOST}" \
+            "cd ${TARGET_PATH} && ./scripts/ec2_update.sh ${TARGET_BRANCH}"
