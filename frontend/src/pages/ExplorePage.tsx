@@ -47,6 +47,8 @@ export default function ExplorePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [scheduleFullError, setScheduleFullError] = useState<{ title: string; min: number } | null>(null);
+  const [copiedSchedule, setCopiedSchedule] = useState(false);
 
   // Voyagenix-style Quick Planner State
   const [quickArea, setQuickArea] = useState("Hawa Mahal / Old City");
@@ -69,6 +71,7 @@ export default function ExplorePage() {
 
   const send = (msg: string) => run(async () => {
     setIsChatOpen(true);
+    setScheduleFullError(null);
     const res = await api.chat(msg, state, `${clock}:00`);
     let plan = res.plan;
     const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
@@ -89,6 +92,7 @@ export default function ExplorePage() {
   const handleQuickPlan = (e: React.FormEvent) => {
     e.preventDefault();
     setIsChatOpen(true);
+    setScheduleFullError(null);
     const prompt = `We're a ${quickGroup} near ${quickArea}, free ${quickWindow}, budget ₹${quickBudget}, looking for ${quickStyle}.`;
     send(prompt);
     const el = document.getElementById("engine-workspace");
@@ -97,25 +101,36 @@ export default function ExplorePage() {
 
   const triggerChapterPrompt = (promptText: string) => {
     setIsChatOpen(true);
+    setScheduleFullError(null);
     send(promptText);
     const el = document.getElementById("engine-workspace");
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
   const replan = (stops: Stop[], maxNew: number, add?: string) => run(async () => {
+    setScheduleFullError(null);
     const p = await api.plan(state!, { stops }, maxNew, add);
     setItinerary(p.itinerary);
     setProblems(p.problems);
   });
 
   const addToPlan = (r: Recommendation) => run(async () => {
-    const p = await api.plan(state!, itinerary, 0, r.experience_id);
-    setItinerary(p.itinerary);
-    setProblems(p.problems);
-    const f = await api.feedback(state!, r.experience_id, "accept", null, `${clock}:00`);
-    setState(f.state);
-    setRecs(f.recommendations);
-    setExcluded(f.excluded);
+    setScheduleFullError(null);
+    try {
+      const p = await api.plan(state!, itinerary, 0, r.experience_id);
+      setItinerary(p.itinerary);
+      setProblems(p.problems);
+      const f = await api.feedback(state!, r.experience_id, "accept", null, `${clock}:00`);
+      setState(f.state);
+      setRecs(f.recommendations);
+      setExcluded(f.excluded);
+    } catch (e) {
+      const errText = e instanceof Error ? e.message : String(e);
+      if (errText.includes("doesn't fit")) {
+        setScheduleFullError({ title: r.title, min: r.travel_min || 45 });
+      }
+      throw e;
+    }
   });
 
   const pass = (r: Recommendation, reason: string) => run(async () => {
@@ -540,6 +555,44 @@ export default function ExplorePage() {
                 {/* Recommended Now */}
                 <section className="panel">
                   <h2>Recommended Now <span className="count">{recs.length}</span></h2>
+                  
+                  {/* Schedule Full Alert Banner */}
+                  {scheduleFullError && (
+                    <div className="schedule-full-banner" role="alert">
+                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                        <span style={{ fontSize: "1.3rem" }}>⏳</span>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: "0 0 3px", color: "var(--ink)", fontSize: "0.95rem" }}>Schedule Currently Full</h4>
+                          <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--muted)", lineHeight: 1.45 }}>
+                            <strong>"{scheduleFullError.title}"</strong> cannot fit in your current time window ({hhmm(state.window_start)}–{hhmm(state.window_end)}). You can extend your hours or remove an existing stop to make room.
+                          </p>
+                          <div className="row" style={{ marginTop: "8px", gap: "6px" }}>
+                            <button
+                              type="button"
+                              className="secondary mini"
+                              onClick={() => {
+                                const currentEnd = new Date(state.window_end);
+                                currentEnd.setHours(currentEnd.getHours() + 2);
+                                const extendedIso = currentEnd.toISOString().slice(0, 16);
+                                applyState({ ...state, window_end: extendedIso });
+                                setScheduleFullError(null);
+                              }}
+                            >
+                              ➕ Extend Schedule by 2 Hours
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary mini"
+                              onClick={() => setScheduleFullError(null)}
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {recs.length === 0 && <p className="muted">Nothing fits these constraints. See "why not" below.</p>}
                   <ol className="recs">
                     {recs.map((r) => {
@@ -652,6 +705,47 @@ export default function ExplorePage() {
                     {problems.length > 0 && <ul className="problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>}
                     {problems.length === 0 && itinerary.stops.length > 0 && <p className="ok">✓ Every stop is reachable, open and within budget.</p>}
                     {planNote && <p className="note" role="status">{planNote}</p>}
+
+                    {/* Locked Itinerary Actions Card */}
+                    {liveStops.some((s) => s.locked) && (
+                      <div className="locked-confirmation-card">
+                        <div className="locked-badge-row">
+                          <span className="chip" style={{ background: "var(--marigold-gold)", color: "#140810", fontWeight: 700 }}>
+                            🔒 {liveStops.filter((s) => s.locked).length} Anchored Stop{liveStops.filter((s) => s.locked).length > 1 ? "s" : ""}
+                          </span>
+                          <span className="small muted" style={{ fontWeight: 600 }}>
+                            🛡️ Real-time weather &amp; delay guardian active
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)", lineHeight: 1.45 }}>
+                          Locked stops remain fixed. If rain or delays happen, only surrounding flexible gaps will be adapted.
+                        </p>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
+                          {liveStops.length > 0 && (
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(liveStops[0].lat + "," + liveStops[0].lon)}&destination=${encodeURIComponent(liveStops[liveStops.length - 1].lat + "," + liveStops[liveStops.length - 1].lon)}${liveStops.length > 2 ? `&waypoints=${liveStops.slice(1, -1).map((s) => encodeURIComponent(s.lat + "," + s.lon)).join("|")}` : ""}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="locked-action-btn"
+                            >
+                              🗺️ Open Google Maps Route ↗
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="secondary mini"
+                            onClick={() => {
+                              const textSummary = liveStops.map((s, i) => `${i + 1}. ${hhmm(s.start)}–${hhmm(s.end)}: ${s.title} (${s.cost_inr ? `₹${s.cost_inr}` : "Free"})`).join("\n");
+                              navigator.clipboard.writeText(`TrueLocal Jaipur Itinerary:\n${textSummary}`);
+                              setCopiedSchedule(true);
+                              setTimeout(() => setCopiedSchedule(false), 2500);
+                            }}
+                          >
+                            {copiedSchedule ? "✓ Copied!" : "📋 Copy Itinerary"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </section>
 
                   {/* Disruption Simulator */}
