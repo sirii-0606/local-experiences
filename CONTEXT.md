@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-12-m9-backend.md](docs/context/2026-09-26-12-m9-backend.md)_
+_Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-13-demo-guide.md](docs/context/2026-09-26-13-demo-guide.md)_
 
 ## Where we are
 - **The core (M0–M8) is on `main`.** Waiting to be merged, each stacked on the previous one: `feat/m9-weather` (live weather), then `feat/ui-polish` (evaluation-ready UI and a hardened `dev.py`), then `feat/m9-backend` (ratings as evidence, provider edit tokens and edits, booking stub, `/` redirecting to `/docs`). Fast-forwarding `main` to `feat/m9-backend` lands all three. The repo is https://github.com/sirii-0606/local-experiences. There is no branch protection, by team choice.
@@ -11,7 +11,7 @@ _Last updated: 2026-09-26 · latest entry: [docs/context/2026-09-26-12-m9-backen
 - **AI** (`backend/app/intent.py`): `claude_parse` (claude-opus-5) for intents and listing drafts, with offline rule parsers. It's verified offline only.
 - **Data:** a read-only JSON seed plus a SQLite overlay (listings, pauses, demand log, feedback). Aggregates only; location is never stored.
 - **Web app** (`frontend/`): the Traveler tab (chat, cards, feedback, learned chips, group editor, map, plan, disruptions + live forecast, "why not") and the Provider tab (onboarding, insights, pause).
-- **Tests/CI:** backend 89 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
+- **Tests/CI:** backend 90 pass (1 skipped: live LLM). The frontend builds. CI runs backend, frontend and the context check.
 
 ## Next steps
 0. **First evaluation:** fast-forward `main` to `feat/m9-backend`, then on the evaluation machine run `python scripts/dev.py --reset` and follow `docs/demo.md`.

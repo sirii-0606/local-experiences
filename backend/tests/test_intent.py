@@ -41,6 +41,19 @@ def test_to_state_builds_group_and_window():
     assert s.budget_inr == 600
 
 
+def test_whole_group_statements_replace_the_previous_group():
+    family = to_state(parse_rules("family of 4 with 2 kids, ₹2000", SEED), NOW, SEED)
+    solo = to_state(parse_rules("Solo, near Tripolia Bazaar, 12 to 3pm, ₹1000", SEED), NOW, SEED,
+                    family)
+    assert len(solo.group) == 1 and solo.group[0].age >= 16
+    couple = to_state(parse_rules("a couple, ₹3000", SEED), NOW, SEED, family)
+    assert len(couple.group) == 2 and all(t.age >= 16 for t in couple.group)
+    # adding people still builds on the previous group
+    with_parents = to_state(parse_rules("actually my parents are coming too", SEED), NOW, SEED,
+                            solo)
+    assert len(with_parents.group) == 3
+
+
 def test_to_state_refines_previous_state():
     base = to_state(parse_rules("family of 4 with 2 kids aged 6-year-old and 9-year-old, ₹2000",
                                 SEED), NOW, SEED)

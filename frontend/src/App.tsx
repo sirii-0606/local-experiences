@@ -16,7 +16,7 @@ const CHANGE_LABEL: Record<Change["action"], string> = {
 const EXAMPLES = [
   "We're a family of 4 with two kids near Hawa Mahal, free 4–6 pm, ₹1500 total, want local food and something cultural.",
   "Actually, something less crowded please",
-  "Solo, near Tripolia Bazaar, 10am to 2pm, ₹1200, hidden gems and craft workshops",
+  "Solo, near Tripolia Bazaar, 4 to 7pm, ₹1000, hidden gems and craft",
 ];
 const hhmm = (iso: string) => iso.slice(11, 16);
 const LIVE = (s: Stop) => s.status !== "replaced" && s.status !== "skipped";
@@ -134,6 +134,12 @@ export default function App() {
     setPlanNote(`Thanks! Your rating of ${s.title} now helps other travelers.`);
   });
 
+  // A different traveler / trip: nothing (group, locked stops, learned taste) carries over.
+  const newTrip = () => {
+    setMsgs([]); setState(null); setRecs([]); setExcluded({}); setItinerary({ stops: [] });
+    setProblems([]); setChanges(null); setForecastCheck(null); setPlanNote(""); setError("");
+  };
+
   const forget = (tag: string) => {
     const learned = { ...state!.learned };
     delete learned[tag];
@@ -190,7 +196,9 @@ export default function App() {
       {view === "provider" ? <ProviderView catalog={catalog} clock={clock} onChanged={loadCatalog} /> : <>
       <aside className="side">
         <section className="panel chat" aria-live="polite">
-          <h2>Tell us your situation</h2>
+          <h2 style={{ justifyContent: "space-between" }}>Tell us your situation
+            {state && <button type="button" className="secondary mini" onClick={newTrip} title="Start over as a different traveler">↺ New trip</button>}
+          </h2>
           <div className="msgs">
             {msgs.length === 0 && <p className="muted">Who's with you, where you are, how long you have, your budget and what you're in the mood for.</p>}
             {msgs.map((m, i) => <p key={i} className={`msg ${m.role}`}>{m.text}</p>)}

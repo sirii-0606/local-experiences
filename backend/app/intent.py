@@ -313,7 +313,10 @@ def to_state(p: ParsedRequest, now: datetime, seed: Seed,
         s["budget_inr"] = p.budget_inr
 
     if any(v is not None for v in (p.group_size, p.adults, p.children, p.seniors)) or p.child_ages:
-        prev = base.group if base else []
+        # "solo", "a couple", "family of 4" describe the WHOLE group: nobody carries over from
+        # before. "actually with my parents" / "with a kid" only adds to the previous group.
+        prev = [] if (p.group_size is not None or p.adults is not None) else (
+            base.group if base else [])
         children = p.children if p.children is not None else (
             len(p.child_ages) or sum(t.age < 16 for t in prev))
         seniors = p.seniors if p.seniors is not None else sum(t.age >= 65 for t in prev)
