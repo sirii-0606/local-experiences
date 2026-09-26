@@ -111,6 +111,9 @@ class TravelerState(BaseModel):
     max_distance_km: float | None = None
     avoid_crowds: bool = False
     novelty: float = Field(default=0.15, ge=0, le=1)  # appetite for hidden/local vs iconic
+    # Where you must be by window_end (hotel, station, next booking). None = no return trip.
+    end_lat: float | None = None
+    end_lon: float | None = None
 
 
 class Stop(BaseModel):
@@ -125,6 +128,7 @@ class Stop(BaseModel):
         "proposed"
     )
     locked: bool = False  # user-fixed: replanning must not touch it
+    cost_inr: int = 0  # for the whole group
 
 
 class Itinerary(BaseModel):

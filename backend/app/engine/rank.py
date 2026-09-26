@@ -3,6 +3,7 @@
 Feasibility first (feasibility.check), then a weighted utility, then an MMR pass for diversity.
 Explanations are built from the same factors as the score, never from a separate narrative.
 """
+from collections.abc import Collection
 from datetime import datetime
 from statistics import mean
 
@@ -26,6 +27,8 @@ class Recommendation(BaseModel):
     experience_id: str
     title: str
     score: float
+    lat: float
+    lon: float
     start: datetime
     end: datetime
     km: float
@@ -109,13 +112,18 @@ def _jaccard(a: set, b: set) -> float:
 
 
 def discover(
-    state: TravelerState, seed: Seed, k: int = 5
+    state: TravelerState, seed: Seed, k: int = 5, skip: Collection[str] = ()
 ) -> tuple[list[Recommendation], dict[str, list[str]]]:
-    """Top-k feasible, diverse recommendations, plus why every other experience was excluded."""
+    """Top-k feasible, diverse recommendations, plus why every other experience was excluded.
+
+    `skip`: experience ids not to consider at all (e.g. already in the itinerary).
+    """
     today = state.window_start.date()
     scored: list[tuple[Recommendation, set]] = []
     excluded: dict[str, list[str]] = {}
     for exp in seed.experiences.values():
+        if exp.id in skip:
+            continue
         fit = check(exp, state, seed)
         if not fit.ok:
             excluded[exp.id] = fit.reasons
@@ -126,8 +134,10 @@ def discover(
         f = _factors(exp, fit, state, seed, conf)
         score = sum(WEIGHTS[n] * f[n] for n in WEIGHTS) + state.novelty * f["novelty"]
         low = {a: exp.evidence.get(a) for a, c in confs.items() if c < LOW_CONFIDENCE}
+        place = seed.places[exp.place_id]
         rec = Recommendation(
             experience_id=exp.id, title=exp.title, score=round(score, 4),
+            lat=place.lat, lon=place.lon,
             start=fit.start, end=fit.end, km=fit.km, travel_min=fit.travel_min,
             cost_inr=fit.cost_inr, confidence=round(conf, 2), low_confidence=conf < LOW_CONFIDENCE,
             factors={n: round(v, 3) for n, v in f.items()},

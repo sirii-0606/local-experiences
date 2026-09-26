@@ -2,7 +2,7 @@
 
 An intelligent local discovery and experience platform. It answers *"What should I do next, given my situation?"* rather than *"What exists nearby?"*: it filters local experiences by what is actually feasible (time, budget, distance, hours, group, accessibility, existing itinerary), ranks them with reasons you can read, replans when something changes, and helps local providers reach travelers who genuinely fit.
 
-**Status:** M2 (feasibility + ranking engine). See [`docs/roadmap.md`](docs/roadmap.md) and [`CONTEXT.md`](CONTEXT.md).
+**Status:** M3 (itinerary engine). See [`docs/roadmap.md`](docs/roadmap.md) and [`CONTEXT.md`](CONTEXT.md).
 
 ## Docs
 - Concept baseline: [`docs/ideation/`](docs/ideation/) (original docx + text copy)

@@ -116,4 +116,11 @@ def check(exp: Experience, state: TravelerState, seed: Seed) -> Fit:
         fit.start, fit.end = start, start + timedelta(minutes=exp.duration_min)
         if fit.end > state.window_end:
             r.append(f"would end at {fit.end:%H:%M}, after your {state.window_end:%H:%M} cutoff")
+        elif state.end_lat is not None:
+            onward = travel_min(
+                km_between(place.lat, place.lon, state.end_lat, state.end_lon), state.mode
+            )
+            if fit.end + timedelta(minutes=onward) > state.window_end:
+                r.append(f"ends {fit.end:%H:%M}, leaving too little time for the {onward} min "
+                         f"to your next stop by {state.window_end:%H:%M}")
     return fit
