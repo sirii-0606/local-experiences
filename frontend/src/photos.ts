@@ -1,85 +1,99 @@
-// High-resolution curated Unsplash photography for Jaipur attractions and cultural experiences
+// Real photos of each place or of what the experience is, from Wikimedia Commons, each picked by
+// eye (the earlier stock photos showed e.g. the Taj Mahal for Amer Fort). Commons photos need
+// attribution: `getPhotoCredit` gives the author, licence and file page. Places from open data get
+// the photo Wikidata links to that exact place, via GET /photos (see `rememberPhotos`).
+// No photo = a category placeholder, never someone else's picture.
 
-export const EXPERIENCE_PHOTOS: Record<string, string> = {
-  "ex-city-palace": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80",
-  "ex-jantar-mantar": "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
-  "ex-albert-hall": "https://images.unsplash.com/photo-1597040663342-45b6af3d91a5?auto=format&fit=crop&w=800&q=80",
-  "ex-amer-fort": "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&q=80",
-  "ex-amer-light-show": "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80",
-  "ex-nahargarh-sunset": "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80",
-  "ex-galta-ji": "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=800&q=80",
-  "ex-galta-aarti": "https://images.unsplash.com/photo-1567157577867-05ccb1388e66?auto=format&fit=crop&w=800&q=80",
-  "ex-birla-mandir": "https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=800&q=80",
-  "ex-sisodia-garden": "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80",
-  "ex-old-city-walk": "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
-  "ex-street-food-walk": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  "ex-bazaar-evening-walk": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
-  "ex-chandpole-market": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
-  "ex-cooking-class": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80",
-  "ex-home-thali": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  "ex-pottery-workshop": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80",
-  "ex-pottery-studio-visit": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80",
-  "ex-block-print-workshop": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
-  "ex-dye-lanes-walk": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80",
-  "ex-pyaz-kachori": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
-  "ex-masala-chowk": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  "ex-johari-sweets": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
-  "ex-lassi": "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=800&q=80",
-  "ex-rooftop-dinner": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-  "ex-rooftop-chai": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=800&q=80",
-  "ex-ghazal-night": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-  "ex-puppet-show": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80",
-  "ex-puppet-making": "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80",
-  "ex-ghoomar-class": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80",
-  "ex-jkk-galleries": "https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&w=800&q=80",
-  "ex-jkk-folk-evening": "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80",
-  "ex-leopard-safari": "https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80",
-  "ex-balloon": "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?auto=format&fit=crop&w=800&q=80",
-  "ex-cycle-tour": "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80",
-  "ex-kite-making": "https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?auto=format&fit=crop&w=800&q=80",
-  "ex-rooftop-kites": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-  "ex-gem-cutting": "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80",
-  "ex-mehendi": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80",
-  "ex-bapu-bazaar": "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=800&q=80",
-  "ex-amer-lanes-walk": "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&q=80",
-  "ex-amer-haveli-lunch": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-  "ex-safa-tying": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80",
-  "ex-village-dinner": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  "ex-sunrise-yoga": "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=800&q=80",
-  "ex-chai-boardgames": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=800&q=80",
-  "ex-open-mic": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-  "ex-central-park-walk": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80",
-  "ex-rawat-kachori": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
-  "ex-lmb-thali": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  "ex-tapri-central": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=800&q=80",
-  "ex-gulab-chai": "https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=800&q=80",
-  "ex-samrat-breakfast": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
-  "ex-handi-dinner": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
-  "ex-1135-ad": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
-  "ex-pandit-pavbhaji": "https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80",
-  "ex-sahu-chai": "https://images.unsplash.com/photo-1577968897966-3d4325b36b61?auto=format&fit=crop&w=800&q=80",
-  "ex-sethi-bbq": "https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80",
-  "ex-anokhi-cafe": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80",
+export type Photo = { url: string; page: string; author: string; license: string };
+
+export const EXPERIENCE_PHOTOS: Record<string, Photo> = {
+  "ex-1135-ad": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Sheesh_Mahal%2C_Amer_Fort%2C_India.jpg/960px-Sheesh_Mahal%2C_Amer_Fort%2C_India.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Sheesh_Mahal,_Amer_Fort,_India.jpg", author: "Vyacheslav Argenberg", license: "CC BY 4.0" },
+  "ex-albert-hall": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Albert_Hall_%28_Jaipur_%29.jpg/960px-Albert_Hall_%28_Jaipur_%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Albert_Hall_(_Jaipur_).jpg", author: "Ajit Kumar Majhi", license: "CC BY-SA 4.0" },
+  "ex-amer-fort": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/20191219_Fort_Amber%2C_Amer%2C_Jaipur_0955_9481.jpg/960px-20191219_Fort_Amber%2C_Amer%2C_Jaipur_0955_9481.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:20191219_Fort_Amber,_Amer,_Jaipur_0955_9481.jpg", author: "Jakub Hałun", license: "CC BY-SA 4.0" },
+  "ex-amer-haveli-lunch": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Amer_Fort_or_Amber_Fort_-_Jaipur_6.jpg/960px-Amer_Fort_or_Amber_Fort_-_Jaipur_6.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Amer_Fort_or_Amber_Fort_-_Jaipur_6.jpg", author: "Virusism", license: "CC BY-SA 4.0" },
+  "ex-amer-light-show": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Amer_Fort_night_view.jpg/960px-Amer_Fort_night_view.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Amer_Fort_night_view.jpg", author: "SaiGoutham17", license: "CC BY-SA 4.0" },
+  "ex-balloon": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Gas_balloon_Jal_Mahotsav.jpg/960px-Gas_balloon_Jal_Mahotsav.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Gas_balloon_Jal_Mahotsav.jpg", author: "Sumitsurai", license: "CC BY-SA 3.0" },
+  "ex-bazaar-evening-walk": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/PXL_20260304_151856811.MP_Hawa_Mahal_Rd%2C_Badi_Choupad%2C_J.D.A._Market%2C_Pink_City%2C_Jaipur%2C_Rajasthan_302002_at_Night_08.jpg/960px-PXL_20260304_151856811.MP_Hawa_Mahal_Rd%2C_Badi_Choupad%2C_J.D.A._Market%2C_Pink_City%2C_Jaipur%2C_Rajasthan_302002_at_Night_08.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:PXL_20260304_151856811.MP_Hawa_Mahal_Rd,_Badi_Choupad,_J.D.A._Market,_Pink_City,_Jaipur,_Rajasthan_302002_at_Night_08.jpg", author: "Sourabh.biswas003", license: "CC BY-SA 4.0" },
+  "ex-birla-mandir": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Birla_Mandir_Jaipur_%282022-07%29.jpg/960px-Birla_Mandir_Jaipur_%282022-07%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Birla_Mandir_Jaipur_(2022-07).jpg", author: "Chainwit.", license: "CC BY-SA 4.0" },
+  "ex-central-park-walk": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Central_Park_of_Jaipur.jpg/960px-Central_Park_of_Jaipur.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Central_Park_of_Jaipur.jpg", author: "Akku09102004", license: "CC BY-SA 4.0" },
+  "ex-chai-boardgames": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Milk_Masala_Tea.jpg/960px-Milk_Masala_Tea.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Milk_Masala_Tea.jpg", author: "Gaurav Dhwaj Khadka", license: "CC BY-SA 4.0" },
+  "ex-chandpole-market": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Chandpole_gate.jpg/960px-Chandpole_gate.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Chandpole_gate.jpg", author: "Ameer P F", license: "CC BY-SA 4.0" },
+  "ex-city-palace": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Chandra_Mahal%2C_City_Palace%2C_Jaipur%2C_20191218_0951_9043.jpg/960px-Chandra_Mahal%2C_City_Palace%2C_Jaipur%2C_20191218_0951_9043.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Chandra_Mahal,_City_Palace,_Jaipur,_20191218_0951_9043.jpg", author: "Jakub Hałun", license: "CC BY-SA 4.0" },
+  "ex-cooking-class": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/%22Delectable_Dal_Baati_Churma%22.jpg/960px-%22Delectable_Dal_Baati_Churma%22.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:%22Delectable_Dal_Baati_Churma%22.jpg", author: "Mahi Tatavarty", license: "CC BY-SA 4.0" },
+  "ex-cycle-tour": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Jaipur_-_Pink_City_4.jpg/960px-Jaipur_-_Pink_City_4.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Jaipur_-_Pink_City_4.jpg", author: "Wolfgang Sauber", license: "CC BY-SA 4.0" },
+  "ex-dye-lanes-walk": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Block_prints_from_India_for_textiles_%281924%29_%2820392009261%29.jpg/960px-Block_prints_from_India_for_textiles_%281924%29_%2820392009261%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Block_prints_from_India_for_textiles_(1924)_(20392009261).jpg", author: "Lewis, A. B. (Albert Buell), 1867-", license: "No restrictions" },
+  "ex-galta-aarti": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Galta_Ji_Mandir_%2814-07-2022%29_img_02.jpg/960px-Galta_Ji_Mandir_%2814-07-2022%29_img_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Galta_Ji_Mandir_(14-07-2022)_img_02.jpg", author: "Chainwit.", license: "CC BY-SA 4.0" },
+  "ex-galta-ji": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Zanana_Kund_Aur_Galta_Ji_Ka_Mandir_-_edited.jpg/960px-Zanana_Kund_Aur_Galta_Ji_Ka_Mandir_-_edited.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Zanana_Kund_Aur_Galta_Ji_Ka_Mandir_-_edited.jpg", author: "Sharvarism", license: "CC BY-SA 4.0" },
+  "ex-gem-cutting": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/AlmandinInde.jpg/960px-AlmandinInde.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:AlmandinInde.jpg", author: "Didier Descouens", license: "CC BY-SA 4.0" },
+  "ex-ghazal-night": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Tabla_and_Harmonium_%285522207839%29.jpg/960px-Tabla_and_Harmonium_%285522207839%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Tabla_and_Harmonium_(5522207839).jpg", author: "Michael Coghlan from Adelaide, Australia", license: "CC BY-SA 2.0" },
+  "ex-ghoomar-class": { url: "https://upload.wikimedia.org/wikipedia/commons/7/71/Rajput_Woman_performing_Ghoomar_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled", page: "https://commons.wikimedia.org/wiki/File:Rajput_Woman_performing_Ghoomar_01.jpg", author: "TrendSPLEND", license: "CC BY-SA 4.0" },
+  "ex-gulab-chai": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Bun_Maska_Pav.jpg/960px-Bun_Maska_Pav.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Bun_Maska_Pav.jpg", author: "Sanket Oswal", license: "CC BY-SA 4.0" },
+  "ex-hawa-mahal": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/East_facade_Hawa_Mahal_Jaipur_from_ground_level_%28July_2022%29_-_img_01.jpg/960px-East_facade_Hawa_Mahal_Jaipur_from_ground_level_%28July_2022%29_-_img_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:East_facade_Hawa_Mahal_Jaipur_from_ground_level_(July_2022)_-_img_01.jpg", author: "Chainwit.", license: "CC BY-SA 4.0" },
+  "ex-home-thali": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Rajasthani_Thali_%2826444240868%29.jpg/960px-Rajasthani_Thali_%2826444240868%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Rajasthani_Thali_(26444240868).jpg", author: "Ashwin Kumar from Bangalore, India", license: "CC BY-SA 2.0" },
+  "ex-jantar-mantar": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Jantar_Mantar_at_Jaipur.jpg/960px-Jantar_Mantar_at_Jaipur.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Jantar_Mantar_at_Jaipur.jpg", author: "Knowledge Seeker", license: "Public domain" },
+  "ex-jkk-folk-evening": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Rajasthani_folk_musician_Mehruddin_Langa.jpg/960px-Rajasthani_folk_musician_Mehruddin_Langa.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Rajasthani_folk_musician_Mehruddin_Langa.jpg", author: "Wander-earth", license: "CC BY-SA 4.0" },
+  "ex-jkk-galleries": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/2022_July_-_JawaharKalaKendra_Jaipur_13.jpg/960px-2022_July_-_JawaharKalaKendra_Jaipur_13.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:2022_July_-_JawaharKalaKendra_Jaipur_13.jpg", author: "Chainwit.", license: "CC BY-SA 4.0" },
+  "ex-johari-sweets": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Rajasthani_Ghevar_Sweet_making_inside_a_street_stall_in_Kolkata%2C_India.jpg/960px-Rajasthani_Ghevar_Sweet_making_inside_a_street_stall_in_Kolkata%2C_India.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Rajasthani_Ghevar_Sweet_making_inside_a_street_stall_in_Kolkata,_India.jpg", author: "Salil Kumar Mukherjee", license: "CC BY-SA 4.0" },
+  "ex-kite-making": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Festival_of_kite_flying._-_panoramio.jpg/960px-Festival_of_kite_flying._-_panoramio.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Festival_of_kite_flying._-_panoramio.jpg", author: "pradeep kumar chatte…", license: "CC BY 3.0" },
+  "ex-lassi": { url: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Lassi_served_in_Kulhad.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled", page: "https://commons.wikimedia.org/wiki/File:Lassi_served_in_Kulhad.jpg", author: "Wannabefoodii", license: "CC BY-SA 4.0" },
+  "ex-leopard-safari": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Male_leopard_emerges_from_the_thickets.jpg/960px-Male_leopard_emerges_from_the_thickets.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Male_leopard_emerges_from_the_thickets.jpg", author: "Nagarjun", license: "CC BY 4.0" },
+  "ex-lmb-thali": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Rajasthani_Thali_at_Rajdhani.jpg/960px-Rajasthani_Thali_at_Rajdhani.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Rajasthani_Thali_at_Rajdhani.jpg", author: "Manasi nafde", license: "CC BY-SA 4.0" },
+  "ex-masala-chowk": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Food_vendor_in_Jaipur.jpg/960px-Food_vendor_in_Jaipur.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Food_vendor_in_Jaipur.jpg", author: "Dudva", license: "CC0" },
+  "ex-mehendi": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Full_hand_baby_shower_mehndi_design%2C_simple_and_elegant_design_mehndi_design.jpg/960px-Full_hand_baby_shower_mehndi_design%2C_simple_and_elegant_design_mehndi_design.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Full_hand_baby_shower_mehndi_design,_simple_and_elegant_design_mehndi_design.jpg", author: "Gayu Subramani", license: "CC BY 4.0" },
+  "ex-nahargarh-sunset": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Nahargarh_13.jpg/960px-Nahargarh_13.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Nahargarh_13.jpg", author: "Sanyam Bahga", license: "CC BY-SA 3.0" },
+  "ex-old-city-walk": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/India_-_Jaipur2_-_031_-_traffic_in_Jaipurs_pink-clad_Old_Town_%282178575969%29.jpg/960px-India_-_Jaipur2_-_031_-_traffic_in_Jaipurs_pink-clad_Old_Town_%282178575969%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:India_-_Jaipur2_-_031_-_traffic_in_Jaipurs_pink-clad_Old_Town_(2178575969).jpg", author: "McKay Savage from London, UK", license: "CC BY 2.0" },
+  "ex-open-mic": { url: "https://upload.wikimedia.org/wikipedia/commons/c/c6/Open_Mic_No_Name_Bar_Sausalito_CA_July_2008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled", page: "https://commons.wikimedia.org/wiki/File:Open_Mic_No_Name_Bar_Sausalito_CA_July_2008.jpg", author: "Tracy Ruggles from San Rafael, CA, USA", license: "CC BY-SA 2.0" },
+  "ex-pandit-pavbhaji": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Pav_Bhaji_at_Home.JPG/960px-Pav_Bhaji_at_Home.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Pav_Bhaji_at_Home.JPG", author: "Nundhaa", license: "CC BY-SA 4.0" },
+  "ex-patrika-gate": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Patrika_Gate_Jawahar_Circle_Jaipur_2022-07.jpg/960px-Patrika_Gate_Jawahar_Circle_Jaipur_2022-07.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Patrika_Gate_Jawahar_Circle_Jaipur_2022-07.jpg", author: "Chainwit.", license: "CC BY-SA 4.0" },
+  "ex-pottery-studio-visit": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Blue_pottery_pilgrim_flask.jpg/960px-Blue_pottery_pilgrim_flask.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Blue_pottery_pilgrim_flask.jpg", author: "Neek-Theri", license: "CC BY-SA 4.0" },
+  "ex-pottery-workshop": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Jaipur_Blue_Pottery_Vase_with_Raja-Rani_Design.jpg/960px-Jaipur_Blue_Pottery_Vase_with_Raja-Rani_Design.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Jaipur_Blue_Pottery_Vase_with_Raja-Rani_Design.jpg", author: "Neek-Theri", license: "CC BY-SA 4.0" },
+  "ex-puppet-making": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Traditional_Rajasthani_Puppets_%28Kathputli%29_Hanging_on_Golden_Fort_Wall.jpg/960px-Traditional_Rajasthani_Puppets_%28Kathputli%29_Hanging_on_Golden_Fort_Wall.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Traditional_Rajasthani_Puppets_(Kathputli)_Hanging_on_Golden_Fort_Wall.jpg", author: "Thepastsday", license: "CC BY 4.0" },
+  "ex-puppet-show": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Kathputli_%28Puppet_Dance%29_in_Rajasthan.jpg/960px-Kathputli_%28Puppet_Dance%29_in_Rajasthan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Kathputli_(Puppet_Dance)_in_Rajasthan.jpg", author: "Ktorrespr", license: "CC BY-SA 4.0" },
+  "ex-pyaz-kachori": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Rajasthani_Pyaz_ki_Kachori.JPG/960px-Rajasthani_Pyaz_ki_Kachori.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Rajasthani_Pyaz_ki_Kachori.JPG", author: "Mdsmds0", license: "CC BY-SA 4.0" },
+  "ex-rawat-kachori": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Kachori_MA23.jpg/960px-Kachori_MA23.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Kachori_MA23.jpg", author: "Rajeeb Dutta", license: "CC BY-SA 3.0" },
+  "ex-rooftop-chai": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Masala_Chiya.jpg/960px-Masala_Chiya.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Masala_Chiya.jpg", author: "Gaurav Dhwaj Khadka", license: "CC BY-SA 4.0" },
+  "ex-rooftop-dinner": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Hawa_Mahal_by_Saibal_Ghosh.jpg/960px-Hawa_Mahal_by_Saibal_Ghosh.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Hawa_Mahal_by_Saibal_Ghosh.jpg", author: "SaibalG", license: "CC BY-SA 4.0" },
+  "ex-rooftop-kites": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Festival_of_kite_flying._-_panoramio_%281%29.jpg/960px-Festival_of_kite_flying._-_panoramio_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Festival_of_kite_flying._-_panoramio_(1).jpg", author: "pradeep kumar chatte…", license: "CC BY 3.0" },
+  "ex-safa-tying": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Traditional_turban_of_Rajasthan.jpg/960px-Traditional_turban_of_Rajasthan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Traditional_turban_of_Rajasthan.jpg", author: "TheSlumPanda", license: "CC BY-SA 4.0" },
+  "ex-sahu-chai": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/India_-_Varanasi_chai_tea_-_1420.jpg/960px-India_-_Varanasi_chai_tea_-_1420.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:India_-_Varanasi_chai_tea_-_1420.jpg", author: "Jorge Royan", license: "CC BY-SA 3.0" },
+  "ex-samrat-breakfast": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Jalebi_6.jpg/960px-Jalebi_6.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Jalebi_6.jpg", author: "Gannu03", license: "CC BY-SA 4.0" },
+  "ex-sethi-bbq": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Tandoori_chicken_Indian.jpg/960px-Tandoori_chicken_Indian.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Tandoori_chicken_Indian.jpg", author: "pelican", license: "CC BY-SA 2.0" },
+  "ex-sisodia-garden": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Sisodia_Rani_Bagh%2C_Jaipur%2C_Rajasthan_%28DSCN4758%29.jpg/960px-Sisodia_Rani_Bagh%2C_Jaipur%2C_Rajasthan_%28DSCN4758%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Sisodia_Rani_Bagh,_Jaipur,_Rajasthan_(DSCN4758).jpg", author: "কুমুদ ঘোষ", license: "CC BY 4.0" },
+  "ex-street-food-walk": { url: "https://upload.wikimedia.org/wikipedia/commons/5/5f/Johari_Bazar.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled", page: "https://commons.wikimedia.org/wiki/File:Johari_Bazar.jpg", author: "Ramesh Lalwani", license: "CC BY 2.0" },
+  "ex-sunrise-yoga": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Jaipur_03-2016_39_Jal_Mahal_-_Water_Palace.jpg/960px-Jaipur_03-2016_39_Jal_Mahal_-_Water_Palace.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Jaipur_03-2016_39_Jal_Mahal_-_Water_Palace.jpg", author: "A.Savin", license: "FAL" },
+  "ex-tapri-central": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Kerala-style_Glass_of_Chai_%28Tea%29.jpg/960px-Kerala-style_Glass_of_Chai_%28Tea%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Kerala-style_Glass_of_Chai_(Tea).jpg", author: "Navaneethpp", license: "CC BY 4.0" },
+  "ex-village-dinner": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Chapati_making_at_the_Chokhi_Dhani_Resort_Panchkula_12.jpg/960px-Chapati_making_at_the_Chokhi_Dhani_Resort_Panchkula_12.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail", page: "https://commons.wikimedia.org/wiki/File:Chapati_making_at_the_Chokhi_Dhani_Resort_Panchkula_12.jpg", author: "Kritzolina", license: "CC BY-SA 4.0" },
 };
 
-export const CATEGORY_FALLBACK_PHOTOS: Record<string, string> = {
-  culture: "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80",
-  art: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
-  food: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
-  nature: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80",
-  learning: "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80",
-  shopping: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
-  wellness: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=800&q=80",
-  adventure: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?auto=format&fit=crop&w=800&q=80",
-  nightlife: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-  community: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80",
+const fetched: Record<string, Photo> = {}; // open-data places, filled from GET /photos
+
+export function rememberPhotos(photos: Record<string, Photo>): void {
+  Object.assign(fetched, photos);
+}
+
+const ICON: Record<string, string> = {
+  food: "🍛", culture: "🏛️", art: "🎨", learning: "📚", adventure: "🧗", shopping: "🛍️",
+  nightlife: "🌙", wellness: "🧘", community: "🤝", nature: "🌿",
 };
 
-// "" = no photo we can honestly show: callers draw a category placeholder instead. Open-data
-// places (ex-od-*) never borrow another place's photo.
+function placeholder(category?: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">` +
+    `<defs><pattern id="s" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">` +
+    `<rect width="28" height="28" fill="#faede6"/><rect width="14" height="28" fill="#f6e3db"/></pattern></defs>` +
+    `<rect width="640" height="400" fill="url(#s)"/>` +
+    `<text x="320" y="228" font-size="96" text-anchor="middle">${ICON[category ?? ""] ?? "📍"}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+export function getPhotoCredit(id: string): Photo | null {
+  return EXPERIENCE_PHOTOS[id] ?? fetched[id] ?? null;
+}
+
+export function hasPhoto(id: string): boolean {
+  return getPhotoCredit(id) !== null;
+}
+
+// Always a usable image URL: the real photo, else a placeholder for the category.
 export function getExperiencePhoto(id: string, category?: string): string {
-  if (EXPERIENCE_PHOTOS[id]) return EXPERIENCE_PHOTOS[id];
-  if (id.startsWith("ex-od-")) return "";
-  if (category && CATEGORY_FALLBACK_PHOTOS[category]) return CATEGORY_FALLBACK_PHOTOS[category];
-  return "";
+  return getPhotoCredit(id)?.url ?? placeholder(category);
 }

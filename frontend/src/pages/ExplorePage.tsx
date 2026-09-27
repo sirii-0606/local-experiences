@@ -21,7 +21,7 @@ import type {
   WeatherSummary,
 } from "../api";
 import { useClock } from "../clock";
-import { getExperiencePhoto } from "../photos";
+import { getExperiencePhoto, getPhotoCredit, rememberPhotos } from "../photos";
 
 const CAT_ICON: Record<string, string> = {
   food: "🍛",
@@ -54,6 +54,7 @@ export default function ExplorePage() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [excluded, setExcluded] = useState<Record<string, string[]>>({});
   const [itinerary, setItinerary] = useState<Itinerary>({ stops: [] });
+  const [suggested, setSuggested] = useState<Itinerary | null>(null); // the engine's plan, offered
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -119,80 +120,10 @@ export default function ExplorePage() {
   const [simResult, setSimResult] = useState<DigitalTwinResult | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
-  // Initial Load: Populate catalog, initial traveler state, recommendations and itinerary
+  // Load the catalog only. Nothing is recommended or planned until the traveler says where they
+  // are and what they'd like (no invented demo family, no plan they didn't make).
   useEffect(() => {
-    let active = true;
-    async function init() {
-      setBusy(true);
-      try {
-        const cat = await api.catalog();
-        if (!active) return;
-        setCatalog(cat);
-
-        // Build default initial state for Jaipur afternoon/evening
-        const dateStr = clock.split("T")[0] || "2026-09-26";
-        const initState: TravelerState = {
-          lat: 26.9239,
-          lon: 75.8267,
-          window_start: `${dateStr}T15:00:00`,
-          window_end: `${dateStr}T21:00:00`,
-          budget_inr: 3000,
-          group: [
-            { name: "Adult 1", age: 34, interests: ["heritage", "local-food"], accessibility: [] },
-            { name: "Adult 2", age: 32, interests: ["craft", "local-food"], accessibility: [] },
-            { name: "Child", age: 8, interests: ["heritage"], accessibility: [] },
-          ],
-          intents: ["heritage", "local-food", "craft"],
-          mode: "auto",
-          pace: "normal",
-          avoid_crowds: false,
-          indoor_only: false,
-          weather: "clear",
-          learned: {},
-          rejected: [],
-        };
-
-        const placesMap = new Map((cat?.places || []).map((p) => [p.id, p]));
-        let initialRecs: Recommendation[] = [];
-        let initialStops: Stop[] = [];
-
-        try {
-          const [discRes, planRes] = await Promise.all([
-            api.discover(initState),
-            api.plan(initState, { stops: [] }, 3),
-          ]);
-          if (discRes?.recommendations?.length) {
-            initialRecs = discRes.recommendations;
-          }
-          if (discRes?.excluded) {
-            setExcluded(discRes.excluded);
-          }
-          if (planRes?.itinerary?.stops?.length) {
-            initialStops = planRes.itinerary.stops;
-          }
-          if (planRes?.problems) {
-            setProblems(planRes.problems);
-          }
-        } catch (apiErr) {
-          console.warn("API discover/plan call error, populating fallback catalog:", apiErr);
-        }
-
-        // No fallbacks: if the engine finds nothing feasible, the page says so instead of
-        // inventing recommendations or plan stops.
-        if (!active) return;
-        setState(initState);
-        setRecs(initialRecs);
-        setItinerary({ stops: initialStops });
-      } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (active) setBusy(false);
-      }
-    }
-    init();
-    return () => {
-      active = false;
-    };
+    api.catalog().then(setCatalog).catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
   // Fetch Live Weather Meteorological Summary & Real-World Social Signals
@@ -469,6 +400,14 @@ export default function ExplorePage() {
   }, [allExperiences, searchQuery, selectedCategory, budgetLimit, placesMap, recs]);
   const recIds = useMemo(() => new Set(recs.map((r) => r.experience_id)), [recs]);
 
+  // Real photos for open-data places on screen (Wikidata's image of that exact place).
+  const [, setPhotoTick] = useState(0);
+  useEffect(() => {
+    const ids = filteredRecs.map((r) => r.experience_id).filter((id) => id.startsWith("ex-od-"));
+    if (!ids.length) return;
+    api.photos(ids).then((p) => { rememberPhotos(p); setPhotoTick((t) => t + 1); }).catch(() => {});
+  }, [filteredRecs]);
+
   // Actions
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -600,14 +539,20 @@ export default function ExplorePage() {
       setChatText("");
       const res = await api.chat(msgText, ownState ? state : null, `${clock}:00`, here?.lat, here?.lon);
       setOwnState(true);
-      let plan = res.plan;
-      const locked = itinerary.stops.filter((s) => s.locked && LIVE(s));
-      if (locked.length) plan = await api.plan(res.state, { stops: locked }, 3);
       setState(res.state);
       setRecs(res.recommendations);
       setExcluded(res.excluded);
-      setItinerary(plan.itinerary);
-      setProblems(plan.problems);
+      const mine = itinerary.stops.filter(LIVE);
+      if (mine.length) {
+        // re-check the traveler's own stops against the new situation; add nothing
+        const checked = await api.plan(res.state, { stops: mine }, 0);
+        setItinerary(checked.itinerary);
+        setProblems(checked.problems);
+        setSuggested(null);
+      } else {
+        setSuggested(res.plan.itinerary.stops.length ? res.plan.itinerary : null);
+        setProblems([]);
+      }
       const ctx = res.context ?? null;
       setChatCtx(ctx);
       if (ctx && ctx.location_source !== "default") setCatalog(await api.catalog(ctx.lat, ctx.lon));
@@ -787,12 +732,16 @@ export default function ExplorePage() {
               <span className="count-pill">{filteredRecs.length}</span>
             </div>
             {filteredRecs.length === 0 && !busy && (
-              <p className="explore-empty">Nothing here right now. Try another time, a bigger budget, or ask for something else.</p>
+              <p className="explore-empty">
+                {state ? "Nothing here right now. Try another time, a bigger budget, or ask for something else."
+                  : "Tell the planner where you are and what you'd like, and the places that fit will appear here."}
+              </p>
             )}
             <div className="spots-grid">
               {filteredRecs.map((r, i) => {
                 const exp = expMap.get(r.experience_id);
                 const photo = getExperiencePhoto(r.experience_id, exp?.category);
+                const credit = getPhotoCredit(r.experience_id);
                 const isPlanned = liveStops.some((s) => s.experience_id === r.experience_id);
                 const checked = recIds.has(r.experience_id);
                 const category = exp?.category || "culture";
@@ -806,9 +755,12 @@ export default function ExplorePage() {
                     onMouseEnter={() => setHighlightedExpId(r.experience_id)}
                     onMouseLeave={() => setHighlightedExpId(null)}>
                     <div className="spot-media">
-                      {photo ? <img src={photo} alt="" loading="lazy" />
-                        : <div className="spot-photo-placeholder" aria-hidden="true">{CAT_ICON[category] || "📍"}</div>}
+                      <img src={photo} alt="" loading="lazy" />
                       <span className="spot-no">{i + 1}</span>
+                      {credit && (
+                        <a className="spot-credit" href={credit.page} target="_blank" rel="noopener noreferrer"
+                          title={`Photo: ${credit.author} (${credit.license}), Wikimedia Commons`}>© Wikimedia</a>
+                      )}
                     </div>
                     <div className="spot-body">
                       <h4>{r.title}</h4>
@@ -877,11 +829,24 @@ export default function ExplorePage() {
             )}
 
             {liveStops.length === 0 ? (
-              <p className="explore-empty">
-                {recs.length === 0 && !busy
-                  ? "Nothing fits this time window right now. Try another time, a bigger budget or a different area."
-                  : "No stops yet. Add places from above, or ask the planner to build a plan."}
-              </p>
+              <div className="plan-empty">
+                {!state ? (
+                  <p>You haven't made a plan yet. Ask the planner above, then add places or let it build one for you.</p>
+                ) : suggested ? (
+                  <>
+                    <p>You haven't made a plan yet. Here's one that fits your time and budget:</p>
+                    <ol className="plan-suggest">
+                      {suggested.stops.map((s) => <li key={s.start + s.title}><b>{hhmm(s.start)}</b> {s.title}</li>)}
+                    </ol>
+                    <div className="row">
+                      <button type="button" className="mini" onClick={() => { setItinerary(suggested); setSuggested(null); }}>Use this plan</button>
+                      <span className="muted small">or add places yourself with "+ Add to plan".</span>
+                    </div>
+                  </>
+                ) : (
+                  <p>{recs.length ? "No plan yet. Add places with \"+ Add to plan\"." : "Nothing fits this time window right now. Try another time, a bigger budget or a different area."}</p>
+                )}
+              </div>
             ) : (
               <ol className="plan-list">
                 {liveStops.map((s, idx) => (

@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-05-host-page.md](docs/context/2026-09-27-05-host-page.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-photos-empty-plan.md](docs/context/2026-09-27-06-real-photos-empty-plan.md)_
 
 **TrueLocal** — "Local Experiences, Intelligently Planned". A context-aware local experience discovery and planning platform (hackathon). Baseline: `docs/ideation/`. Decisions: `docs/ideation/decisions.md`. API: `docs/api.md` + `docs/openapi.json`.
 
@@ -55,7 +55,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-05-host-page
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 153 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 154 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
 - Keys live in `.env` (gitignored): NVIDIA NIM (working, 0.3–30 s per call), OpenWeatherMap (used as the weather backup). `ADMIN_PASSWORD` there is under 8 characters, so no admin is created.
 - `main` on GitHub has everything: any-city, review verification, the new UI, live keys, and the teammate's trips/simulation work (`c1176b4`), merged 2026-09-27.
 - Teammate's rain/heat "convenience" scores default to 30–40% for places without a curated value (all open-data places) and are shown as a precise percentage: worth labelling as an estimate.

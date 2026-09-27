@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import type { ImpactZonePolygon, Recommendation, SocialSignal, Stop, TravelerState } from "./api";
-import { getExperiencePhoto } from "./photos";
+import { getExperiencePhoto, hasPhoto } from "./photos";
 
 const JAIPUR: L.LatLngTuple = [26.9239, 75.8267];
 
@@ -159,7 +159,7 @@ export default function MapView({
       .forEach((r, i) => {
         pts.push([r.lat, r.lon]);
         const isHigh = highlightedId === r.experience_id;
-        const photoUrl = getExperiencePhoto(r.experience_id);
+        const photoUrl = hasPhoto(r.experience_id) ? getExperiencePhoto(r.experience_id) : "";
         const marker = L.marker([r.lat, r.lon], {
           icon: pin(String(i + 1), "rec", isHigh),
           title: r.title,
@@ -202,7 +202,7 @@ export default function MapView({
       pts.push([s.lat, s.lon]);
       const isHigh = highlightedId === s.experience_id;
       const stopLabel = String.fromCharCode(65 + i);
-      const photoUrl = s.experience_id ? getExperiencePhoto(s.experience_id) : "";
+      const photoUrl = s.experience_id && hasPhoto(s.experience_id) ? getExperiencePhoto(s.experience_id) : "";
       const timeStr = s.start && String(s.start).includes("T") ? String(s.start).slice(11, 16) : String(s.start);
       const endStr = s.end && String(s.end).includes("T") ? String(s.end).slice(11, 16) : String(s.end);
 

@@ -313,6 +313,10 @@ export const api = {
     call<{ available: boolean; hour: WeatherHour | null; summary?: WeatherSummary }>(
       `/weather?at=${encodeURIComponent(at)}${lat === undefined || lon === undefined ? "" : `&lat=${lat}&lon=${lon}`}`,
     ),
+  photos: (ids: string[]) =>
+    call<Record<string, { url: string; page: string; author: string; license: string }>>(
+      `/photos?ids=${encodeURIComponent(ids.join(","))}`,
+    ),
   reviews: (experience_id: string) => call<ReviewReport>(`/reviews/${encodeURIComponent(experience_id)}`),
   postReview: (r: { experience_id: string; rating: number; text: string; booking_code?: string; at?: string }) =>
     call<{ review: ReviewCheck; report: ReviewReport }>("/reviews", r),

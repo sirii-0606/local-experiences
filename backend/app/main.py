@@ -203,6 +203,16 @@ def health() -> dict:
     return {"ok": True, "experiences": len(seed().experiences)}
 
 
+@app.get("/photos")
+def photos(ids: str) -> dict:
+    """Real photos of open-data places (`ex-od-Q…` / `ex-od-wp…` ids): the image Wikidata links to
+    that exact place, or its Wikipedia article's lead image, with author, licence and file page.
+    Places without one are simply absent."""
+    wanted = [i for i in ids.split(",") if re.fullmatch(r"ex-od-(?:Q|wp)\d+", i)][:100]
+    found = opendata.photos([i.removeprefix("ex-od-") for i in wanted])
+    return {f"ex-od-{q}": p for q, p in found.items()}
+
+
 @app.get("/catalog")
 def catalog(lat: float | None = None, lon: float | None = None) -> dict:
     """Everything the map and provider views need to render names and pins.

@@ -614,3 +614,113 @@ def next_open(exp: Experience, after: datetime, days: int = 7) -> datetime | Non
         if found := earliest_start(exp, max(after, day_start)):
             return found
     return None
+
+
+# ---------------------------------------------------------------- photos of open-data places
+
+
+def _meta_text(meta: dict, key: str) -> str:
+    return re.sub(r"<[^>]+>", "", meta.get(key, {}).get("value", "")).strip()
+
+
+def _commons_info(files: list[str]) -> dict[str, dict]:
+    """File name -> {url (640 px), page, author, license} for Commons images."""
+    raw = _get(
+        "https://commons.wikimedia.org/w/api.php?"
+        + urllib.parse.urlencode(
+            {
+                "action": "query",
+                "format": "json",
+                "formatversion": 2,
+                "prop": "imageinfo",
+                "titles": "|".join(f"File:{f}" for f in files),
+                "iiprop": "url|extmetadata",
+                "iiurlwidth": 640,
+            }
+        )
+    )
+    out = {}
+    for pg in raw.get("query", {}).get("pages", []):
+        ii = (pg.get("imageinfo") or [{}])[0]
+        if ii.get("thumburl"):
+            meta = ii.get("extmetadata", {})
+            out[pg["title"].removeprefix("File:")] = {
+                "url": ii["thumburl"],
+                "page": ii.get("descriptionurl", ""),
+                "author": _meta_text(meta, "Artist")[:80] or "Wikimedia Commons contributor",
+                "license": _meta_text(meta, "LicenseShortName"),
+            }
+    return out
+
+
+def _image_files(ids: list[str], get) -> dict[str, str]:
+    """id -> Commons file name: Wikidata's image of the place (P18) for Q ids, the article's lead
+    image for Wikipedia page ids (wp123, the fallback source)."""
+    files: dict[str, str] = {}
+    if qs := [i for i in ids if i.startswith("Q")]:
+        ents = get(
+            "https://www.wikidata.org/w/api.php?"
+            + urllib.parse.urlencode(
+                {
+                    "action": "wbgetentities",
+                    "format": "json",
+                    "ids": "|".join(qs),
+                    "props": "claims",
+                }
+            )
+        ).get("entities", {})
+        files |= {
+            q: e["claims"]["P18"][0]["mainsnak"]["datavalue"]["value"]
+            for q, e in ents.items()
+            if e.get("claims", {}).get("P18")
+        }
+    if wps := [i.removeprefix("wp") for i in ids if i.startswith("wp")]:
+        raw = get(
+            "https://en.wikipedia.org/w/api.php?"
+            + urllib.parse.urlencode(
+                {
+                    "action": "query",
+                    "format": "json",
+                    "formatversion": 2,
+                    "pageids": "|".join(wps),
+                    "prop": "pageimages",
+                    "piprop": "name",
+                }
+            )
+        )
+        files |= {
+            f"wp{pg['pageid']}": pg["pageimage"]
+            for pg in raw.get("query", {}).get("pages", [])
+            if pg.get("pageimage")
+        }
+    return {k: v.replace("_", " ") for k, v in files.items()}
+
+
+def photos(ids: list[str], fetch=None) -> dict[str, dict]:
+    """A real photo of each open-data place (Wikidata Q id or Wikipedia wp id), with its credit.
+    Only Commons images (so the licence and author are known). Cached 30 days, including
+    "no photo", so each place is looked up once."""
+    out, missing = {}, []
+    for q in dict.fromkeys(ids):
+        hit = store.cache_get(f"photo:{q}", 30)
+        if hit is None:
+            missing.append(q)
+        elif hit:
+            out[q] = hit
+    if not missing or (fetch is None and not live()):
+        return out
+    get = fetch or _get
+    for i in range(0, len(missing), 50):
+        chunk = missing[i : i + 50]
+        try:
+            files = _image_files(chunk, get)
+            info = _commons_info(sorted(set(files.values()))) if files and fetch is None else {}
+        except Exception as e:  # rate-limited or offline: try again next time
+            log.warning("photo lookup failed: %s", type(e).__name__)
+            continue
+        for q in chunk:
+            photo = info.get(files.get(q, ""))
+            store.cache_put(f"photo:{q}", photo or {})
+            if photo:
+                out[q] = photo
+    return out

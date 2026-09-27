@@ -25,6 +25,48 @@
         }
       }
     },
+    "/photos": {
+      "get": {
+        "summary": "Photos",
+        "description": "Real photos of open-data places (`ex-od-Q…` / `ex-od-wp…` ids): the image Wikidata links to\nthat exact place, or its Wikipedia article's lead image, with author, licence and file page.\nPlaces without one are simply absent.",
+        "operationId": "photos_photos_get",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Photos Photos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/catalog": {
       "get": {
         "summary": "Catalog",

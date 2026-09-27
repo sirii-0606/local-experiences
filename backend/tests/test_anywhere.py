@@ -410,3 +410,36 @@ def test_open_data_eateries_are_food_and_clubs_are_left_out():
     exp = next(iter(opendata.to_seed(items, date(2026, 9, 27)).experiences.values()))
     assert exp.category == "food" and "local-food" in exp.tags
     assert exp.evidence["availability"].source == "estimate"
+
+
+def test_open_data_photos_come_from_wikidata_and_are_cached():
+    calls = []
+
+    def fake(url):
+        calls.append(url)
+        return {
+            "entities": {
+                "Q1": {
+                    "claims": {"P18": [{"mainsnak": {"datavalue": {"value": "Shaniwar Wada.jpg"}}}]}
+                },
+                "Q2": {"claims": {}},
+            }
+        }
+
+    # the Commons step is skipped with an injected fetch; nothing is cached as a photo then
+    assert opendata.photos(["Q1", "Q2"], fetch=fake) == {}
+    assert len(calls) == 1 and "wbgetentities" in calls[0]
+    store.cache_put(
+        "photo:Q3",
+        {"url": "https://x/y.jpg", "page": "p", "author": "a", "license": "CC BY-SA 4.0"},
+    )
+    store.cache_put("photo:wp9", {})  # looked up before: no photo
+    r = TestClient(app).get("/photos", params={"ids": "ex-od-Q3,ex-od-wp9,ex-hawa-mahal,ex-od-bad"})
+    assert r.json() == {
+        "ex-od-Q3": {
+            "url": "https://x/y.jpg",
+            "page": "p",
+            "author": "a",
+            "license": "CC BY-SA 4.0",
+        }
+    }
