@@ -2276,3 +2276,14 @@ a.button.secondary { background: var(--panel); color: var(--ink); border: 1px so
 .request-form input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); color: var(--ink); }
 .request-form .row { display: flex; gap: 10px; }
 .request-form .row > label { flex: 1; }
+
+/* trip wizard: on the last step the Review + Save card replaces the ticket in the sticky column */
+.wizard-aside.reviewing .ticket { display: none; }
+.wizard-review { padding: 20px 22px; gap: 10px; }
+.wizard-review h3 { margin: 0; }
+.wizard-review .facts { font-size: 0.9rem; }
+@media (max-width: 900px) {
+  /* phone: postcard stays on top, Review + Save go after the must-sees */
+  .wizard-aside.reviewing { display: contents; }
+  .wizard-aside.reviewing .postcard { order: -1; }
+}

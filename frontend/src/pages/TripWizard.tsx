@@ -196,7 +196,7 @@ export default function TripWizard() {
       </ol>
 
       <div className="wizard">
-        <form className="panel form wizard-step" onSubmit={(e) => { e.preventDefault(); if (!issues.length) (step < 3 ? go(step + 1) : save()); }}>
+        <form id="trip-wizard" className="panel form wizard-step" onSubmit={(e) => { e.preventDefault(); if (!issues.length) (step < 3 ? go(step + 1) : save()); }}>
           <h2 className="display step-title">{ASK[step]}</h2>
 
           {step === 0 && <>
@@ -497,32 +497,23 @@ export default function TripWizard() {
                 </div>
               </div>
             )}
-            <h3>Review</h3>
-            <dl className="facts review">
-              <dt>Trip</dt><dd>{draft.title} <button type="button" className="icon mini" onClick={() => go(0)}>Edit</button></dd>
-              <dt>When</dt><dd>{dateRange(draft.start_date, draft.end_date)}, {draft.day_start}–{draft.day_end} each day</dd>
-              <dt>Budget</dt><dd>{inr(draft.budget_inr || 0)}{perDay > 0 && ` (≈ ${inr(perDay)} per person per day)`}</dd>
-              <dt>Stay</dt><dd>{STAYS.find(([v]) => v === draft.stay.type)![1]}{draft.stay.max_per_night_inr ? `, up to ${inr(draft.stay.max_per_night_inr)}/night` : ""}{draft.stay.area ? `, ${draft.stay.area}` : ""} <button type="button" className="icon mini" onClick={() => go(1)}>Edit</button></dd>
-              <dt>Weather</dt><dd>{draft.weather === "rain" ? "🌧 Monsoon Rain (35 mm/h)" : draft.weather === "heat" ? "🔥 Extreme Heatwave (43.8°C)" : "☀️ Pleasant Clear (29°C)"} <button type="button" className="icon mini" onClick={() => go(0)}>Edit</button></dd>
-              <dt>Who</dt><dd>{draft.travelers.map((t) => t.name || "?").join(", ")} <button type="button" className="icon mini" onClick={() => go(2)}>Edit</button></dd>
-              <dt>Must-sees</dt><dd>{draft.must_see.length ? draft.must_see.map((m) => titles.get(m) ?? m).join(" · ") : "None yet"}</dd>
-            </dl>
           </>}
 
-          {issues.length > 0 && <ul className="problems" role="alert">{issues.map((p) => <li key={p}>{p}</li>)}</ul>}
-          {error && <p className="error" role="alert">{error}</p>}
-          <div className="wizard-nav">
-            {step > 0 ? <button type="button" className="secondary" onClick={() => go(step - 1)}>Back</button> : <Link to="/trips" className="muted">Cancel</Link>}
-            <span className="row">
-              {editing && step < 3 && <button type="button" className="secondary" disabled={busy || issues.length > 0} onClick={save}>Save changes</button>}
-              {step < 3
-                ? <button disabled={issues.length > 0}>Next: {STEPS[step + 1].toLowerCase()}</button>
-                : <button disabled={busy}>{busy ? "Saving…" : editing ? "Save changes" : "Save trip"}</button>}
-            </span>
-          </div>
+          {/* on the last step, Review + Save sit in the sticky side column instead (no scrolling past the must-sees) */}
+          {step < 3 && <>
+            {issues.length > 0 && <ul className="problems" role="alert">{issues.map((p) => <li key={p}>{p}</li>)}</ul>}
+            {error && <p className="error" role="alert">{error}</p>}
+            <div className="wizard-nav">
+              {step > 0 ? <button type="button" className="secondary" onClick={() => go(step - 1)}>Back</button> : <Link to="/trips" className="muted">Cancel</Link>}
+              <span className="row">
+                {editing && <button type="button" className="secondary" disabled={busy || issues.length > 0} onClick={save}>Save changes</button>}
+                <button disabled={issues.length > 0}>Next: {STEPS[step + 1].toLowerCase()}</button>
+              </span>
+            </div>
+          </>}
         </form>
 
-        <aside className="wizard-aside">
+        <aside className={`wizard-aside ${step === 3 ? "reviewing" : ""}`}>
           <Postcard t={draft} dye={editing ? Number(id) : 0} big />
           <div className="ticket panel">
             <h3 className="display">{draft.title || "Your trip"}</h3>
@@ -536,6 +527,26 @@ export default function TripWizard() {
             </dl>
             <p className="muted small">After saving: a shortlist of what fits your days, then stays and a day-by-day plan.</p>
           </div>
+          {step === 3 && (
+            <div className="panel form wizard-review">
+              <h3>Review</h3>
+              <dl className="facts review">
+                <dt>Trip</dt><dd>{draft.title} <button type="button" className="icon mini" onClick={() => go(0)}>Edit</button></dd>
+                <dt>When</dt><dd>{dateRange(draft.start_date, draft.end_date)}, {draft.day_start}–{draft.day_end} each day</dd>
+                <dt>Budget</dt><dd>{inr(draft.budget_inr || 0)}{perDay > 0 && ` (≈ ${inr(perDay)} per person per day)`}</dd>
+                <dt>Stay</dt><dd>{STAYS.find(([v]) => v === draft.stay.type)![1]}{draft.stay.max_per_night_inr ? `, up to ${inr(draft.stay.max_per_night_inr)}/night` : ""}{draft.stay.area ? `, ${draft.stay.area}` : ""} <button type="button" className="icon mini" onClick={() => go(1)}>Edit</button></dd>
+                <dt>Weather</dt><dd>{draft.weather === "rain" ? "🌧 Monsoon Rain (35 mm/h)" : draft.weather === "heat" ? "🔥 Extreme Heatwave (43.8°C)" : "☀️ Pleasant Clear (29°C)"} <button type="button" className="icon mini" onClick={() => go(0)}>Edit</button></dd>
+                <dt>Who</dt><dd>{draft.travelers.map((t) => t.name || "?").join(", ")} <button type="button" className="icon mini" onClick={() => go(2)}>Edit</button></dd>
+                <dt>Must-sees</dt><dd>{draft.must_see.length ? draft.must_see.map((m) => titles.get(m) ?? m).join(" · ") : "None yet"}</dd>
+              </dl>
+              {issues.length > 0 && <ul className="problems" role="alert">{issues.map((p) => <li key={p}>{p}</li>)}</ul>}
+              {error && <p className="error" role="alert">{error}</p>}
+              <div className="wizard-nav">
+                <button type="button" className="secondary" onClick={() => go(step - 1)}>Back</button>
+                <button form="trip-wizard" disabled={busy}>{busy ? "Saving…" : editing ? "Save changes" : "Save trip"}</button>
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </section>
