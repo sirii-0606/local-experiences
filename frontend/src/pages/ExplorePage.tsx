@@ -71,7 +71,8 @@ export default function ExplorePage() {
   const [highlightedExpId, setHighlightedExpId] = useState<string | null>(null);
 
   // Chat Drawer State
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showThread, setShowThread] = useState(false); // the whole conversation, not just the last reply
+  const [moreFilters, setMoreFilters] = useState(false);
   const [chatText, setChatText] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
 
@@ -223,7 +224,6 @@ export default function ExplorePage() {
     const q = params.get("q");
     if (!q || !state || askedFromUrl.current) return;
     askedFromUrl.current = true;
-    setIsChatOpen(true);
     sendChat(q);
     params.delete("q");
     setParams(params, { replace: true });
@@ -655,271 +655,167 @@ export default function ExplorePage() {
     return a + 45;
   }, 0);
 
+  const lastBot = [...msgs].reverse().find((m) => m.role === "bot");
+  const lastYou = [...msgs].reverse().find((m) => m.role === "user");
+  const heavyWeather = state?.weather === "rain" || state?.weather === "heat";
+
   return (
-    <div className="explore-dashboard-root">
+    <div className="explore">
       <div className={`busy-bar ${busy ? "on" : ""}`} aria-hidden="true" />
+      {error && <p className="error explore-error" role="alert">{error}</p>}
 
-      {/* 3-COLUMN MAIN DASHBOARD GRID (Matches Exact Blueprint) */}
-      <div className="dashboard-grid">
-        {/* =========================================================================
-            COLUMN 1: FILTERS SIDEPANEL
-        ========================================================================== */}
-        <aside className="filters-sidepanel">
-          <div className="panel-header-badge">
-            <span style={{ fontSize: "1.1rem" }}>🎛️</span>
-            <h3>Explore Filters</h3>
-          </div>
-
-          {/* Quick Categories */}
-          <div className="filter-group">
-            <label className="filter-label">Experience Categories</label>
-            <div className="category-chips-grid">
-              {[
-                { id: "all", label: "All Spots", icon: "✨" },
-                { id: "food", label: "Local Food", icon: "🍛" },
-                { id: "culture", label: "Heritage", icon: "🏛️" },
-                { id: "craft", label: "Crafts", icon: "🎨" },
-                { id: "hidden-gem", label: "Hidden Gems", icon: "💎" },
-                { id: "sunset", label: "Sunset & Views", icon: "🌅" },
-                { id: "shopping", label: "Markets", icon: "🛍️" },
-                { id: "nature", label: "Nature", icon: "🌿" },
-              ].map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`filter-chip ${selectedCategory === c.id ? "active" : ""}`}
-                  onClick={() => setSelectedCategory(c.id)}
-                >
-                  <span className="chip-icon">{c.icon}</span>
-                  <span className="chip-text">{c.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Time Window */}
-          <div className="filter-group">
-            <label className="filter-label">Time Window</label>
-            <div className="time-chips-grid">
-              {[
-                { id: "morning", title: "Morning", hours: "8am–1pm", icon: "🌅" },
-                { id: "afternoon", title: "Afternoon", hours: "1pm–5pm", icon: "☀️" },
-                { id: "evening", title: "Evening", hours: "4pm–9pm", icon: "🌇" },
-                { id: "night", title: "Night", hours: "7pm–11pm", icon: "🌙" },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`time-chip ${timeSlot === t.id ? "active" : ""}`}
-                  onClick={() => handleTimeSlotChange(t.id as any)}
-                >
-                  <div className="chip-header-line">
-                    <span className="chip-icon">{t.icon}</span>
-                    <span className="chip-title">{t.title}</span>
-                  </div>
-                  <span className="chip-sub">{t.hours}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Group & Ages */}
-          <div className="filter-group">
-            <label className="filter-label">Traveler Group</label>
-            <div className="group-chips-grid">
-              {[
-                { id: "solo", title: "Solo", sub: "1 Person", icon: "👤" },
-                { id: "couple", title: "Couple", sub: "2 Adults", icon: "👥" },
-                { id: "family", title: "Family", sub: "With Kids", icon: "👨‍👩‍👧‍👦" },
-                { id: "friends", title: "Friends", sub: "3+ Group", icon: "🎒" },
-              ].map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  className={`group-chip ${groupType === g.id ? "active" : ""}`}
-                  onClick={() => handleGroupTypeChange(g.id as any)}
-                >
-                  <div className="chip-header-line">
-                    <span className="chip-icon">{g.icon}</span>
-                    <span className="chip-title">{g.title}</span>
-                  </div>
-                  <span className="chip-sub">{g.sub}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Budget Limit Slider */}
-          <div className="filter-group">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label className="filter-label" style={{ margin: 0 }}>Budget Limit</label>
-              <span className="budget-val">₹{budgetLimit}</span>
-            </div>
-            <input
-              type="range"
-              min="500"
-              max="6000"
-              step="250"
-              value={budgetLimit}
-              onChange={(e) => setBudgetLimit(Number(e.target.value))}
-              className="budget-slider"
-            />
-          </div>
-
-          {/* Pacing Speed */}
-          <div className="filter-group">
-            <label className="filter-label">Itinerary Pacing</label>
-            <div className="pacing-select-grid">
-              {[
-                { id: "relaxed", label: "☕ Relaxed", desc: "Unhurried & tea breaks" },
-                { id: "balanced", label: "⚖️ Balanced", desc: "Curated highlights" },
-                { id: "fast", label: "⚡ Fast-Paced", desc: "Cover all landmarks" },
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`pacing-option ${pacing === p.id ? "active" : ""}`}
-                  onClick={() => handlePacingChange(p.id as any)}
-                >
-                  <div style={{ fontWeight: 800 }}>{p.label}</div>
-                  <div style={{ fontSize: "0.68rem", opacity: 0.85, marginTop: "1px" }}>{p.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Action Hub: Digital Twin Studio, Social Pulse, AI Assistant */}
-          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingTop: "12px" }}>
-            <button
-              type="button"
-              className="ai-assistant-btn"
-              style={{ background: "linear-gradient(135deg, #1b4332, #2d6a4f)", boxShadow: "0 4px 14px rgba(27, 67, 50, 0.35)" }}
-              onClick={() => {
-                setIsSimulationOpen(true);
-                if (!simResult) triggerSimulation();
-              }}
-            >
-              <span>🌐</span>
-              <span>Digital Twin What-If Studio</span>
-            </button>
-
-            <button
-              type="button"
-              className="ai-assistant-btn"
-              style={{ background: "linear-gradient(135deg, #263388, #3b4cca)", boxShadow: "0 4px 14px rgba(38, 51, 136, 0.35)" }}
-              onClick={() => setIsSocialOpen(true)}
-            >
-              <span>📡</span>
-              <span>Social Signals Radar ({socialSignals.length})</span>
-            </button>
-
-            <button
-              type="button"
-              className="ai-assistant-btn"
-              onClick={() => setIsChatOpen(!isChatOpen)}
-            >
-              <span>✨</span>
-              <span>{isChatOpen ? "Close AI Assistant" : "Ask AI Assistant"}</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* =========================================================================
-            COLUMN 2: CENTER (SEARCH + RECOMMENDED SPOTS + DAY PLAN TIMELINE)
-        ========================================================================== */}
-        <div className="center-content-column">
-          {/* Top Search Bar */}
-          <div className="search-bar-container">
-            <div className="search-input-wrapper">
-              <span className="search-icon">🔍</span>
+      <div className="explore-layout">
+        <div className="explore-main">
+          {/* 1. Ask: the one place to say where you are and what you'd like */}
+          <section className="ask-card" aria-label="Ask the planner">
+            <h2 className="ask-title">What would you like to do?</h2>
+            {lastYou && <p className="ask-you">You: {lastYou.text}</p>}
+            {lastBot && <div className="ask-reply">{lastBot.text}</div>}
+            {msgs.length > 2 && (
+              <button type="button" className="link-btn" onClick={() => setShowThread(!showThread)}>
+                {showThread ? "Hide conversation" : `Show whole conversation (${msgs.length})`}
+              </button>
+            )}
+            {showThread && (
+              <div className="ask-thread">
+                {msgs.map((m, idx) => <div key={idx} className={`chat-msg ${m.role}`}>{m.text}</div>)}
+              </div>
+            )}
+            <form className="ask-row" onSubmit={(e) => { e.preventDefault(); sendChat(chatText); }}>
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search places, food walks, workshops, viewpoints..."
-                className="main-search-input"
+                value={chatText}
+                onChange={(e) => setChatText(e.target.value)}
+                placeholder="e.g. I'm in Pune with my parents, it's 6 pm, we love history"
+                className="ask-input"
+                aria-label="Where are you, and what would you like to do?"
               />
-              {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="clear-search-btn">
-                  ✕
-                </button>
-              )}
-            </div>
+              <button type="button" className={`ask-loc ${here ? "on" : ""}`} onClick={shareLocation}
+                title={here ? "Using your location" : "Plan around where you are"} aria-label="Use my location">
+                📍
+              </button>
+              <button type="submit" className="ask-send" disabled={busy || !chatText.trim()}>
+                {busy ? "Thinking…" : "Ask"}
+              </button>
+            </form>
+            {!msgs.length && (
+              <div className="ask-examples">
+                {["It's 6 pm, I'm with my family, we love history", "4 hours before my train, a beach with a view", "A quick bite nearby"].map((ex) => (
+                  <button key={ex} type="button" className="chip" onClick={() => sendChat(ex)}>{ex}</button>
+                ))}
+              </div>
+            )}
+          </section>
 
-            {/* Quick Keyword Pills */}
-            <div className="quick-keyword-pills">
-              {["Heritage", "Street food", "Sunset", "Workshop", "Museum"].map((kw) => (
-                <button
-                  key={kw}
-                  type="button"
-                  onClick={() => setSearchQuery(kw)}
-                  className="kw-pill"
-                >
-                  {kw}
+          {/* 2. What the planner took into account */}
+          {chatCtx ? <ContextStrip ctx={chatCtx} /> : (
+            <p className="explore-hint">Showing the demo city. Ask above, or tap 📍 to plan around where you are.</p>
+          )}
+
+          {/* 3. Filters: one calm row; the rest on demand */}
+          <div className="filter-bar">
+            <div className="filter-chips" role="group" aria-label="Category">
+              {[
+                { id: "all", label: "All" },
+                { id: "food", label: "🍛 Food" },
+                { id: "culture", label: "🏛️ Heritage" },
+                { id: "craft", label: "🎨 Crafts" },
+                { id: "hidden-gem", label: "💎 Hidden gems" },
+                { id: "sunset", label: "🌅 Views" },
+                { id: "shopping", label: "🛍️ Markets" },
+                { id: "nature", label: "🌿 Nature" },
+              ].map((c) => (
+                <button key={c.id} type="button" className={`chip ${selectedCategory === c.id ? "on" : ""}`}
+                  aria-pressed={selectedCategory === c.id} onClick={() => setSelectedCategory(c.id)}>
+                  {c.label}
                 </button>
               ))}
             </div>
+            <div className="filter-tools">
+              <input type="search" className="filter-search" value={searchQuery} placeholder="Search…"
+                aria-label="Search places" onChange={(e) => setSearchQuery(e.target.value)} />
+              <button type="button" className={`secondary mini ${moreFilters ? "on" : ""}`} aria-expanded={moreFilters}
+                onClick={() => setMoreFilters(!moreFilters)}>
+                {moreFilters ? "Fewer filters" : "More filters"}
+              </button>
+            </div>
           </div>
 
-          {/* Where you are and what the planner took into account (from the last message) */}
-          {chatCtx ? <ContextStrip ctx={chatCtx} /> : (
-            <div className="ctx-strip muted small">
-              Showing the demo city. Ask the assistant, e.g. “I'm in Pune, it's 6 pm, we love history”, or share your location to plan anywhere.
+          {moreFilters && (
+            <div className="more-filters">
+              <label>Time
+                <select value={timeSlot} onChange={(e) => handleTimeSlotChange(e.target.value as any)}>
+                  <option value="morning">Morning (8–1)</option>
+                  <option value="afternoon">Afternoon (1–5)</option>
+                  <option value="evening">Evening (4–9)</option>
+                  <option value="night">Night (7–11)</option>
+                </select>
+              </label>
+              <label>Who
+                <select value={groupType} onChange={(e) => handleGroupTypeChange(e.target.value as any)}>
+                  <option value="solo">Solo</option>
+                  <option value="couple">Couple</option>
+                  <option value="family">Family with kids</option>
+                  <option value="friends">Friends</option>
+                </select>
+              </label>
+              <label>Pace
+                <select value={pacing} onChange={(e) => handlePacingChange(e.target.value as any)}>
+                  <option value="relaxed">Relaxed</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="fast">Packed</option>
+                </select>
+              </label>
+              <label>Getting around
+                <select value={transportMode} onChange={(e) => handleTransportChange(e.target.value as TransportMode)}>
+                  <option value="auto">Auto</option>
+                  <option value="cab">Cab</option>
+                  <option value="walk">Walk</option>
+                </select>
+              </label>
+              <label className="more-budget">Max price per place <b>₹{budgetLimit}{budgetLimit >= 6000 ? "+" : ""}</b>
+                <input type="range" min="500" max="6000" step="250" value={budgetLimit}
+                  onChange={(e) => setBudgetLimit(Number(e.target.value))} />
+              </label>
             </div>
           )}
 
-          {/* Middle: Recommended Spots List */}
-          <section className="recommended-section">
-            <div className="section-header-row">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "var(--ink)" }}>
-                  Recommended Spots &amp; Experiences
-                </h3>
-                <span className="count-pill">{filteredRecs.length} {searchQuery.trim() || selectedCategory !== "all" ? "found" : "that fit now"}</span>
-              </div>
-              <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                Hover a card to view route on map
-              </span>
+          {/* 4. Places that fit */}
+          <section className="explore-section">
+            <div className="section-head">
+              <h3>{searchQuery.trim() || selectedCategory !== "all" ? "Places found" : "Places that fit now"}</h3>
+              <span className="count-pill">{filteredRecs.length}</span>
             </div>
-
-            <div className="spots-cards-grid">
+            {filteredRecs.length === 0 && !busy && (
+              <p className="explore-empty">Nothing here right now. Try another time, a bigger budget, or ask for something else.</p>
+            )}
+            <div className="spots-grid">
               {filteredRecs.map((r, i) => {
                 const exp = expMap.get(r.experience_id);
                 const photo = getExperiencePhoto(r.experience_id, exp?.category);
                 const isPlanned = liveStops.some((s) => s.experience_id === r.experience_id);
-                const isHovered = highlightedExpId === r.experience_id;
+                const checked = recIds.has(r.experience_id);
                 const category = exp?.category || "culture";
-                const reasonText =
-                  r.reasons && r.reasons.length > 0
-                    ? r.reasons.join(" • ")
-                    : exp?.description || "";
+                const short = r.reasons.filter((x) => !x.startsWith("⚠")).slice(0, 2).join(" · ");
                 const rating: number | null = exp?.rating ?? null;
-
+                // only a real, curated comfort value, and only when the weather makes it matter
+                const comfort = state?.weather === "rain" ? exp?.outdoor_convenience_rain : state?.weather === "heat" ? exp?.outdoor_convenience_heat : undefined;
                 return (
-                  <div
-                    key={r.experience_id}
-                    className={`spot-card ${isHovered ? "hovered" : ""} ${isPlanned ? "planned" : ""}`}
+                  <article key={r.experience_id}
+                    className={`spot ${highlightedExpId === r.experience_id ? "hovered" : ""} ${isPlanned ? "planned" : ""}`}
                     onMouseEnter={() => setHighlightedExpId(r.experience_id)}
-                    onMouseLeave={() => setHighlightedExpId(null)}
-                  >
-                    <div className="spot-card-media">
-                      {photo ? <img src={photo} alt={r.title} loading="lazy" />
+                    onMouseLeave={() => setHighlightedExpId(null)}>
+                    <div className="spot-media">
+                      {photo ? <img src={photo} alt="" loading="lazy" />
                         : <div className="spot-photo-placeholder" aria-hidden="true">{CAT_ICON[category] || "📍"}</div>}
-                      <span className="spot-number-badge">{i + 1}</span>
-                      <span className="spot-cat-badge">
-                        {CAT_ICON[category] || "🏛️"} {category}
-                      </span>
+                      <span className="spot-no">{i + 1}</span>
                     </div>
-
-                    <div className="spot-card-body">
-                      <h4 className="spot-title">{r.title}</h4>
-                      <p className="spot-reason">
-                        {recIds.has(r.experience_id) ? reasonText
-                          : "Not checked against your time and budget yet. Add it and we'll say if it fits."}
-                      </p>
-                      {recIds.has(r.experience_id) && r.reasons.length > 0 && (
+                    <div className="spot-body">
+                      <h4>{r.title}</h4>
+                      <p className="spot-why">{checked ? short || exp?.description : "Not checked against your time and budget yet."}</p>
+                      {checked && r.reasons.length > 0 && (
                         <>
-                          <button type="button" className="why-btn" aria-expanded={whyOpen === r.experience_id}
+                          <button type="button" className="link-btn" aria-expanded={whyOpen === r.experience_id}
                             onClick={() => setWhyOpen(whyOpen === r.experience_id ? null : r.experience_id)}>
                             {whyOpen === r.experience_id ? "Hide why" : "Why this?"}
                           </button>
@@ -928,70 +824,27 @@ export default function ExplorePage() {
                           )}
                         </>
                       )}
-
-                      <div className="spot-meta-row">
-                        <span className="spot-price">₹{r.cost_inr || "Free"}</span>
-                        <span className="spot-time">⏱ {r.travel_min || 45} mins</span>
-                        <button type="button" className="spot-rating spot-reviews-btn" onClick={() => setReviewsFor({ id: r.experience_id, title: r.title })}
-                          title="Read verified reviews">⭐ {rating !== null ? rating.toFixed(1) : "Reviews"}</button>
-                      </div>
-
-                      {/* Outdoor Convenience Values for Heat & Rain */}
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", margin: "6px 0 8px", fontSize: "0.72rem", fontWeight: 700 }}>
-                        <span
-                          style={{
-                            padding: "2px 7px",
-                            borderRadius: "10px",
-                            background: (exp?.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (exp?.outdoor_convenience_heat ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(224, 122, 95, 0.15)",
-                            color: (exp?.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "#1b4332" : (exp?.outdoor_convenience_heat ?? 0.5) < 0.35 ? "#ba181b" : "#8d3a1b",
-                            border: "1px solid currentColor",
-                          }}
-                          title={`Outdoor convenience in heat: ${Math.round((exp?.outdoor_convenience_heat ?? 0.5) * 100)}%`}
-                        >
-                          ☀️ Heat: {Math.round((exp?.outdoor_convenience_heat ?? 0.5) * 100)}%
+                      {heavyWeather && typeof comfort === "number" && (
+                        <span className={`spot-comfort ${comfort >= 0.75 ? "good" : comfort < 0.35 ? "bad" : ""}`}>
+                          {state?.weather === "rain" ? (comfort >= 0.75 ? "Sheltered from rain" : comfort < 0.35 ? "Exposed to rain" : "Partly sheltered")
+                            : comfort >= 0.75 ? "Cool in the heat" : comfort < 0.35 ? "Hot and exposed" : "Some shade"}
                         </span>
-                        <span
-                          style={{
-                            padding: "2px 7px",
-                            borderRadius: "10px",
-                            background: (exp?.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (exp?.outdoor_convenience_rain ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(38, 51, 136, 0.15)",
-                            color: (exp?.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "#1b4332" : (exp?.outdoor_convenience_rain ?? 0.5) < 0.35 ? "#ba181b" : "#263388",
-                            border: "1px solid currentColor",
-                          }}
-                          title={`Outdoor convenience in rain: ${Math.round((exp?.outdoor_convenience_rain ?? 0.5) * 100)}%`}
-                        >
-                          🌧️ Rain: {Math.round((exp?.outdoor_convenience_rain ?? 0.5) * 100)}%
-                        </span>
-                        {exp?.indoor && (
-                          <span style={{ padding: "2px 6px", borderRadius: "10px", background: "rgba(45, 106, 79, 0.12)", color: "#1b4332", border: "1px solid currentColor" }}>
-                            🏛️ Covered
-                          </span>
-                        )}
+                      )}
+                      <div className="spot-meta">
+                        <span>{r.cost_inr ? `₹${r.cost_inr}` : "Free"}</span>
+                        {checked && <span>{r.start.slice(11, 16)}–{r.end.slice(11, 16)}</span>}
+                        <button type="button" className="link-btn" onClick={() => setReviewsFor({ id: r.experience_id, title: r.title })}>
+                          ⭐ {rating !== null ? rating.toFixed(1) : "Reviews"}
+                        </button>
                       </div>
-
-                      <div className="spot-card-actions">
-                        {isPlanned ? (
-                          <span className="planned-indicator">✓ In Day Plan</span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="add-to-plan-btn"
-                            onClick={() => handleAddStop(r)}
-                            disabled={busy}
-                          >
-                            + Add to Day Plan
-                          </button>
+                      <div className="spot-actions">
+                        {isPlanned ? <span className="planned-indicator">✓ In your plan</span> : (
+                          <button type="button" className="mini" onClick={() => handleAddStop(r)} disabled={busy}>+ Add to plan</button>
                         )}
-                        <Link
-                          to={`/3d`}
-                          className="view-3d-btn"
-                          title="View 3D Spatial Model"
-                        >
-                          🏛️ 3D
-                        </Link>
+                        <Link to="/3d" className="link-btn" title="3D view">3D</Link>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
@@ -999,275 +852,92 @@ export default function ExplorePage() {
 
           <RuledOut excluded={excluded} expMap={expMap} wanted={[...(state?.intents ?? []), ...(state?.group ?? []).flatMap((g) => g.interests)]} />
 
-          {/* Bottom: The Plan for the Day (Itinerary Timeline) */}
-          <section className="day-plan-section" id="day-plan-section">
-            <div className="section-header-row">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "1.2rem" }}>📅</span>
-                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "var(--ink)" }}>
-                  The Plan for the Day
-                </h3>
-                <span className="count-pill" style={{ background: "rgba(216, 92, 72, 0.15)", color: "var(--accent)" }}>
-                  {liveStops.length} Stops
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", fontSize: "0.82rem", fontWeight: 700, color: "var(--muted)" }}>
-                <span>⏱ ~{totalDurationMin} mins total</span>
-                <span>💰 ₹{totalCost} total</span>
-                <button type="button" className="mini" disabled={busy || liveStops.length === 0} onClick={exportCalendar}>
-                  📅 Add to calendar
-                </button>
+          {/* 5. The plan */}
+          <section className="explore-section plan-card" id="day-plan-section">
+            <div className="section-head">
+              <h3>Your plan</h3>
+              <span className="count-pill">{liveStops.length} {liveStops.length === 1 ? "stop" : "stops"}</span>
+              {liveStops.length > 0 && <span className="muted small">~{totalDurationMin} min · ₹{totalCost}</span>}
+              <div className="section-actions">
+                <button type="button" className="secondary mini" onClick={() => { setIsSimulationOpen(true); if (!simResult) triggerSimulation(); }}
+                  title="Try rain, heat or a delay on this plan">What-if</button>
+                <button type="button" className="secondary mini" onClick={() => setIsSocialOpen(true)}>Signals</button>
+                <button type="button" className="mini" disabled={busy || liveStops.length === 0} onClick={exportCalendar}>📅 Add to calendar</button>
               </div>
             </div>
 
             {problems.length > 0 && (
               <ul className="plan-problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>
             )}
-            {/* 1-Click What-If Scenarios Bar right above the Plan */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                flexWrap: "wrap",
-                background: "var(--panel-2)",
-                padding: "8px 12px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                marginBottom: "12px",
-              }}
-            >
-              <span style={{ fontSize: "0.76rem", fontWeight: 800, textTransform: "uppercase", color: "var(--accent)" }}>
-                ⚡ Test What-If Scenario on Plan:
-              </span>
-              {(simPresets.length ? simPresets : [
-                { name: "Sudden Cloudburst (35 mm/h)", temp_c: 29.5, rain_intensity_mm_h: 35.0, duration_hours: 2.5, epicenter_lat: 26.9239, epicenter_lon: 75.8267, epicenter_name: "Old Walled City", radius_km: 3.8, wind_kmh: 32.0 },
-                { name: "Extreme Heatwave (43.8°C)", temp_c: 43.8, rain_intensity_mm_h: 0.0, duration_hours: 4.0, epicenter_lat: 26.9247, epicenter_lon: 75.8245, epicenter_name: "Jantar Mantar", radius_km: 5.0, wind_kmh: 18.0 },
-                { name: "Amer Flash Flood", temp_c: 27.0, rain_intensity_mm_h: 48.0, duration_hours: 3.0, epicenter_lat: 26.9855, epicenter_lon: 75.8513, epicenter_name: "Amer Fort Hills", radius_km: 2.8, wind_kmh: 28.0 },
-                { name: "Pleasant Clear (24°C)", temp_c: 24.0, rain_intensity_mm_h: 0.0, duration_hours: 3.0, epicenter_lat: 26.9378, epicenter_lon: 75.8155, epicenter_name: "Nahargarh Ridge", radius_km: 4.0, wind_kmh: 12.0 },
-              ]).map((pre, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setCurrentScenario(pre);
-                    applyScenarioAndRedirectToPlan(pre);
-                  }}
-                  disabled={simLoading}
-                  style={{
-                    background: currentScenario.name === pre.name ? "var(--accent)" : "var(--panel)",
-                    color: currentScenario.name === pre.name ? "#ffffff" : "var(--ink)",
-                    border: "1px solid var(--line)",
-                    borderRadius: "6px",
-                    padding: "4px 10px",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                  title={`Apply ${pre.name} to plan`}
-                >
-                  {pre.name}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setIsSimulationOpen(true)}
-                style={{
-                  background: "transparent",
-                  border: "1px dashed var(--accent)",
-                  color: "var(--accent)",
-                  borderRadius: "6px",
-                  padding: "4px 8px",
-                  fontSize: "0.74rem",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  marginLeft: "auto",
-                }}
-              >
-                🌐 Custom Physics Studio...
-              </button>
-            </div>
-
             {appliedSimulationNotice && (
-              <div
-                style={{
-                  background: "linear-gradient(135deg, #1b4332, #2d6a4f)",
-                  color: "#ffffff",
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  marginBottom: "14px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  boxShadow: "0 4px 12px rgba(27, 67, 50, 0.25)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>🛡️</span>
-                  <span>{appliedSimulationNotice}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAppliedSimulationNotice(null)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#ffffff",
-                    cursor: "pointer",
-                    fontSize: "1.1rem",
-                    padding: "0 4px",
-                  }}
-                  title="Dismiss notification"
-                >
-                  ✕
-                </button>
+              <div className="plan-notice">
+                <span>🛡️ {appliedSimulationNotice}</span>
+                <button type="button" className="icon" onClick={() => setAppliedSimulationNotice(null)} aria-label="Dismiss">✕</button>
               </div>
             )}
 
             {liveStops.length === 0 ? (
-              <div className="empty-plan-placeholder">
-                <p style={{ margin: 0, color: "var(--muted)", fontWeight: 600 }}>
-                  {recs.length === 0 && !busy
-                    ? "Nothing fits this time window right now. Try another time, a bigger budget or a different area."
-                    : <>No stops added yet. Click <b>"+ Add to Day Plan"</b> on any spot above to build your schedule!</>}
-                </p>
-              </div>
+              <p className="explore-empty">
+                {recs.length === 0 && !busy
+                  ? "Nothing fits this time window right now. Try another time, a bigger budget or a different area."
+                  : "No stops yet. Add places from above, or ask the planner to build a plan."}
+              </p>
             ) : (
-              <div className="plan-timeline-list">
-                {liveStops.map((s, idx) => {
-                  const stopLetter = String.fromCharCode(65 + idx);
-                  const isHovered = highlightedExpId === s.experience_id;
-                  const photo = s.experience_id ? getExperiencePhoto(s.experience_id, expMap.get(s.experience_id)?.category) : "";
-
-                  return (
-                    <div
-                      key={s.experience_id || idx}
-                      className={`timeline-stop-item ${isHovered ? "hovered" : ""}`}
-                      onMouseEnter={() => s.experience_id && setHighlightedExpId(s.experience_id)}
-                      onMouseLeave={() => setHighlightedExpId(null)}
-                    >
-                      <div className="stop-letter-badge">{stopLetter}</div>
-
-                      {photo && <img src={photo} alt={s.title} className="stop-thumb" />}
-
-                      <div className="stop-info-content">
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
-                            {s.title}
-                          </h4>
-                          {s.locked && <span style={{ fontSize: "0.75rem", color: "var(--accent)" }}>🔒 Locked</span>}
-                        </div>
-                        <div className="stop-time-details">
-                          <span>🕒 {hhmm(s.start)} – {hhmm(s.end)}</span>
-                          <span>•</span>
-                          <span>₹{s.cost_inr || "Free"}</span>
-                        </div>
-                      </div>
-
-                      <div className="stop-item-actions">
-                        <button
-                          type="button"
-                          className={`stop-tool-btn ${s.locked ? "active" : ""}`}
-                          onClick={() => handleToggleLock(s)}
-                          title={s.locked ? "Unlock timing" : "Lock timing"}
-                        >
-                          {s.locked ? "🔒" : "🔓"}
-                        </button>
-                        <button
-                          type="button"
-                          className="stop-tool-btn remove"
-                          onClick={() => handleRemoveStop(s)}
-                          title="Remove stop"
-                        >
-                          ✕
-                        </button>
-                      </div>
+              <ol className="plan-list">
+                {liveStops.map((s, idx) => (
+                  <li key={s.experience_id || idx}
+                    className={highlightedExpId === s.experience_id ? "hovered" : ""}
+                    onMouseEnter={() => s.experience_id && setHighlightedExpId(s.experience_id)}
+                    onMouseLeave={() => setHighlightedExpId(null)}>
+                    <span className="plan-letter">{String.fromCharCode(65 + idx)}</span>
+                    <div className="plan-info">
+                      <strong>{s.title}</strong>
+                      <span className="muted small">{hhmm(s.start)}–{hhmm(s.end)} · {s.cost_inr ? `₹${s.cost_inr}` : "Free"}{s.locked ? " · 🔒 locked" : ""}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <button type="button" className="icon" onClick={() => handleToggleLock(s)}
+                      aria-label={s.locked ? `Unlock ${s.title}` : `Lock ${s.title}`} title={s.locked ? "Unlock time" : "Lock time"}>
+                      {s.locked ? "🔒" : "🔓"}
+                    </button>
+                    <button type="button" className="icon" onClick={() => handleRemoveStop(s)} aria-label={`Remove ${s.title}`}>✕</button>
+                  </li>
+                ))}
+              </ol>
             )}
           </section>
         </div>
 
-        {/* =========================================================================
-            COLUMN 3: RIGHT (WEATHER & TRANSPORT MODEL + INTERACTIVE ROUTE MAP)
-        ========================================================================== */}
-        <aside className="right-map-column">
-          {/* Top Box: Model of Transportation / Weather Conditions */}
-          <div className="transport-weather-box">
-            <div className="weather-header-row">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "1.3rem" }}>
-                  {weatherSummary?.condition === "rain" ? "🌧" : weatherSummary?.condition === "heat" ? "🔥" : "☀️"}
+        {/* Right: weather at a glance and the map, which stays in view while you scroll */}
+        <aside className="explore-side">
+          <div className="side-sticky">
+            <div className="weather-mini">
+              <span className="weather-icon" aria-hidden="true">
+                {weatherSummary?.condition === "rain" ? "🌧" : weatherSummary?.condition === "heat" ? "🔥" : "☀️"}
+              </span>
+              <div>
+                <strong>{chatCtx ? chatCtx.location : "Demo city"} · {weatherSummary?.temp_c != null ? `${weatherSummary.temp_c.toFixed(0)}°C` : "weather unavailable"}</strong>
+                <span className="muted small">
+                  {weatherSummary?.available
+                    ? [weatherSummary.precip_prob != null && `${weatherSummary.precip_prob}% rain`,
+                       weatherSummary.humidity_pct != null && `${weatherSummary.humidity_pct}% humidity`,
+                       weatherSummary.wind_kmh != null && `wind ${weatherSummary.wind_kmh.toFixed(0)} km/h`].filter(Boolean).join(" · ")
+                    : "No live forecast right now"}
                 </span>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--ink)" }}>
-                    {chatCtx ? chatCtx.location : "Demo city"} weather:{" "}
-                    {weatherSummary?.temp_c != null ? `${weatherSummary.temp_c.toFixed(0)}°C` : "unavailable"}
-                  </h4>
-                  <span style={{ fontSize: "0.74rem", color: "var(--muted)", display: "block" }}>
-                    {weatherSummary?.available ? weatherSummary.description : "No live forecast right now. Plans assume clear weather."}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Measured values only: anything the forecast didn't include is simply not shown */}
-            {weatherSummary?.available && (
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", fontSize: "0.72rem", fontWeight: 700, marginTop: "4px" }}>
-                {weatherSummary.humidity_pct != null && <span className="wx-pill">💧 {weatherSummary.humidity_pct}% humidity</span>}
-                {weatherSummary.wind_kmh != null && <span className="wx-pill">💨 {weatherSummary.wind_kmh.toFixed(0)} km/h wind</span>}
-                {weatherSummary.precip_prob != null && (
-                  <span className={`wx-pill ${weatherSummary.precip_prob > 30 ? "wet" : ""}`}>🌧️ {weatherSummary.precip_prob}% chance of rain</span>
+                {weatherSummary?.available && weatherSummary.condition !== "clear" && weatherSummary.ai_guidance && (
+                  <span className="weather-tip">{weatherSummary.ai_guidance}</span>
                 )}
               </div>
-            )}
-
-            {/* AI Weather Advisory Banner */}
-            {weatherSummary?.available && weatherSummary.condition !== "clear" && (
-              <div style={{ background: weatherSummary?.condition === "rain" ? "#e3f2fd" : "#fff3e0", border: `1px solid ${weatherSummary?.condition === "rain" ? "#90caf9" : "#ffb74d"}`, borderRadius: "8px", padding: "8px 10px", fontSize: "0.72rem", color: "#1e131d", lineHeight: 1.35, marginTop: "4px" }}>
-                <strong style={{ display: "block", marginBottom: "2px" }}>Weather tip:</strong>
-                {weatherSummary?.ai_guidance}
-              </div>
-            )}
-
-            {/* Transport Mode Switcher */}
-            <div className="transport-selector">
-              <span className="transport-label">Transit Mode:</span>
-              <div className="transport-pill-row">
-                {[
-                  { id: "auto", label: "🛺 Auto" },
-                  { id: "cab", label: "🚗 Cab" },
-                  { id: "walk", label: "🚶 Walk" },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={`transport-btn ${transportMode === m.id ? "active" : ""}`}
-                    onClick={() => handleTransportChange(m.id as TransportMode)}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
             </div>
-          </div>
-
-          {/* Bottom Box: A map showcasing the route to all of the spots */}
-          <div className="map-view-wrapper">
-            <MapView
-              state={state}
-              recs={filteredRecs}
-              stops={itinerary.stops}
-              highlightedId={highlightedExpId}
-              impactZones={simResult?.impact_zones}
-              socialSignals={socialSignals}
-              vulnerableStopIds={simResult?.vulnerable_stop_ids}
-            />
+            <div className="map-box">
+              <MapView
+                state={state}
+                recs={filteredRecs}
+                stops={itinerary.stops}
+                highlightedId={highlightedExpId}
+                impactZones={simResult?.impact_zones}
+                socialSignals={socialSignals}
+                vulnerableStopIds={simResult?.vulnerable_stop_ids}
+              />
+            </div>
           </div>
         </aside>
       </div>
@@ -1731,54 +1401,6 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Floating AI Chat Drawer (Opens smoothly when requested) */}
-      {isChatOpen && (
-        <div className="floating-chat-drawer">
-          <div className="chat-drawer-header">
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>✨</span>
-              <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--ink)" }}>TrueLocal AI Assistant</h4>
-            </div>
-            <button type="button" onClick={() => setIsChatOpen(false)} className="close-drawer-btn">
-              ✕
-            </button>
-          </div>
-
-          <div className="chat-drawer-messages">
-            <div className="chat-msg bot">
-              Hi! Tell me where you are and what you feel like, e.g. “I'm in Pune with my parents, it's 6 pm, we love history” or “4 hours before my train, want a beach with a view”.
-            </div>
-            {msgs.map((m, idx) => (
-              <div key={idx} className={`chat-msg ${m.role}`}>
-                {m.text}
-              </div>
-            ))}
-          </div>
-
-          <form
-            className="chat-drawer-input-row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendChat(chatText);
-            }}
-          >
-            <input
-              type="text"
-              value={chatText}
-              onChange={(e) => setChatText(e.target.value)}
-              placeholder="Where are you, and what would you like to do?"
-              className="chat-input"
-            />
-            <button type="button" className="chat-loc-btn" onClick={shareLocation}
-              title={here ? "Using your location" : "Plan around where you are"} aria-label="Use my location">
-              {here ? "📍✓" : "📍"}
-            </button>
-            <button type="submit" className="chat-send-btn" disabled={busy || !chatText.trim()}>
-              Send
-            </button>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
@@ -1786,24 +1408,16 @@ export default function ExplorePage() {
 // The assistant's reply, from what the engine actually did (never a canned claim): the top picks
 // with their own reasons, what was ruled out, and every assumption.
 function botReply(recs: Recommendation[], ctx: ChatContext | null, ruledOut: number): string {
+  // Short on purpose: weather, closed-now and assumptions are shown right below in the context strip.
   const where = ctx ? ` in ${ctx.location}` : "";
-  if (!recs.length) {
-    return `Nothing fits right now${where}. ${ruledOut} places were ruled out; see "Why not these?" for each reason.` +
-      (ctx?.assumptions.length ? ` Note: ${ctx.assumptions.join(" ")}` : "");
-  }
+  if (!recs.length) return `Nothing fits right now${where}. See "Why not these?" below for each reason.`;
   const top = recs.slice(0, 3).map((r, i) => {
     const why = r.reasons.filter((x) => !x.startsWith("⚠")).slice(0, 2).join(", ");
     return `${i + 1}. ${r.title} (${why})`;
   });
-  const parts = [`Here's what works${where}:`, ...top];
-  if (ctx?.weather.available && ctx.weather.condition) {
-    parts.push(`Weather: ${ctx.weather.condition}${ctx.weather.temp_c != null ? `, ${Math.round(ctx.weather.temp_c)}°C` : ""}${ctx.weather.applied ? " (outdoor plans adjusted)" : ""}.`);
-  }
-  const closed = ctx?.closed_now[0];
-  if (closed) parts.push(`${closed.title} is closed for now${closed.next_open ? `, opens ${fmtWhen(closed.next_open)}` : ""}.`);
-  if (ruledOut) parts.push(`${ruledOut} other places were ruled out (see "Why not these?").`);
-  if (ctx?.assumptions.length) parts.push(`Note: ${ctx.assumptions.join(" ")}`);
-  return parts.join("\n");
+  const extra = [ctx?.closed_now.length && "what's closed", ctx?.assumptions.length && "what I assumed",
+    ruledOut && `${ruledOut} ruled out`].filter(Boolean);
+  return [`Here's what works${where}:`, ...top, extra.length ? `Below: ${extra.join(", ")}.` : ""].filter(Boolean).join("\n");
 }
 
 // Everything the engine ruled out, with its reasons; the ones closest to what you wanted first.

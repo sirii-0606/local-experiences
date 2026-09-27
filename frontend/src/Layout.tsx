@@ -10,11 +10,10 @@ export default function Layout() {
   const { clock, setClock } = useClock();
   const navigate = useNavigate();
   const location = useLocation();
-  const isExplorePage = location.pathname === "/explore";
   const isLanding = location.pathname === "/";
 
   return (
-    <div className="app-shell" style={{ height: isExplorePage ? "100vh" : "auto", overflow: isExplorePage ? "hidden" : "visible" }}>
+    <div className="app-shell">
       {/* Floating Glassmorphic Header */}
       <header className="luxury-header">
         <Link to="/" className="brand-crest">
@@ -54,13 +53,11 @@ export default function Layout() {
       </header>
 
       {/* Main Page Content */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: isExplorePage ? "hidden" : "visible" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <Outlet />
       </main>
 
-      {/* Multi-Column Heritage Luxury Footer (omitted on full-bleed dashboard) */}
-      {!isExplorePage && (
-        <footer className="luxury-footer">
+      <footer className="luxury-footer">
         <div className="footer-inner">
           <div className="footer-main-grid">
             <div className="footer-brand">
@@ -125,7 +122,6 @@ export default function Layout() {
           </div>
         </div>
       </footer>
-      )}
     </div>
   );
 }
