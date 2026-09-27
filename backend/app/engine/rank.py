@@ -74,8 +74,12 @@ def _factors(exp: Experience, fit: Fit, state: TravelerState, seed: Seed, conf: 
         quality = min(1.0, max(0.0, (smoothed - 3) / 2))
     crowd = 1 - exp.tourist_index if state.avoid_crowds else 0.5
     pace = 0.0 if state.pace == "relaxed" and is_strenuous(exp) else 1.0
-    if state.weather == "heat" and exp.weather_sensitive and not exp.indoor:
-        pace *= 0.5  # soft: outdoors in the heat is possible, just less appealing
+    if state.weather == "heat":
+        heat_conv = getattr(exp, "outdoor_convenience_heat", 0.85 if exp.indoor else 0.4)
+        pace *= max(0.1, min(1.0, heat_conv))
+    elif state.weather == "rain":
+        rain_conv = getattr(exp, "outdoor_convenience_rain", 0.90 if exp.indoor else 0.3)
+        pace *= max(0.05, min(1.0, rain_conv))
     wants_iconic = "iconic" in state.intents
     # averaged over all of its taste tags, so one shared generic tag isn't "similar"
     taste = tags - NOT_TASTE
@@ -137,6 +141,18 @@ def _reasons(
         out.append(f"fine for your group (ages {exp.min_age}+)")
     if needed := sorted({a for t in state.group for a in t.accessibility}):
         out.append(", ".join(needed) + " access confirmed")
+    if state.weather == "heat":
+        heat_conv = getattr(exp, "outdoor_convenience_heat", 0.5)
+        if heat_conv >= 0.80:
+            out.append(f"❄️ Shaded/indoor comfort in heat ({int(heat_conv * 100)}% convenience)")
+        elif heat_conv < 0.35:
+            out.append(f"⚠️ Unshaded outdoor venue in heat ({int(heat_conv * 100)}% convenience)")
+    elif state.weather == "rain":
+        rain_conv = getattr(exp, "outdoor_convenience_rain", 0.5)
+        if rain_conv >= 0.80:
+            out.append(f"🛡️ Rain-sheltered venue ({int(rain_conv * 100)}% convenience)")
+        elif rain_conv < 0.35:
+            out.append(f"⚠️ Low rain convenience ({int(rain_conv * 100)}%): outdoor rain exposure")
     for attr, ev in low.items():
         label = CONFIDENCE_ATTRS[attr]
         out.append(

@@ -161,6 +161,8 @@ class Candidate(BaseModel):
     feasible_days: list[int] = []
     must_see: bool = False
     along_route: float = 0.0
+    outdoor_convenience_heat: float = 0.5
+    outdoor_convenience_rain: float = 0.5
 
 
 class StayRecommendation(BaseModel):
@@ -251,6 +253,10 @@ class TripDraft(BaseModel):
     shortlist: dict[str, ShortlistDecision] = Field(default_factory=dict)
     stay_id: str | None = None
     itinerary: Itinerary | None = None
+    weather: Literal["clear", "rain", "heat"] | str | None = "clear"
+    weather_scenario_name: str | None = None
+    weather_temp_c: float | None = None
+    weather_rain_mm_h: float | None = None
 
     @model_validator(mode="after")
     def _dates(self) -> "TripDraft":

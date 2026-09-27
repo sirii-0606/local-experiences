@@ -113,6 +113,52 @@ export default function TripShortlist() {
 
       {error && <p className="error" role="alert">{error}</p>}
 
+      {/* Weather Status Bar in Shortlist */}
+      <div className="panel" style={{ marginBottom: "1.5rem", background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "1.2rem" }}>
+                {trip.weather === "rain" ? "🌧" : trip.weather === "heat" ? "🔥" : "☀️"}
+              </span>
+              <h3 style={{ margin: 0, fontSize: "1rem" }}>
+                Trip Climate Scenario: <b>{trip.weather === "rain" ? "Monsoon Cloudburst (35 mm/h)" : trip.weather === "heat" ? "Extreme Heatwave (43.8°C)" : "Pleasant Clear (29°C)"}</b>
+              </h3>
+            </div>
+            <p className="muted small" style={{ margin: "4px 0 0" }}>
+              {trip.weather === "rain"
+                ? "Digital Twin prioritizes indoor museums and handcraft workshops over rained-out open ramparts."
+                : trip.weather === "heat"
+                ? "Digital Twin prioritizes shaded stepwells and naturally cooled galleries over sun-exposed observatories."
+                : "Optimal conditions for hilltop fort viewpoints and heritage bazaar walks."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {[
+              { id: "clear", label: "☀️ Clear" },
+              { id: "rain", label: "🌧 Rain" },
+              { id: "heat", label: "🔥 Heat" },
+            ].map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                className={`chip ${(trip.weather || "clear") === w.id ? "on" : ""}`}
+                style={{ cursor: "pointer" }}
+                onClick={async () => {
+                  const updated = { ...trip, weather: w.id };
+                  setTrip(updated);
+                  await v2.updateTrip(tripId, updated);
+                  const newCands = await v2.candidates(tripId);
+                  setCandidates(newCands);
+                }}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Stay Selection Banner */}
       <div className="panel" style={{ marginBottom: "2rem", border: "2px solid var(--accent)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
@@ -209,6 +255,32 @@ export default function TripShortlist() {
                     <span className="chip mini" title="Cab/Car time">🚗 {c.travel_by_mode.car ?? "–"}m</span>
                     <span className="chip mini muted">⏱️ {c.duration_min}m visit</span>
                     <span className="chip mini muted">₹{c.cost_inr}</span>
+                  </div>
+
+                  {/* Outdoor Convenience Values for Heat & Rain */}
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                    <span
+                      className="chip mini"
+                      style={{
+                        background: (c.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (c.outdoor_convenience_heat ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(224, 122, 95, 0.15)",
+                        color: (c.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "#1b4332" : (c.outdoor_convenience_heat ?? 0.5) < 0.35 ? "#ba181b" : "#8d3a1b",
+                        fontWeight: 700,
+                      }}
+                      title={`Outdoor convenience in heat: ${Math.round((c.outdoor_convenience_heat ?? 0.5) * 100)}%`}
+                    >
+                      ☀️ Heat Conv: {Math.round((c.outdoor_convenience_heat ?? 0.5) * 100)}%
+                    </span>
+                    <span
+                      className="chip mini"
+                      style={{
+                        background: (c.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (c.outdoor_convenience_rain ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(38, 51, 136, 0.15)",
+                        color: (c.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "#1b4332" : (c.outdoor_convenience_rain ?? 0.5) < 0.35 ? "#ba181b" : "#263388",
+                        fontWeight: 700,
+                      }}
+                      title={`Outdoor convenience in rain: ${Math.round((c.outdoor_convenience_rain ?? 0.5) * 100)}%`}
+                    >
+                      🌧️ Rain Conv: {Math.round((c.outdoor_convenience_rain ?? 0.5) * 100)}%
+                    </span>
                   </div>
 
                   {/* Reasons */}

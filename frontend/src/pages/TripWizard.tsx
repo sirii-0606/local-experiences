@@ -223,6 +223,33 @@ export default function TripWizard() {
             </div>
             <p className="hint">For activities, food and local travel{perDay > 0 && <>: about <b>{inr(perDay)}</b> per person per day</>}. Your stay has its own budget in the next step.</p>
             <label>Trip name<input required maxLength={80} value={draft.title} onChange={(e) => { setTitleTouched(true); setDraft({ ...draft, title: e.target.value }); }} /></label>
+
+            {/* Weather & Climate Scenario Consideration */}
+            <fieldset className="choices" style={{ marginTop: "1.2rem" }}>
+              <legend>🌤 Weather Forecast &amp; Scenario Consideration</legend>
+              {[
+                { id: "clear", label: "☀️ Pleasant Clear (29°C)", desc: "Optimal conditions, open-air ramparts and sunset points", temp: 29.0, rain: 0.0, name: "Pleasant Clear" },
+                { id: "rain", label: "🌧 Monsoon Cloudburst (35 mm/h)", desc: "Heavy rainfall simulation, adapts schedule with sheltered indoor craft/museum alternatives", temp: 28.5, rain: 35.0, name: "Monsoon Cloudburst" },
+                { id: "heat", label: "🔥 Extreme Heatwave (43.8°C)", desc: "Severe heatwave simulation, prioritizes shaded courtyards & air-cooled galleries", temp: 43.8, rain: 0.0, name: "Extreme Heatwave" },
+              ].map((w) => (
+                <label key={w.id} className="choice">
+                  <input
+                    type="radio"
+                    name="weather_scenario"
+                    checked={(draft.weather || "clear") === w.id}
+                    onChange={() => set({
+                      weather: w.id,
+                      weather_scenario_name: w.name,
+                      weather_temp_c: w.temp,
+                      weather_rain_mm_h: w.rain,
+                    })}
+                  />
+                  <strong>{w.label}</strong>
+                  <span>{w.desc}</span>
+                </label>
+              ))}
+            </fieldset>
+            <p className="hint">The Digital Twin engine uses this forecast to evaluate outdoor vulnerability and automatically schedule sheltered alternatives.</p>
           </>}
 
           {step === 1 && <>
@@ -476,6 +503,7 @@ export default function TripWizard() {
               <dt>When</dt><dd>{dateRange(draft.start_date, draft.end_date)}, {draft.day_start}–{draft.day_end} each day</dd>
               <dt>Budget</dt><dd>{inr(draft.budget_inr || 0)}{perDay > 0 && ` (≈ ${inr(perDay)} per person per day)`}</dd>
               <dt>Stay</dt><dd>{STAYS.find(([v]) => v === draft.stay.type)![1]}{draft.stay.max_per_night_inr ? `, up to ${inr(draft.stay.max_per_night_inr)}/night` : ""}{draft.stay.area ? `, ${draft.stay.area}` : ""} <button type="button" className="icon mini" onClick={() => go(1)}>Edit</button></dd>
+              <dt>Weather</dt><dd>{draft.weather === "rain" ? "🌧 Monsoon Rain (35 mm/h)" : draft.weather === "heat" ? "🔥 Extreme Heatwave (43.8°C)" : "☀️ Pleasant Clear (29°C)"} <button type="button" className="icon mini" onClick={() => go(0)}>Edit</button></dd>
               <dt>Who</dt><dd>{draft.travelers.map((t) => t.name || "?").join(", ")} <button type="button" className="icon mini" onClick={() => go(2)}>Edit</button></dd>
               <dt>Must-sees</dt><dd>{draft.must_see.length ? draft.must_see.map((m) => titles.get(m) ?? m).join(" · ") : "None yet"}</dd>
             </dl>

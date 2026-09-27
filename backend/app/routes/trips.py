@@ -184,3 +184,93 @@ def get_trip_suggestions(trip_id: int, user: dict = Depends(current_user)) -> Tr
             for sp in splits
         ],
     )
+
+
+@router.post("/{trip_id}/simulate-weather")
+def simulate_trip_weather(
+    trip_id: int,
+    payload: dict,
+    user: dict = Depends(current_user),
+) -> dict:
+    from app.engine import trip as trip_engine
+    from app.main import seed
+    from app.simulation import SimulationScenario, run_digital_twin_simulation
+
+    s = seed()
+    t = _found(accounts.get_trip(user["id"], trip_id))
+
+    scenario_data = payload.get("scenario")
+    if scenario_data:
+        sc = SimulationScenario.model_validate(scenario_data)
+    else:
+        weather_cond = payload.get("weather", "rain")
+        if weather_cond == "heat":
+            sc = SimulationScenario(
+                name="Extreme Heatwave (43.8°C)",
+                temp_c=43.8,
+                rain_intensity_mm_h=0.0,
+                duration_hours=4.0,
+                epicenter_lat=26.9247,
+                epicenter_lon=75.8245,
+                epicenter_name="Jantar Mantar Stone Observatories",
+                radius_km=5.0,
+                wind_kmh=18.0,
+            )
+        elif weather_cond == "clear":
+            sc = SimulationScenario(
+                name="Pleasant Autumn Evening (24.0°C)",
+                temp_c=24.0,
+                rain_intensity_mm_h=0.0,
+                duration_hours=3.0,
+                epicenter_lat=26.9378,
+                epicenter_lon=75.8155,
+                epicenter_name="Nahargarh Ridge",
+                radius_km=4.0,
+                wind_kmh=12.0,
+            )
+        else:
+            sc = SimulationScenario(
+                name="Sudden Cloudburst (35 mm/h)",
+                temp_c=29.5,
+                rain_intensity_mm_h=35.0,
+                duration_hours=2.5,
+                epicenter_lat=26.9239,
+                epicenter_lon=75.8267,
+                epicenter_name="Old Walled City",
+                radius_km=3.8,
+                wind_kmh=32.0,
+            )
+
+    sim_cond = (
+        "rain" if sc.rain_intensity_mm_h >= 1.0 else ("heat" if sc.temp_c >= 38.0 else "clear")
+    )
+
+    draft_dict = t.model_dump()
+    draft_dict["weather"] = sim_cond
+    draft_dict["weather_scenario_name"] = sc.name
+    draft_dict["weather_temp_c"] = sc.temp_c
+    draft_dict["weather_rain_mm_h"] = sc.rain_intensity_mm_h
+
+    adapted_trip = TripDraft.model_validate(draft_dict)
+    it = trip_engine.build_itinerary(adapted_trip, s)
+    draft_dict["itinerary"] = it.model_dump()
+
+    saved = accounts.update_trip(user["id"], trip_id, TripDraft.model_validate(draft_dict))
+
+    origin_lat, origin_lon = trip_engine._origin_coordinates(adapted_trip, s)
+    state = TravelerState(
+        lat=origin_lat,
+        lon=origin_lon,
+        window_start=datetime.combine(t.start_date, t.day_start),
+        window_end=datetime.combine(t.start_date, t.day_end),
+        budget_inr=t.budget_inr,
+        group=trip_engine._trip_group(t),
+        weather=sim_cond,
+    )
+    sim_res = run_digital_twin_simulation(sc, state, it, s)
+
+    return {
+        "trip": _found(saved),
+        "simulation": sim_res,
+    }
+

@@ -229,6 +229,19 @@ export default function ExplorePage() {
     setParams(params, { replace: true });
   }, [state]);
 
+  const [appliedSimulationNotice, setAppliedSimulationNotice] = useState<string | null>(null);
+
+  function scrollToPlan() {
+    setTimeout(() => {
+      const el = document.getElementById("day-plan-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("plan-section-highlight");
+        setTimeout(() => el.classList.remove("plan-section-highlight"), 2500);
+      }
+    }, 120);
+  }
+
   // Digital Twin Execution Handler
   async function triggerSimulation(scenarioToRun?: SimulationScenario) {
     const sc = scenarioToRun || currentScenario;
@@ -247,16 +260,86 @@ export default function ExplorePage() {
     }
   }
 
+  // Select a scenario, execute digital twin simulation, apply to day itinerary, and redirect/scroll to plan
+  async function applyScenarioAndRedirectToPlan(scenarioToRun?: SimulationScenario) {
+    const sc = scenarioToRun || currentScenario;
+    if (!state) return;
+    setSimLoading(true);
+    try {
+      const res = await api.runSimulation(sc, state, itinerary);
+      setSimResult(res);
+      if (res.simulated_social_signals?.length) {
+        setSocialSignals(res.simulated_social_signals);
+      }
+      setItinerary(res.adapted_itinerary);
+      const cond = res.metrics.weather_classification;
+      const updatedState = {
+        ...state,
+        weather: cond,
+      };
+      setState(updatedState);
+      run(async () => {
+        const planRes = await api.plan(updatedState, res.adapted_itinerary, 3);
+        setProblems(planRes.problems);
+      });
+
+      setWeatherSummary({
+        condition: cond,
+        temp_c: res.scenario.temp_c,
+        precip_mm: res.scenario.rain_intensity_mm_h,
+        precip_prob: cond === "rain" ? 95 : cond === "heat" ? 5 : 10,
+        humidity_pct: cond === "rain" ? 88 : cond === "heat" ? 28 : 45,
+        wind_kmh: res.scenario.wind_kmh,
+        ai_guidance: res.ai_executive_summary,
+        description: `${res.scenario.name} active in ${res.scenario.epicenter_name}`,
+        available: true,
+      });
+
+      setAppliedSimulationNotice(
+        `⚡ Applied What-If Scenario: ${res.scenario.name} (${cond.toUpperCase()}) — ${res.changes.length} stops adapted/sheltered, transit delay buffers added.`
+      );
+      setIsSimulationOpen(false);
+      scrollToPlan();
+    } catch (err) {
+      console.error("Digital Twin simulation error:", err);
+    } finally {
+      setSimLoading(false);
+    }
+  }
+
   function applySimulatedPlan() {
     if (!simResult) return;
     setItinerary(simResult.adapted_itinerary);
+    const cond = simResult.metrics.weather_classification;
     if (state) {
-      setState({
+      const updatedState = {
         ...state,
-        weather: simResult.metrics.weather_classification,
+        weather: cond,
+      };
+      setState(updatedState);
+      run(async () => {
+        const planRes = await api.plan(updatedState, simResult.adapted_itinerary, 3);
+        setProblems(planRes.problems);
       });
     }
+
+    setWeatherSummary({
+      condition: cond,
+      temp_c: simResult.scenario.temp_c,
+      precip_mm: simResult.scenario.rain_intensity_mm_h,
+      precip_prob: cond === "rain" ? 95 : cond === "heat" ? 5 : 10,
+      humidity_pct: cond === "rain" ? 88 : cond === "heat" ? 28 : 45,
+      wind_kmh: simResult.scenario.wind_kmh,
+      ai_guidance: simResult.ai_executive_summary,
+      description: `${simResult.scenario.name} active in ${simResult.scenario.epicenter_name}`,
+      available: true,
+    });
+
+    setAppliedSimulationNotice(
+      `⚡ Applied Digital Twin Simulation: ${simResult.scenario.name} (${cond.toUpperCase()}) — ${simResult.changes.length} stops adapted/sheltered, transit delay buffers added.`
+    );
     setIsSimulationOpen(false);
+    scrollToPlan();
   }
 
   async function handleReportSubmit(e: React.FormEvent) {
@@ -853,6 +936,39 @@ export default function ExplorePage() {
                           title="Read verified reviews">⭐ {rating !== null ? rating.toFixed(1) : "Reviews"}</button>
                       </div>
 
+                      {/* Outdoor Convenience Values for Heat & Rain */}
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", margin: "6px 0 8px", fontSize: "0.72rem", fontWeight: 700 }}>
+                        <span
+                          style={{
+                            padding: "2px 7px",
+                            borderRadius: "10px",
+                            background: (exp?.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (exp?.outdoor_convenience_heat ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(224, 122, 95, 0.15)",
+                            color: (exp?.outdoor_convenience_heat ?? 0.5) >= 0.75 ? "#1b4332" : (exp?.outdoor_convenience_heat ?? 0.5) < 0.35 ? "#ba181b" : "#8d3a1b",
+                            border: "1px solid currentColor",
+                          }}
+                          title={`Outdoor convenience in heat: ${Math.round((exp?.outdoor_convenience_heat ?? 0.5) * 100)}%`}
+                        >
+                          ☀️ Heat: {Math.round((exp?.outdoor_convenience_heat ?? 0.5) * 100)}%
+                        </span>
+                        <span
+                          style={{
+                            padding: "2px 7px",
+                            borderRadius: "10px",
+                            background: (exp?.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "rgba(45, 106, 79, 0.15)" : (exp?.outdoor_convenience_rain ?? 0.5) < 0.35 ? "rgba(186, 24, 27, 0.15)" : "rgba(38, 51, 136, 0.15)",
+                            color: (exp?.outdoor_convenience_rain ?? 0.5) >= 0.75 ? "#1b4332" : (exp?.outdoor_convenience_rain ?? 0.5) < 0.35 ? "#ba181b" : "#263388",
+                            border: "1px solid currentColor",
+                          }}
+                          title={`Outdoor convenience in rain: ${Math.round((exp?.outdoor_convenience_rain ?? 0.5) * 100)}%`}
+                        >
+                          🌧️ Rain: {Math.round((exp?.outdoor_convenience_rain ?? 0.5) * 100)}%
+                        </span>
+                        {exp?.indoor && (
+                          <span style={{ padding: "2px 6px", borderRadius: "10px", background: "rgba(45, 106, 79, 0.12)", color: "#1b4332", border: "1px solid currentColor" }}>
+                            🏛️ Covered
+                          </span>
+                        )}
+                      </div>
+
                       <div className="spot-card-actions">
                         {isPlanned ? (
                           <span className="planned-indicator">✓ In Day Plan</span>
@@ -884,7 +1000,7 @@ export default function ExplorePage() {
           <RuledOut excluded={excluded} expMap={expMap} wanted={[...(state?.intents ?? []), ...(state?.group ?? []).flatMap((g) => g.interests)]} />
 
           {/* Bottom: The Plan for the Day (Itinerary Timeline) */}
-          <section className="day-plan-section">
+          <section className="day-plan-section" id="day-plan-section">
             <div className="section-header-row">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.2rem" }}>📅</span>
@@ -907,6 +1023,110 @@ export default function ExplorePage() {
             {problems.length > 0 && (
               <ul className="plan-problems">{problems.map((p) => <li key={p}>⚠ {p}</li>)}</ul>
             )}
+            {/* 1-Click What-If Scenarios Bar right above the Plan */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+                background: "var(--panel-2)",
+                padding: "8px 12px",
+                borderRadius: "10px",
+                border: "1px solid var(--line)",
+                marginBottom: "12px",
+              }}
+            >
+              <span style={{ fontSize: "0.76rem", fontWeight: 800, textTransform: "uppercase", color: "var(--accent)" }}>
+                ⚡ Test What-If Scenario on Plan:
+              </span>
+              {(simPresets.length ? simPresets : [
+                { name: "Sudden Cloudburst (35 mm/h)", temp_c: 29.5, rain_intensity_mm_h: 35.0, duration_hours: 2.5, epicenter_lat: 26.9239, epicenter_lon: 75.8267, epicenter_name: "Old Walled City", radius_km: 3.8, wind_kmh: 32.0 },
+                { name: "Extreme Heatwave (43.8°C)", temp_c: 43.8, rain_intensity_mm_h: 0.0, duration_hours: 4.0, epicenter_lat: 26.9247, epicenter_lon: 75.8245, epicenter_name: "Jantar Mantar", radius_km: 5.0, wind_kmh: 18.0 },
+                { name: "Amer Flash Flood", temp_c: 27.0, rain_intensity_mm_h: 48.0, duration_hours: 3.0, epicenter_lat: 26.9855, epicenter_lon: 75.8513, epicenter_name: "Amer Fort Hills", radius_km: 2.8, wind_kmh: 28.0 },
+                { name: "Pleasant Clear (24°C)", temp_c: 24.0, rain_intensity_mm_h: 0.0, duration_hours: 3.0, epicenter_lat: 26.9378, epicenter_lon: 75.8155, epicenter_name: "Nahargarh Ridge", radius_km: 4.0, wind_kmh: 12.0 },
+              ]).map((pre, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setCurrentScenario(pre);
+                    applyScenarioAndRedirectToPlan(pre);
+                  }}
+                  disabled={simLoading}
+                  style={{
+                    background: currentScenario.name === pre.name ? "var(--accent)" : "var(--panel)",
+                    color: currentScenario.name === pre.name ? "#ffffff" : "var(--ink)",
+                    border: "1px solid var(--line)",
+                    borderRadius: "6px",
+                    padding: "4px 10px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                  title={`Apply ${pre.name} to plan`}
+                >
+                  {pre.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setIsSimulationOpen(true)}
+                style={{
+                  background: "transparent",
+                  border: "1px dashed var(--accent)",
+                  color: "var(--accent)",
+                  borderRadius: "6px",
+                  padding: "4px 8px",
+                  fontSize: "0.74rem",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  marginLeft: "auto",
+                }}
+              >
+                🌐 Custom Physics Studio...
+              </button>
+            </div>
+
+            {appliedSimulationNotice && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #1b4332, #2d6a4f)",
+                  color: "#ffffff",
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  marginBottom: "14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  boxShadow: "0 4px 12px rgba(27, 67, 50, 0.25)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>🛡️</span>
+                  <span>{appliedSimulationNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAppliedSimulationNotice(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    padding: "0 4px",
+                  }}
+                  title="Dismiss notification"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {liveStops.length === 0 ? (
               <div className="empty-plan-placeholder">
                 <p style={{ margin: 0, color: "var(--muted)", fontWeight: 600 }}>
@@ -1092,7 +1312,7 @@ export default function ExplorePage() {
                     type="button"
                     onClick={() => {
                       setCurrentScenario(pre);
-                      triggerSimulation(pre);
+                      applyScenarioAndRedirectToPlan(pre);
                     }}
                     style={{
                       background: currentScenario.name === pre.name ? "var(--accent)" : "var(--panel-2)",
@@ -1104,8 +1324,9 @@ export default function ExplorePage() {
                       fontWeight: 700,
                       cursor: "pointer",
                     }}
+                    title="Select and apply this scenario to plan"
                   >
-                    {pre.name}
+                    ⚡ {pre.name}
                   </button>
                 ))}
               </div>
@@ -1200,10 +1421,10 @@ export default function ExplorePage() {
                 type="button"
                 className="ai-assistant-btn"
                 style={{ width: "auto", padding: "8px 20px" }}
-                onClick={() => triggerSimulation()}
+                onClick={() => applyScenarioAndRedirectToPlan(currentScenario)}
                 disabled={simLoading}
               >
-                {simLoading ? "Running Simulation Physics..." : "⚡ Execute What-If Simulation"}
+                {simLoading ? "Applying Simulation Physics..." : "⚡ Execute & Apply Scenario to Plan"}
               </button>
             </div>
 

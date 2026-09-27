@@ -55,9 +55,10 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-03-live-keys
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 149 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 151 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
 - Keys live in `.env` (gitignored): NVIDIA NIM (working, 0.3–30 s per call), OpenWeatherMap (used as the weather backup). `ADMIN_PASSWORD` there is under 8 characters, so no admin is created.
-- `main` on GitHub = `a5373c0` (any-city work + teammate merge). The review engine and UI are on `feat/review-verification`, not pushed yet.
+- `main` on GitHub has everything: any-city, review verification, the new UI, live keys, and the teammate's trips/simulation work (`c1176b4`), merged 2026-09-27.
+- Teammate's rain/heat "convenience" scores default to 30–40% for places without a curated value (all open-data places) and are shown as a precise percentage: worth labelling as an estimate.
 
 ## Known gaps
 - Coverage and data quality are only as good as Wikidata, which is limited to about 1 query/min at times. Warm demo cities first.
@@ -67,9 +68,8 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-03-live-keys
 - AR/3D is a presentation layer only.
 
 ## Next steps
-1. Push `feat/review-verification` to `main` when the user says so.
-2. Polish: Escape closes modals; Explore's filters edit the chat state instead of demo groups; tie reviews to signed-in users.
-3. Later: Google Calendar OAuth, `/trips` for any city, P6 feedback loop, P7 interactive cards, P8 print/PDF.
+1. Polish: Escape closes modals; Explore's filters edit the chat state instead of demo groups; tie reviews to signed-in users.
+2. Later: Google Calendar OAuth, `/trips` for any city, P6 feedback loop, P7 interactive cards, P8 print/PDF.
 
 ## Run it
 - Everything: `python scripts/dev.py [--reset]` → http://localhost:5173. Set `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` for an admin account.

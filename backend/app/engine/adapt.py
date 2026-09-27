@@ -75,8 +75,14 @@ def _problem(
     exp = seed.experiences.get(s.experience_id) if s.experience_id else None
     if exp and exp.id == event.experience_id and event.kind in ("closure", "provider_cancel"):
         return "cancelled by the provider" if event.kind == "provider_cancel" else "closed today"
-    if exp and rained_out(exp, state):
-        return "outdoors, and it's raining"
+    rain_conv = getattr(exp, "outdoor_convenience_rain", 0.5) if exp else 0.5
+    if exp and (rained_out(exp, state) or (state.weather == "rain" and rain_conv < 0.35)):
+        return "outdoors with low rain convenience, and it's raining"
+    if exp and state.weather == "heat" and (
+        (not exp.indoor and exp.weather_sensitive)
+        or (getattr(exp, "outdoor_convenience_heat", 0.5) < 0.35)
+    ):
+        return "low heat convenience / exposed outdoor venue during severe heatwave"
     if exp and event.kind == "fatigue" and is_strenuous(exp):
         return "too strenuous while you're tired"
     arrive = t + timedelta(minutes=travel_min(km_between(*pos, s.lat, s.lon), state.mode, t))
@@ -100,6 +106,11 @@ def _alternative(
     skip = {orig.id} if event.kind in ("closure", "provider_cancel") else set()
     if event.kind == "fatigue":
         skip |= {e.id for e in seed.experiences.values() if is_strenuous(e)}
+    if event.kind == "weather" and event.weather in ("rain", "heat"):
+        attr = "outdoor_convenience_rain" if event.weather == "rain" else "outdoor_convenience_heat"
+        skip |= {
+            e.id for e in seed.experiences.values() if not e.indoor and getattr(e, attr, 0.5) < 0.70
+        }
     keep_intent = state.model_copy(
         update={"intents": [t for t in orig.tags if t in state.intents] or list(orig.tags)}
     )
@@ -110,6 +121,12 @@ def _alternative(
     for r in fill_gap(it, gap, keep_intent, seed, k=10, skip=skip):
         if set(seed.experiences[r.experience_id].tags) & set(orig.tags):  # preserves intent
             return r
+    if event.kind == "weather" and event.weather in ("rain", "heat"):
+        indoor_seed = Seed(
+            seed.providers, seed.places, {e.id: e for e in seed.experiences.values() if e.indoor}
+        )
+        if any_indoor := fill_gap(it, gap, state, indoor_seed, k=1, skip=skip):
+            return any_indoor[0]
     return None
 
 

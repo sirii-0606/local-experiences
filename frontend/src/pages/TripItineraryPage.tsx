@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import MapView from "../MapView";
-import type { Stop } from "../api";
+import type { DigitalTwinResult, Stop } from "../api";
 import type { MealSuggestion, QuickStopSuggestion, Trip, TripStop, TripSuggestions } from "../types";
 import { v2 } from "../v2api";
 import { getExperiencePhoto } from "../photos";
@@ -234,6 +234,9 @@ export default function TripItineraryPage() {
   const [pacingFeedbackMsg, setPacingFeedbackMsg] = useState("");
   const [selectedInfoStop, setSelectedInfoStop] = useState<{ id: string | null; title: string; stop?: TripStop } | null>(null);
   const [acceptedSplits, setAcceptedSplits] = useState<Record<string, boolean>>({});
+  const [simulatingWeather, setSimulatingWeather] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<DigitalTwinResult | null>(null);
+  const [weatherNotice, setWeatherNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -540,6 +543,130 @@ export default function TripItineraryPage() {
         </div>
       )}
 
+      {/* Weather Status & Digital Twin Studio Bar in Planning Tab */}
+      <div
+        className="panel"
+        style={{
+          marginBottom: "1.2rem",
+          background: "var(--panel-2)",
+          border: "1px solid var(--line)",
+          borderRadius: "12px",
+          padding: "14px 18px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "1.6rem" }}>
+                {trip.weather === "rain" ? "🌧" : trip.weather === "heat" ? "🔥" : "☀️"}
+              </span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  Weather Status: <b>{trip.weather_scenario_name || (trip.weather === "rain" ? "Monsoon Cloudburst (35 mm/h)" : trip.weather === "heat" ? "Extreme Heatwave (43.8°C)" : "Pleasant Clear (29°C)")}</b>
+                  <span
+                    className="chip mini"
+                    style={{
+                      background: trip.weather === "rain" ? "rgba(38, 51, 136, 0.15)" : trip.weather === "heat" ? "rgba(216, 92, 72, 0.15)" : "rgba(46, 125, 79, 0.15)",
+                      color: trip.weather === "rain" ? "#263388" : trip.weather === "heat" ? "var(--accent)" : "var(--ok)",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    {trip.weather ? trip.weather.toUpperCase() : "CLEAR"}
+                  </span>
+                </h3>
+                <p className="muted small" style={{ margin: "3px 0 0" }}>
+                  {trip.weather === "rain"
+                    ? "🌧 Active monsoon disruption: Outdoor courtyards are substituted with sheltered indoor cultural venues and transit friction is adjusted."
+                    : trip.weather === "heat"
+                    ? "🔥 Severe heat advisory: Sun-exposed monuments are shifted away from noon peaks to shaded galleries and stepwells."
+                    : "☀️ Ideal meteorological conditions: Hilltop ramparts, open stepwells, and heritage walking trails operating normally."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--muted)" }}>Edit Scenario:</span>
+            {[
+              { id: "clear", label: "☀️ Clear (29°C)", name: "Pleasant Clear", temp: 29.0, rain: 0.0 },
+              { id: "rain", label: "🌧 Monsoon (35 mm/h)", name: "Sudden Cloudburst (35 mm/h)", temp: 28.5, rain: 35.0 },
+              { id: "heat", label: "🔥 Heatwave (43.8°C)", name: "Extreme Heatwave (43.8°C)", temp: 43.8, rain: 0.0 },
+            ].map((sc) => (
+              <button
+                key={sc.id}
+                type="button"
+                className={`chip ${(trip.weather || "clear") === sc.id ? "on" : ""}`}
+                style={{ cursor: "pointer", fontWeight: 700 }}
+                disabled={simulatingWeather}
+                onClick={async () => {
+                  setSimulatingWeather(true);
+                  try {
+                    const res = await v2.simulateTripWeather(tripId, {
+                      scenario: {
+                        name: sc.name,
+                        temp_c: sc.temp,
+                        rain_intensity_mm_h: sc.rain,
+                        duration_hours: 3.0,
+                        epicenter_lat: 26.9239,
+                        epicenter_lon: 75.8267,
+                        epicenter_name: "Old Walled City, Jaipur",
+                        radius_km: 4.0,
+                        wind_kmh: 24.0,
+                      },
+                    });
+                    setTrip(res.trip);
+                    setSimulationResult(res.simulation);
+                    setWeatherNotice(
+                      `✨ Digital Twin adapted itinerary for ${sc.name}: ${res.simulation.metrics.weather_classification.toUpperCase()} — outdoor venues sheltered, transit delay +${res.simulation.metrics.added_transit_delay_min}m!`
+                    );
+                  } catch (err) {
+                    console.error("Simulation error:", err);
+                  } finally {
+                    setSimulatingWeather(false);
+                  }
+                }}
+              >
+                {sc.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Digital Twin Weather Notice */}
+      {weatherNotice && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #1b4332, #2d6a4f)",
+            color: "#ffffff",
+            padding: "10px 16px",
+            borderRadius: "10px",
+            marginBottom: "1.2rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 12px rgba(27, 67, 50, 0.25)",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>🛡️</span>
+            <span>{weatherNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWeatherNotice(null)}
+            style={{ background: "transparent", border: "none", color: "#ffffff", cursor: "pointer", fontSize: "1.1rem" }}
+            title="Dismiss notice"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Day Selector Tabs */}
       <div style={{ display: "flex", gap: "0.5rem", borderBottom: "2px solid var(--line)", marginBottom: "1.5rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
         {daysList.map((dStr, idx) => {
@@ -658,6 +785,16 @@ export default function TripItineraryPage() {
                             <span className="chip mini" style={{ background: "rgba(229, 169, 60, 0.15)", color: "#b4532a" }}>
                               {meta.bestTime.slice(0, 24)}…
                             </span>
+                            {stop.title.includes("(Sheltered)") && (
+                              <span className="chip mini" style={{ background: "rgba(46, 125, 79, 0.18)", color: "#1b4332", fontWeight: 800 }}>
+                                🛡️ Sheltered Alternative
+                              </span>
+                            )}
+                            {simulationResult?.vulnerable_stop_ids?.includes(stop.experience_id || "") && (
+                              <span className="chip mini" style={{ background: "rgba(216, 92, 72, 0.18)", color: "var(--accent)", fontWeight: 800 }}>
+                                ⚠️ Weather Vulnerability
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -862,6 +999,9 @@ export default function TripItineraryPage() {
                 state={dayStops.length > 0 ? ({ lat: dayStops[0].lat, lon: dayStops[0].lon } as any) : null}
                 recs={[]}
                 stops={mapStops}
+                impactZones={simulationResult?.impact_zones}
+                vulnerableStopIds={simulationResult?.vulnerable_stop_ids}
+                socialSignals={simulationResult?.simulated_social_signals}
               />
             </div>
           </div>

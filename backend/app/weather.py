@@ -332,16 +332,25 @@ def plan_risks(stops: list[Stop], seed: Seed, hours: list[Hour]) -> list[Risk]:
     risks = []
     for s in stops:
         exp = seed.experiences.get(s.experience_id) if s.experience_id else None
-        if exp is None or exp.indoor or not exp.weather_sensitive:
+        if exp is None:
+            continue
+        conv_heat = getattr(exp, "outdoor_convenience_heat", 0.85 if exp.indoor else 0.4)
+        conv_rain = getattr(exp, "outdoor_convenience_rain", 0.90 if exp.indoor else 0.3)
+        if exp.indoor and conv_heat >= 0.8 and conv_rain >= 0.8:
             continue
         span = [h for h in hours if s.start.replace(minute=0) <= h.at < s.end]
         for cond in ("rain", "heat"):
             if bad := [h for h in span if h.condition == cond]:
-                what = (
-                    f"{max(h.precip_prob or 0 for h in bad)}% chance of rain"
-                    if cond == "rain"
-                    else f"{max(h.temp_c for h in bad):.0f}°C"
-                )
+                if cond == "rain" and conv_rain >= 0.7:
+                    continue
+                if cond == "heat" and conv_heat >= 0.7:
+                    continue
+                if cond == "rain":
+                    p_prob = max(h.precip_prob or 0 for h in bad)
+                    what = f"{p_prob}% chance of rain (convenience: {int(conv_rain * 100)}%)"
+                else:
+                    t_val = max(h.temp_c for h in bad)
+                    what = f"{t_val:.0f}°C (convenience: {int(conv_heat * 100)}%)"
                 risks.append(
                     Risk(
                         stop=s.title,
