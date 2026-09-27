@@ -1916,6 +1916,62 @@
         }
       }
     },
+    "/trips/{trip_id}/simulate-weather": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Simulate Trip Weather",
+        "operationId": "simulate_trip_weather_trips__trip_id__simulate_weather_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Simulate Trip Weather Trips  Trip Id  Simulate Weather Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/calendar/export": {
       "post": {
         "tags": [
@@ -2355,6 +2411,16 @@
             "type": "number",
             "title": "Along Route",
             "default": 0.0
+          },
+          "outdoor_convenience_heat": {
+            "type": "number",
+            "title": "Outdoor Convenience Heat",
+            "default": 0.5
+          },
+          "outdoor_convenience_rain": {
+            "type": "number",
+            "title": "Outdoor Convenience Rain",
+            "default": 0.5
           }
         },
         "type": "object",
@@ -3481,6 +3547,20 @@
             "type": "boolean",
             "title": "Weather Sensitive",
             "default": false
+          },
+          "outdoor_convenience_heat": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Outdoor Convenience Heat",
+            "default": 0.5
+          },
+          "outdoor_convenience_rain": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Outdoor Convenience Rain",
+            "default": 0.5
           },
           "tourist_index": {
             "type": "number",
@@ -6339,6 +6419,59 @@
               }
             ]
           },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "clear",
+                  "rain",
+                  "heat"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather",
+            "default": "clear"
+          },
+          "weather_scenario_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Scenario Name"
+          },
+          "weather_temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Temp C"
+          },
+          "weather_rain_mm_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Rain Mm H"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -6482,6 +6615,59 @@
                 "type": "null"
               }
             ]
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "clear",
+                  "rain",
+                  "heat"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather",
+            "default": "clear"
+          },
+          "weather_scenario_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Scenario Name"
+          },
+          "weather_temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Temp C"
+          },
+          "weather_rain_mm_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Rain Mm H"
           }
         },
         "type": "object",

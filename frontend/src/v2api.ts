@@ -1,6 +1,6 @@
 // v2 website client (accounts, profile, admin, trips, shortlist, itinerary).
 import { api, call } from "./api";
-import type { Catalog } from "./api";
+import type { Catalog, DigitalTwinResult, SimulationScenario } from "./api";
 import { mockV2 } from "./mocks/v2";
 import type {
   AdminStats,
@@ -40,6 +40,10 @@ export type V2 = {
   candidates(tripId: number): Promise<Candidate[]>;
   stayRecommendations(tripId: number): Promise<StayRecommendation[]>;
   generateItinerary(tripId: number): Promise<Trip>;
+  simulateTripWeather(
+    tripId: number,
+    payload: { scenario?: SimulationScenario; weather?: string }
+  ): Promise<{ trip: Trip; simulation: DigitalTwinResult }>;
   suggestions(tripId: number): Promise<TripSuggestions>;
   catalog(): Promise<Catalog>;
   onboarding(): Promise<Question[]>;
@@ -77,6 +81,8 @@ const realV2: V2 = {
     call<StayRecommendation[]>(`/trips/${id}/stays/recommendations`, undefined, "POST"),
   generateItinerary: (id) =>
     call<Trip>(`/trips/${id}/itinerary/generate`, undefined, "POST"),
+  simulateTripWeather: (id, payload) =>
+    call<{ trip: Trip; simulation: DigitalTwinResult }>(`/trips/${id}/simulate-weather`, payload),
   suggestions: (id) => call<TripSuggestions>(`/trips/${id}/suggestions`),
   catalog: api.catalog,
   onboarding: () => call<Question[]>("/me/onboarding"),

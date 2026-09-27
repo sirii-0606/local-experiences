@@ -41,7 +41,9 @@ class Candidate:
     feasible_days: list[int]  # 0-indexed day numbers
     must_see: bool
     along_route: float
-    experience: Experience
+    outdoor_convenience_heat: float = 0.5
+    outdoor_convenience_rain: float = 0.5
+    experience: Experience = None
 
 
 @dataclass
@@ -132,6 +134,7 @@ def score_candidates(trip, seed: Seed) -> list[Candidate]:
         day_scores: list[float] = []
         collected_reasons: list[str] = []
 
+        trip_weather = getattr(trip, "weather", "clear") or "clear"
         for d_idx in range(num_days):
             day_date = trip.start_date + timedelta(days=d_idx)
             day_start_dt = datetime.combine(day_date, trip.day_start)
@@ -148,6 +151,7 @@ def score_candidates(trip, seed: Seed) -> list[Candidate]:
                 group=group,
                 mode=getattr(trip, "mode", "auto") if hasattr(trip, "mode") else "auto",
                 pace=getattr(trip, "pace", "normal") if hasattr(trip, "pace") else "normal",
+                weather=trip_weather if trip_weather in ("rain", "heat") else "clear",
             )
 
             recs, _ = discover(day_state, seed, k=50)
@@ -172,9 +176,38 @@ def score_candidates(trip, seed: Seed) -> list[Candidate]:
             ms_bonus = 0.35 if is_ms else 0.0
             route_bonus = 0.15 * along_route_bonus
 
-            total_score = round(min(1.0, base_score * 0.5 + ms_bonus + route_bonus), 3)
+            weather_bonus = 0.0
+            weather_reason = None
+            heat_conv = getattr(exp, "outdoor_convenience_heat", 0.85 if exp.indoor else 0.4)
+            rain_conv = getattr(exp, "outdoor_convenience_rain", 0.90 if exp.indoor else 0.3)
+            if trip_weather == "rain":
+                pct = int(rain_conv * 100)
+                if rain_conv < 0.35:
+                    weather_bonus = -0.40
+                    weather_reason = f"⚠️ Low rain convenience ({pct}%): outdoor rain exposure"
+                elif rain_conv >= 0.75:
+                    weather_bonus = 0.25
+                    weather_reason = f"🛡️ High rain convenience ({pct}%): weather-safe indoor venue"
+                else:
+                    weather_bonus = (rain_conv - 0.5) * 0.4
+            elif trip_weather == "heat":
+                pct = int(heat_conv * 100)
+                if heat_conv < 0.35:
+                    weather_bonus = -0.35
+                    weather_reason = f"⚠️ Low heat convenience ({pct}%): unshaded venue in heat"
+                elif heat_conv >= 0.75:
+                    weather_bonus = 0.25
+                    weather_reason = f"❄️ High heat convenience ({pct}%): shaded/AC indoor comfort"
+                else:
+                    weather_bonus = (heat_conv - 0.5) * 0.35
+
+            total_score = round(
+                max(0.05, min(1.0, base_score * 0.5 + ms_bonus + route_bonus + weather_bonus)), 3
+            )
 
             reasons = list(collected_reasons)
+            if weather_reason:
+                reasons.insert(0, weather_reason)
             if is_ms:
                 reasons.insert(0, "Pinned as must-see")
             if min_seg_dist < 1.5 and must_see_coords and not is_ms:
@@ -192,6 +225,8 @@ def score_candidates(trip, seed: Seed) -> list[Candidate]:
                     feasible_days=feasible_days,
                     must_see=is_ms,
                     along_route=round(along_route_bonus, 2),
+                    outdoor_convenience_heat=round(heat_conv, 2),
+                    outdoor_convenience_rain=round(rain_conv, 2),
                     experience=exp,
                 )
             )
@@ -320,6 +355,9 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
     all_stops: list[Stop] = []
     remaining_eids = list(ordered_eids)
 
+    trip_weather = getattr(trip, "weather", "clear") or "clear"
+    transit_mult = 1.4 if trip_weather == "rain" else (1.2 if trip_weather == "heat" else 1.0)
+
     for d_idx in range(num_days):
         day_date = trip.start_date + timedelta(days=d_idx)
         day_start_dt = datetime.combine(day_date, trip.day_start)
@@ -336,7 +374,47 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
             exp = seed.experiences[eid]
             place = seed.places[exp.place_id]
 
-            t_min = travel_min(km_between(curr_lat, curr_lon, place.lat, place.lon), mode)
+            was_sheltered = False
+            heat_conv = getattr(exp, "outdoor_convenience_heat", 0.85 if exp.indoor else 0.4)
+            rain_conv = getattr(exp, "outdoor_convenience_rain", 0.90 if exp.indoor else 0.3)
+            rain_sub = trip_weather == "rain" and (
+                rain_conv < 0.35 or (exp.weather_sensitive and not exp.indoor)
+            )
+            heat_sub = trip_weather == "heat" and (
+                heat_conv < 0.30 or (exp.weather_sensitive and not exp.indoor)
+            )
+            should_substitute = rain_sub or heat_sub
+            if should_substitute:
+                conv_attr = (
+                    "outdoor_convenience_rain"
+                    if trip_weather == "rain"
+                    else "outdoor_convenience_heat"
+                )
+                indoor_alt = next(
+                    (
+                        e
+                        for e in seed.experiences.values()
+                        if (getattr(e, conv_attr, 0.5) >= 0.75 or e.indoor)
+                        and e.id not in [s.experience_id for s in all_stops]
+                        and (set(e.tags) & set(exp.tags) or e.category == exp.category)
+                    ),
+                    next(
+                        (
+                            e
+                            for e in seed.experiences.values()
+                            if (getattr(e, conv_attr, 0.5) >= 0.75 or e.indoor)
+                            and e.id not in [s.experience_id for s in all_stops]
+                        ),
+                        None,
+                    ),
+                )
+                if indoor_alt:
+                    exp = indoor_alt
+                    place = seed.places[exp.place_id]
+                    was_sheltered = True
+
+            base_t_min = travel_min(km_between(curr_lat, curr_lon, place.lat, place.lon), mode)
+            t_min = max(base_t_min, int(base_t_min * transit_mult))
             reach_time = curr_time + timedelta(minutes=t_min)
 
             valid_start = earliest_start(exp, reach_time)
@@ -346,13 +424,17 @@ def build_itinerary(trip, seed: Seed) -> Itinerary:
             dur_min = exp.duration_min
             end_time = valid_start + timedelta(minutes=dur_min)
 
-            back_min = travel_min(km_between(place.lat, place.lon, origin_lat, origin_lon), mode)
+            back_min = int(
+                travel_min(km_between(place.lat, place.lon, origin_lat, origin_lon), mode)
+                * transit_mult
+            )
             if end_time + timedelta(minutes=back_min) > day_end_dt:
                 continue
 
+            stop_title = f"{exp.title} (Sheltered)" if was_sheltered else exp.title
             all_stops.append(
                 Stop(
-                    title=exp.title,
+                    title=stop_title,
                     experience_id=exp.id,
                     lat=place.lat,
                     lon=place.lon,

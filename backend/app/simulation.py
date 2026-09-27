@@ -203,14 +203,21 @@ def run_digital_twin_simulation(
 
         # Inside impact radius
         if dist_to_epicenter <= scenario.radius_km:
-            if sim_cond == "rain" and (exp.weather_sensitive or not exp.indoor):
+            conv_rain = getattr(exp, "outdoor_convenience_rain", 0.9 if exp.indoor else 0.4)
+            conv_heat = getattr(exp, "outdoor_convenience_heat", 0.9 if exp.indoor else 0.4)
+            if sim_cond == "rain" and (conv_rain < 0.45 or exp.weather_sensitive or not exp.indoor):
                 vulnerable_ids.append(exp.id)
-            elif sim_cond == "heat" and not exp.indoor:
+            elif sim_cond == "heat" and (conv_heat < 0.45 or not exp.indoor):
                 vulnerable_ids.append(exp.id)
             else:
                 protected_ids.append(exp.id)
         else:
-            if exp.indoor:
+            conv = getattr(
+                exp,
+                "outdoor_convenience_rain" if sim_cond == "rain" else "outdoor_convenience_heat",
+                0.5,
+            )
+            if exp.indoor or conv >= 0.75:
                 protected_ids.append(exp.id)
 
     # 3. Compute safety & comfort scores

@@ -54,7 +54,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-01-any-city-
 - Types and the mock mirror the new contract; no screens use it yet.
 
 ## Health
-- Backend: 130 passed, 1 skipped (live LLM); runs offline with `LIVE_DATA=0`. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 136 passed, 1 skipped (live LLM); runs offline with `LIVE_DATA=0`. Ruff is clean. Frontend `npm run build` is clean.
 - The latest work is **not committed yet** (on `main`); it's meant to go on a `feat/*` branch.
 
 ## Known gaps

@@ -130,6 +130,8 @@ class Experience(BaseModel):
     accessibility: list[Access] = []
     indoor: bool = False
     weather_sensitive: bool = False
+    outdoor_convenience_heat: float = Field(default=0.5, ge=0.0, le=1.0)
+    outdoor_convenience_rain: float = Field(default=0.5, ge=0.0, le=1.0)
     tourist_index: float = Field(ge=0, le=1)  # 0 = locals only, 1 = tourist-packed
     rating: float | None = Field(default=None, ge=1, le=5)
     review_count: int = 0

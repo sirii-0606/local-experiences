@@ -106,3 +106,93 @@ def test_simulation_what_if_execution():
     assert "ex-jantar-mantar" in result["vulnerable_stop_ids"]
     assert "adapted_itinerary" in result
     assert len(result["simulated_social_signals"]) > 0
+
+
+def test_trip_simulate_weather_endpoint():
+    auth_client = TestClient(app, headers={"X-Requested-With": "le"})
+    reg = auth_client.post(
+        "/auth/register",
+        json={"email": "sim_weather@test.com", "password": "password12345", "display_name": "Sim"},
+    )
+    assert reg.status_code == 201
+
+    trip_data = {
+        "title": "Monsoon Expedition",
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-16",
+        "budget_inr": 25000,
+        "travelers": [{"name": "Sim", "is_me": True}],
+        "must_see": ["ex-hawa-mahal", "ex-jantar-mantar"],
+        "weather": "clear",
+    }
+    t_res = auth_client.post("/trips", json=trip_data)
+    assert t_res.status_code == 201
+    tid = t_res.json()["id"]
+
+    sim_res = auth_client.post(
+        f"/trips/{tid}/simulate-weather",
+        json={
+            "scenario": {
+                "name": "Sudden Cloudburst (35 mm/h)",
+                "temp_c": 29.5,
+                "rain_intensity_mm_h": 35.0,
+                "duration_hours": 2.5,
+                "epicenter_lat": 26.9239,
+                "epicenter_lon": 75.8267,
+                "epicenter_name": "Old Walled City",
+                "radius_km": 3.8,
+                "wind_kmh": 32.0,
+            }
+        },
+    )
+    assert sim_res.status_code == 200
+    data = sim_res.json()
+    assert data["trip"]["weather"] == "rain"
+    assert data["simulation"]["metrics"]["weather_classification"] == "rain"
+    assert len(data["trip"]["itinerary"]["stops"]) >= 1
+
+
+def test_experience_outdoor_convenience_values_and_planning():
+    from app.engine.trip import score_candidates
+    from app.schemas import TripDraft, TripTraveler
+    from app.seed import load_seed
+
+    s = load_seed()
+    # Check that all experiences have calibrated convenience values
+    for exp in s.experiences.values():
+        assert hasattr(exp, "outdoor_convenience_heat")
+        assert hasattr(exp, "outdoor_convenience_rain")
+        assert 0.0 <= exp.outdoor_convenience_heat <= 1.0
+        assert 0.0 <= exp.outdoor_convenience_rain <= 1.0
+
+    # Verify specific outdoor vs indoor convenience expectations
+    jantar = s.experiences["ex-jantar-mantar"]
+    albert = s.experiences["ex-albert-hall"]
+    assert jantar.outdoor_convenience_heat <= 0.35
+    assert jantar.outdoor_convenience_rain <= 0.35
+    assert albert.outdoor_convenience_heat >= 0.80
+    assert albert.outdoor_convenience_rain >= 0.80
+
+    # Verify candidate scoring considers convenience in heat
+    draft_heat = TripDraft(
+        title="Heatwave Trip",
+        start_date="2026-06-15",
+        end_date="2026-06-16",
+        budget_inr=20000,
+        travelers=[TripTraveler(name="Tester", is_me=True)],
+        must_see=[],
+        weather="heat",
+    )
+    cands_heat = score_candidates(draft_heat, s)
+    cands_by_id = {c.experience_id: c for c in cands_heat}
+
+    assert "ex-albert-hall" in cands_by_id
+    assert "ex-jantar-mantar" in cands_by_id
+    albert_cand = cands_by_id["ex-albert-hall"]
+    jantar_cand = cands_by_id["ex-jantar-mantar"]
+    assert albert_cand.outdoor_convenience_heat >= 0.80
+    assert jantar_cand.outdoor_convenience_heat <= 0.35
+    # Albert Hall should score significantly higher than open-air Jantar Mantar under heat
+    assert albert_cand.score > jantar_cand.score
+
+

@@ -181,6 +181,10 @@ export type ExperienceItem = {
   price_inr?: number;
   rating?: number;
   review_count?: number;
+  indoor?: boolean;
+  weather_sensitive?: boolean;
+  outdoor_convenience_heat?: number;
+  outdoor_convenience_rain?: number;
   accessibility?: string[];
   tourist_index?: number;
 };

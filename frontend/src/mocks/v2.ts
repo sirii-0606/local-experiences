@@ -333,6 +333,8 @@ export const mockV2: V2 = {
       feasible_days: [0, 1],
       must_see: t.must_see.includes(e.id),
       along_route: 0.8,
+      outdoor_convenience_heat: e.outdoor_convenience_heat ?? (e.indoor ? 0.9 : 0.4),
+      outdoor_convenience_rain: e.outdoor_convenience_rain ?? (e.indoor ? 0.95 : 0.3),
     }));
     return delay(list);
   },
@@ -460,6 +462,75 @@ export const mockV2: V2 = {
       splits: [],
     };
     return delay(suggs);
+  },
+  async simulateTripWeather(id, payload) {
+    const u = need();
+    const t = findTrip(u, id);
+    const cond =
+      payload.weather ||
+      (payload.scenario?.rain_intensity_mm_h && payload.scenario.rain_intensity_mm_h >= 1.0
+        ? "rain"
+        : "clear");
+    t.weather = cond;
+    t.weather_scenario_name = payload.scenario?.name || "Simulated Weather";
+    t.weather_temp_c = payload.scenario?.temp_c || 28.0;
+    t.weather_rain_mm_h = payload.scenario?.rain_intensity_mm_h || 0.0;
+    return delay({
+      trip: t,
+      simulation: {
+        scenario: payload.scenario || {
+          name: "Simulated Weather",
+          temp_c: 28.0,
+          rain_intensity_mm_h: 0.0,
+          duration_hours: 2.0,
+          epicenter_lat: 26.9239,
+          epicenter_lon: 75.8267,
+          epicenter_name: "Jaipur",
+          radius_km: 3.5,
+          wind_kmh: 15.0,
+        },
+        metrics: {
+          safety_score: 90,
+          comfort_index: 85,
+          transit_friction_multiplier: cond === "rain" ? 1.4 : 1.0,
+          added_transit_delay_min: cond === "rain" ? 25 : 0,
+          sheltered_ratio_pct: 100,
+          weather_classification: cond as any,
+        },
+        impact_zones: [],
+        original_itinerary: {
+          stops: (t.itinerary?.stops || []).map((s) => ({
+            title: s.title,
+            experience_id: s.experience_id,
+            lat: s.lat,
+            lon: s.lon,
+            start: s.start,
+            end: s.end,
+            status: "proposed" as const,
+            locked: s.locked,
+            cost_inr: s.cost_inr,
+          })),
+        },
+        adapted_itinerary: {
+          stops: (t.itinerary?.stops || []).map((s) => ({
+            title: s.title,
+            experience_id: s.experience_id,
+            lat: s.lat,
+            lon: s.lon,
+            start: s.start,
+            end: s.end,
+            status: "proposed" as const,
+            locked: s.locked,
+            cost_inr: s.cost_inr,
+          })),
+        },
+        changes: [],
+        vulnerable_stop_ids: [],
+        protected_stop_ids: [],
+        simulated_social_signals: [],
+        ai_executive_summary: "Mock simulation adapted for " + (payload.scenario?.name || "weather"),
+      },
+    });
   },
   async catalog() {
     return delay(catalog);

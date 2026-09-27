@@ -2603,5 +2603,17 @@ a.button.mini { padding: 5px 12px; font-size: 0.82rem; }
   cursor: pointer;
 }
 
+@keyframes planGlow {
+  0% { box-shadow: 0 0 0 0 rgba(216, 92, 72, 0.7); }
+  50% { box-shadow: 0 0 24px 8px rgba(216, 92, 72, 0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(216, 92, 72, 0); }
+}
+
+.plan-section-highlight {
+  animation: planGlow 2s ease-in-out;
+  border-radius: 12px;
+}
+
+
 
 

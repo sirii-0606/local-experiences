@@ -167,6 +167,8 @@ export type Candidate = {
   feasible_days: number[];
   must_see: boolean;
   along_route: number;
+  outdoor_convenience_heat?: number;
+  outdoor_convenience_rain?: number;
 };
 
 export type StayRecommendation = {
@@ -252,6 +254,10 @@ export type TripDraft = {
   must_see: string[];
   shortlist?: Record<string, ShortlistDecision>;
   stay_id?: string | null;
+  weather?: "clear" | "rain" | "heat" | string | null;
+  weather_scenario_name?: string | null;
+  weather_temp_c?: number | null;
+  weather_rain_mm_h?: number | null;
 };
 
 export type TripStop = {
