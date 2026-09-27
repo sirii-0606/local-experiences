@@ -32,12 +32,10 @@ export default function TripShortlist() {
         setStayRecs(stays);
         setSelectedStayId(t.stay_id ?? (stays.length > 0 ? stays[0].stay.id : null));
 
-        // Initial decisions
+        // Saved choices win; otherwise only the traveler's own must-sees start in, the rest are skipped
         const initialDecs: Record<string, ShortlistDecision> = { ...(t.shortlist ?? {}) };
         cands.forEach((c) => {
-          if (!initialDecs[c.experience_id]) {
-            initialDecs[c.experience_id] = c.must_see ? "in_person" : "in_person";
-          }
+          initialDecs[c.experience_id] ??= c.must_see ? "in_person" : "skip";
         });
         setDecisions(initialDecs);
       })
@@ -227,7 +225,7 @@ export default function TripShortlist() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
           {candidates.map((c) => {
-            const dec = decisions[c.experience_id] || "in_person";
+            const dec = decisions[c.experience_id] ?? (c.must_see ? "in_person" : "skip");
             return (
               <div
                 key={c.experience_id}

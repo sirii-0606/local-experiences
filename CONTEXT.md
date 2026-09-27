@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-08-trip-review-side-card.md](docs/context/2026-09-27-08-trip-review-side-card.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-09-shortlist-skip-default.md](docs/context/2026-09-27-09-shortlist-skip-default.md)_
 
 **TrueLocal** — "Local Experiences, Intelligently Planned". A context-aware local experience discovery and planning platform (hackathon). Baseline: `docs/ideation/`. Decisions: `docs/ideation/decisions.md`. API: `docs/api.md` + `docs/openapi.json`.
 
@@ -52,7 +52,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-08-trip-revi
   - The plan gets back to Bandra Terminus by 18:00 on a ₹600 budget.
 
 ## Frontend
-- Current TrueLocal design kept. `/` is the product landing page (no city named). `/explore` is the planner, a calm two-column page that scrolls with a sticky map: an Ask box at the top with location sharing, a context strip (where, weather, traffic, closed-now, assumptions), verified reviews per place, "Add to calendar". `/onboarding` after sign-up; `/profile` shows preferences and what we've learned (correctable); `/verify` checks any pasted reviews; `/provider` has three tabs (List an experience · My listings with insights and demand near you · Requests inbox); Explore cards for host listings have "Request to book"; Profile lists your booking requests. In the trip wizard's last step, Review + Save sit in the sticky side column.
+- Current TrueLocal design kept. `/` is the product landing page (no city named). `/explore` is the planner, a calm two-column page that scrolls with a sticky map: an Ask box at the top with location sharing, a context strip (where, weather, traffic, closed-now, assumptions), verified reviews per place, "Add to calendar". `/onboarding` after sign-up; `/profile` shows preferences and what we've learned (correctable); `/verify` checks any pasted reviews; `/provider` has three tabs (List an experience · My listings with insights and demand near you · Requests inbox); Explore cards for host listings have "Request to book"; Profile lists your booking requests. In the trip wizard's last step, Review + Save sit in the sticky side column; the shortlist starts with only your must-sees in, everything else skipped.
 - Other routes: `/3d` (also `/spatial`), `/provider`, `/login`, `/register`, `/trips`, `/trips/new`, `/trips/:id`, `/trips/:id/shortlist`, `/trips/:id/itinerary`, `/admin`.
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
