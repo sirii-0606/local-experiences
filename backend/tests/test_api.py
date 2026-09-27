@@ -173,3 +173,16 @@ def test_llm_parser_live():
     p = intent.parse_llm(SCENARIO_A, datetime.fromisoformat(NOW), SEED)
     assert p.near == "Hawa Mahal" and p.budget_inr == 1500 and p.children == 2
     assert "local-food" in p.intents
+
+
+def test_chat_says_so_when_nothing_matches_what_was_asked():
+    r = client.post(
+        "/chat",
+        json={
+            "text": "it's raining, 3 hours, indoors, local food, Rs 1000",
+            "now": "2026-09-26T15:00:00",
+        },
+    )
+    out = r.json()
+    matched = any(x["factors"]["intent"] > 0 for x in out["recommendations"])
+    assert matched or any("closest alternatives" in a for a in out["context"]["assumptions"])

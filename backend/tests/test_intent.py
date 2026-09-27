@@ -89,3 +89,26 @@ def test_to_state_refines_previous_state():
     s = to_state(parse_rules("it's raining now", SEED), NOW, SEED, base)
     assert s.weather == "rain" and s.budget_inr == 2000 and len(s.group) == 4
     assert sorted(t.age for t in s.group if t.age < 16) == [6, 9]
+
+
+def test_llm_output_is_validated_and_rules_win_on_exact_values():
+    from app.intent import ParsedRequest, merge
+
+    # what a small model actually sent: a range in one field, strings for numbers, a bogus age
+    sloppy = ParsedRequest.model_validate(
+        {
+            "start_time": "4-6 pm",
+            "group_size": "4",
+            "my_age": 900,
+            "child_ages": [76, 5],
+            "intents": ["local-food", "cultural"],
+            "with_companions": True,
+        }
+    )
+    assert (sloppy.start_time, sloppy.group_size, sloppy.my_age) == (None, 4, None)
+    assert sloppy.child_ages == [5] and sloppy.intents == ["local-food", "heritage", "performance"]
+    rules = parse_rules("family of 4 with two kids, free 4-6 pm, 1500 rupees, a student", SEED)
+    merged = merge(sloppy, rules)
+    assert (merged.start_time, merged.end_time, merged.budget_inr) == ("16:00", "18:00", 1500)
+    assert merged.budget_hint == "low"  # the LLM missed it; the rules filled the gap
+    assert merged.intents == ["local-food", "heritage", "performance"]  # meaning stays the LLM's

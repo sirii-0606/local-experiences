@@ -6,3 +6,8 @@ def isolated_db(tmp_path, monkeypatch):
     """Every test gets its own SQLite file; nothing touches backend/data/local.db."""
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("LIVE_DATA", "0")  # no geocoding, open-data places or chat weather calls
+    # .env is loaded on import (real keys, an admin): tests stay offline and start from no admin.
+    # The live LLM test calls the parser directly and opts in with RUN_LLM_TESTS.
+    monkeypatch.setenv("INTENT_PARSER", "rules")
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)

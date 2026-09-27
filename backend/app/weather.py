@@ -103,8 +103,14 @@ def _typical(day: date, lat: float, lon: float) -> dict:
 
 
 def _fetch_openmeteo(
-    day: date, key: str | None = None, lat: float = CITY[0], lon: float = CITY[1]
+    day: date,
+    key: str | None = None,
+    lat: float = CITY[0],
+    lon: float = CITY[1],
+    strict: bool = False,
 ) -> dict:
+    """Open-Meteo forecast (or archive for past days). `strict`: raise instead of falling back
+    to typical weather, so the caller can try another live source first."""
     if day < date.today():
         try:
             archive_url = (
@@ -118,6 +124,8 @@ def _fetch_openmeteo(
                 res["hourly"]["precipitation_probability"] = [0] * len(res["hourly"]["time"])
             return res
         except Exception:
+            if strict:
+                raise
             return _typical(day, lat, lon)
 
     days_ahead = (day - date.today()).days
@@ -129,8 +137,12 @@ def _fetch_openmeteo(
             with urllib.request.urlopen(url, timeout=4) as r:
                 return json.load(r)
         except Exception:
+            if strict:
+                raise
             return _typical(day, lat, lon)
 
+    if strict:
+        raise LookupError("beyond the 16-day forecast")
     return _typical(day, lat, lon)
 
 
@@ -221,6 +233,18 @@ def _fetch(day: date, lat: float = CITY[0], lon: float = CITY[1]) -> dict:
         elif os.environ.get("WEATHERAPI_KEY"):
             provider = "weatherapi"
             key = os.environ.get("WEATHERAPI_KEY", "").strip()
+
+    if key and provider in ("", "auto"):
+        # WEATHER_API_KEY (an OpenWeatherMap key) is the backup: Open-Meteo has hourly data with
+        # humidity and wind, so it goes first; typical weather only if both are unreachable.
+        try:
+            return _fetch_openmeteo(day, lat=lat, lon=lon, strict=True)
+        except Exception:
+            pass
+        try:
+            return _fetch_openweathermap(day, key, lat, lon)
+        except Exception:
+            return _typical(day, lat, lon)
 
     if key and provider in ("openweathermap", "openweather"):
         try:

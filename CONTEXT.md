@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-02-review-verification-and-ui.md](docs/context/2026-09-27-02-review-verification-and-ui.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-03-live-keys.md](docs/context/2026-09-27-03-live-keys.md)_
 
 **TrueLocal** — "Local Experiences, Intelligently Planned". A context-aware local experience discovery and planning platform (hackathon). Baseline: `docs/ideation/`. Decisions: `docs/ideation/decisions.md`. API: `docs/api.md` + `docs/openapi.json`.
 
@@ -14,7 +14,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-02-review-ve
 
 ## Architecture (unchanged rules)
 - One pure-Python engine (`backend/app/engine/`) decides: feasibility → ranking → itinerary → replanning. UI, chat and API are thin consumers.
-- The LLM (`claude-opus-5`, with a rule-based fallback that always works offline) only parses text into a `TravelerState`. It never decides.
+- The LLM (NVIDIA NIM from `.env`, or `claude-opus-5`) only parses text into a `TravelerState`. It never decides. Its output is validated and merged with the rule parse (rules win on times, money, counts), with a 10 s deadline (`LLM_TIMEOUT_S`); the rule parser always works offline.
 - Hard constraints ≠ soft preferences. Low confidence is flagged, never hidden.
 
 ## What works now (backend)
@@ -55,7 +55,8 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-02-review-ve
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 144 passed, 1 skipped (live LLM); runs offline with `LIVE_DATA=0`. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 147 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
+- Keys live in `.env` (gitignored): NVIDIA NIM (working, 0.3–30 s per call), OpenWeatherMap (used as the weather backup). `ADMIN_PASSWORD` there is under 8 characters, so no admin is created.
 - `main` on GitHub = `a5373c0` (any-city work + teammate merge). The review engine and UI are on `feat/review-verification`, not pushed yet.
 
 ## Known gaps

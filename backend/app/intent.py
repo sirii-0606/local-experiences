@@ -19,6 +19,8 @@ from app.seed import Seed
 log = logging.getLogger(__name__)
 IST = timezone(timedelta(hours=5, minutes=30))
 MODEL = "claude-opus-5"
+# Past this, the rule parser's answer is used: a free-tier model can queue for 30 s.
+LLM_TIMEOUT_S = float(os.environ.get("LLM_TIMEOUT_S", "10"))
 DEFAULT_PLACE = "pl-hawa-mahal"  # city centre when no location is given
 
 TAG_SYNONYMS: dict[str, list[Tag]] = {
@@ -72,10 +74,40 @@ class ParsedRequest(BaseModel):
     pace: Literal["relaxed", "normal", "packed"] | None = None
     mode: Literal["walk", "auto", "car"] | None = None
 
+    # LLM output crosses a trust boundary: anything malformed or implausible becomes "not said".
     @field_validator("child_ages", mode="before")
     @classmethod
     def _clean_child_ages(cls, v):
-        return v if isinstance(v, list) else []
+        if not isinstance(v, list):
+            return []
+        return [a for a in v if isinstance(a, int) and not isinstance(a, bool) and 0 <= a < 16]
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _clean_clock(cls, v):
+        m = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", v.strip()) if isinstance(v, str) else None
+        return f"{int(m[1]):02d}:{m[2]}" if m else None
+
+    @field_validator(
+        "my_age",
+        "duration_min",
+        "budget_inr",
+        "group_size",
+        "adults",
+        "children",
+        "seniors",
+        mode="before",
+    )
+    @classmethod
+    def _clean_count(cls, v, info):
+        lo, hi = {"my_age": (1, 110), "duration_min": (5, 1440), "budget_inr": (0, 10_000_000)}.get(
+            info.field_name, (0, 30)
+        )
+        if isinstance(v, str) and v.strip().isdigit():  # LLMs often send "4" for 4
+            v = int(v.strip())
+        if isinstance(v, bool) or not isinstance(v, int | float) or not lo <= v <= hi:
+            return None
+        return int(v)
 
     @field_validator("intents", "avoid", mode="before")
     @classmethod
@@ -499,8 +531,9 @@ a budget, time or group size that was not stated.
 - with_companions: true for "with my family/friends" when no head count is given.
 - return_to: "station" if they must catch a train, "airport" for a flight; else null.
 - budget_hint: "low" for students/backpackers/"cheap", "high" for luxury; null otherwise.
-- start_time: "it's 6 pm" means the free time starts at 18:00.
-- start_time / end_time: 24h "HH:MM" on the current day. "free 4-6" means 16:00-18:00.
+- start_time / end_time: 24h "HH:MM", only for a clock time the traveler states: "it's 6 pm" is
+  start 18:00; "free 4-6" is 16:00 and 18:00. CURRENT TIME is context: never copy it into
+  start_time. Always two separate "HH:MM" values, never a range in one field.
 - duration_min: for "I have 2 hours" style statements.
 - budget_inr: the total for the whole group, in rupees.
 - group: a "family of 4 with two kids" is group_size 4, children 2. "my parents" are 2 seniors.
@@ -541,7 +574,7 @@ def nim_parse[T: BaseModel](system: str, content: str, schema: type[T]) -> T:
         or "meta/llama-3.2-11b-vision-instruct"
     )
 
-    schema_json = json.dumps(schema.model_json_schema(), indent=2)
+    schema_json = json.dumps(schema.model_json_schema(), separators=(",", ":"))
     sys_prompt = (
         f"{system}\n\n"
         f"You must respond ONLY with a valid JSON object strictly matching this schema:\n"
@@ -556,7 +589,7 @@ def nim_parse[T: BaseModel](system: str, content: str, schema: type[T]) -> T:
             {"role": "user", "content": content},
         ],
         "temperature": 0.1,
-        "max_tokens": 4096,
+        "max_tokens": 800,  # the JSON is small; a rambling reply costs time, not accuracy
         "response_format": {"type": "json_object"},
     }
 
@@ -569,7 +602,7 @@ def nim_parse[T: BaseModel](system: str, content: str, schema: type[T]) -> T:
             "User-Agent": "local-experiences/1.0",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=LLM_TIMEOUT_S) as resp:
         res_data = json.loads(resp.read().decode("utf-8"))
 
     msg_content = res_data["choices"][0]["message"]["content"]
@@ -585,7 +618,7 @@ def claude_parse[T: BaseModel](system: str, content: str, schema: type[T], clien
 
     import anthropic
 
-    client = client or anthropic.Anthropic(timeout=30, max_retries=1)
+    client = client or anthropic.Anthropic(timeout=LLM_TIMEOUT_S, max_retries=1)
     response = client.beta.messages.parse(
         model=MODEL,
         max_tokens=16000,
@@ -645,11 +678,38 @@ def llm_or_rules[T](llm: Callable[[], T], rules: Callable[[], T]) -> tuple[T, st
     return rules(), "rules"
 
 
+# What the rules read exactly (clock times, rupees, minutes, head counts): they win over the LLM.
+EXACT = (
+    "start_time",
+    "end_time",
+    "duration_min",
+    "budget_inr",
+    "group_size",
+    "adults",
+    "children",
+    "seniors",
+    "child_ages",
+    "my_age",
+)
+
+
+def merge(llm: ParsedRequest, rules: ParsedRequest) -> ParsedRequest:
+    """The LLM for meaning, the rules for what a regex reads exactly: rule-found numbers and times
+    replace the LLM's, and anything the LLM left out that the rules found is filled in."""
+    update = {}
+    for f in ParsedRequest.model_fields:
+        r, m = getattr(rules, f), getattr(llm, f)
+        if r not in (None, []) and (f in EXACT or m in (None, [])):
+            update[f] = r
+    return llm.model_copy(update=update)
+
+
 def parse(text: str, now: datetime, seed: Seed, profile: str = "") -> tuple[ParsedRequest, str]:
     """Returns (parsed request, which parser produced it: "llm" or "rules").
     `profile`: a short summary of the signed-in traveler's context, given to the LLM only."""
+    rules = parse_rules(text, seed)
     return llm_or_rules(
-        lambda: parse_llm(text, now, seed, profile=profile), lambda: parse_rules(text, seed)
+        lambda: merge(parse_llm(text, now, seed, profile=profile), rules), lambda: rules
     )
 
 

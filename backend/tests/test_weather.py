@@ -121,3 +121,24 @@ def test_heat_is_reported_for_outdoor_stops(monkeypatch):
     assert out["proposed"]["weather"] == "heat"
     assert PUPPETS.title not in [r["stop"] for r in out["risks"]]
     assert LUNCH.title not in [r["stop"] for r in out["risks"]] and PALACE.locked
+
+
+def test_a_spare_weather_key_is_the_backup_when_open_meteo_is_down(monkeypatch):
+    monkeypatch.setenv("WEATHER_API_KEY", "test-key")
+    monkeypatch.setenv("WEATHER_PROVIDER", "auto")
+    for k in ("OPENWEATHER_API_KEY", "WEATHERAPI_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    used = []
+
+    def down(*_, **__):
+        used.append("open-meteo")
+        raise TimeoutError
+
+    def backup(day, key, lat, lon):
+        used.append("openweathermap")
+        return payload(rain_hours={14})
+
+    monkeypatch.setattr(weather, "_fetch_openmeteo", down)
+    monkeypatch.setattr(weather, "_fetch_openweathermap", backup)
+    assert weather.forecast(SAT, lat=18.52, lon=73.85)[14].condition == "rain"
+    assert used == ["open-meteo", "openweathermap"]

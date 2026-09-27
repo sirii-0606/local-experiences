@@ -424,6 +424,11 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
             )
 
     recs, excluded = discover(state, s)
+    if state.intents and recs and not any(r.factors["intent"] > 0 for r in recs):
+        notes.append(
+            f"Nothing for {', '.join(state.intents)} fits right now, so these are the "
+            "closest alternatives."
+        )
     store.log_demand(state, [r.experience_id for r in recs], excluded)  # aggregates only
     it = plan(Itinerary(), state, s)
     if user:
