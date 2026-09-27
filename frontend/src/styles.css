@@ -2232,7 +2232,6 @@ button.link-btn:hover:not(:disabled), a.link-btn:hover { background: transparent
 .host-checks label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); font-weight: 500; }
 .host-checks input { width: auto; }
 
-.host-pick { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
 .host-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .host-stats div { background: var(--panel-2); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .host-stats strong { font-family: var(--serif); font-weight: 400; font-size: 2rem; line-height: 1; color: var(--accent); }
@@ -2256,3 +2255,24 @@ button.link-btn:hover:not(:disabled), a.link-btn:hover { background: transparent
 .plan-suggest b { font-weight: 700; margin-right: 6px; }
 .spot-credit { position: absolute; right: 8px; bottom: 6px; font-size: 0.66rem; color: #fff; background: rgba(30, 19, 29, 0.55); padding: 1px 6px; border-radius: 6px; text-decoration: none; }
 .spot-credit:hover { background: rgba(30, 19, 29, 0.8); }
+
+/* ---- host loop: my listings, requests, request-to-book */
+.host-tabs .badge, .host-listings .badge { background: var(--accent); color: #fff; margin-left: 6px; }
+.host-tabs button.on .badge { background: #fff; color: var(--accent); }
+a.button.secondary { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+.host-listings { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.host-listings button { width: 100%; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.host-listings button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.host-listings .badge { margin-left: 0; }
+.requests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.request { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.request:last-child { border-bottom: 0; }
+.request-note { margin: 6px 0 0; font-style: italic; color: var(--muted); font-size: 0.88rem; }
+.status { font-size: 0.8rem; font-weight: 700; text-transform: capitalize; padding: 3px 10px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+.status.accepted { background: var(--ok-soft); color: var(--ok); }
+.status.pending { background: var(--warn-bg); color: var(--warn); }
+.request-form { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.request-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.request-form input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); color: var(--ink); }
+.request-form .row { display: flex; gap: 10px; }
+.request-form .row > label { flex: 1; }

@@ -215,6 +215,7 @@ export type Catalog = {
   places: { id: string; name: string; lat: number; lon: number }[];
   experiences: ExperienceItem[];
   provider_listings: string[];
+  requestable?: string[]; // host listings that take booking requests
   paused: string[];
   vocabulary: { tags: string[]; categories: string[]; accessibility: string[] };
 };

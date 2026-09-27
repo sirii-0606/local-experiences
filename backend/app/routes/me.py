@@ -5,7 +5,7 @@ from typing import get_args
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from app import accounts, personal
+from app import accounts, personal, store
 from app.engine.learn import NOT_TASTE
 from app.intent import now_ist, parse
 from app.models import Access, Tag
@@ -50,7 +50,12 @@ def change_password(
 
 @router.get("/export")
 def export(user: dict = Depends(current_user)) -> dict:
-    return accounts.export(user["id"])
+    requests = [
+        {k: v for k, v in r.items() if k != "traveler_id"} | {"start": r["start"].isoformat()}
+        for r in store.traveler_requests(user["id"])
+    ]
+    listings = store.user_listing_ids(user["id"])
+    return accounts.export(user["id"]) | {"booking_requests": requests, "listings": listings}
 
 
 @router.delete("", status_code=204)
@@ -60,6 +65,7 @@ def delete_me(req: DeleteAccount, response: Response, user: dict = Depends(curre
     if user["role"] == "admin" and accounts.admin_count() <= 1:
         raise HTTPException(409, "you're the last admin; make someone else admin first")
     accounts.delete(user["id"])
+    store.forget_user(user["id"])
     clear_session_cookie(response)
 
 

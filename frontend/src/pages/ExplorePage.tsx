@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import MapView from "../MapView";
+import RequestBook from "../RequestBook";
 import { ExperienceReviews } from "../ReviewsPanel";
 import { api } from "../api";
 import type { CalendarExport, ChatContext } from "../types";
@@ -795,6 +796,9 @@ export default function ExplorePage() {
                         )}
                         <Link to="/3d" className="link-btn" title="3D view">3D</Link>
                       </div>
+                      {catalog?.requestable?.includes(r.experience_id) && (
+                        <RequestBook experienceId={r.experience_id} start={r.start} people={state?.group.length ?? 1} />
+                      )}
                     </div>
                   </article>
                 );

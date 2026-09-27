@@ -357,3 +357,58 @@ class CalendarEvent(BaseModel):
 class CalendarExport(BaseModel):
     ics: str  # import into Google/Apple/Outlook calendar; carries the reminders
     events: list[CalendarEvent]
+
+
+# ---------------------------------------------------------------- hosts: listings, requests, demand
+RequestStatus = Literal["pending", "accepted", "declined", "cancelled"]
+
+
+class HostListing(BaseModel):
+    experience_id: str
+    title: str
+    place_name: str
+    lat: float
+    lon: float
+    paused: bool
+    pending_requests: int
+    created: datetime | None = None
+
+
+class BookingRequestIn(BaseModel):
+    experience_id: str = Field(pattern=r"^ex-u-[\w.-]{1,80}$")  # host listings only
+    start: datetime
+    people: int = Field(ge=1, le=50)
+    note: str = Field(default="", max_length=300)
+
+
+class BookingRequestOut(BaseModel):
+    """What both sides see. The host gets the traveler's display name only: no email, no
+    location, no profile."""
+
+    id: int
+    experience_id: str
+    title: str
+    traveler_name: str
+    people: int
+    start: datetime
+    note: str | None = None
+    status: RequestStatus
+    created: datetime
+    booking_code: str | None = None  # set on accept; unlocks a verified-visit review
+
+
+class RequestDecision(BaseModel):
+    accept: bool
+
+
+class AreaDemand(BaseModel):
+    """Aggregates of traveler searches around a point (last 30 days, ~5 km cells). Details are
+    withheld below `min_searches` so a single search can't be picked out."""
+
+    searches: int
+    min_searches: int
+    wanted: list[tuple[str, int]] = []  # intent, searches
+    unmet: list[tuple[str, int]] = []  # intent, searches that found nothing for it
+    start_hours: list[tuple[int, int]] = []
+    budget_per_person: list[tuple[str, int]] = []
+    group_sizes: list[tuple[str, int]] = []

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../auth";
 import { v2 } from "../v2api";
-import type { Profile, ProfileContext } from "../types";
+import type { BookingRequestOut, Profile, ProfileContext } from "../types";
 
 const list = (xs: string[]) => (xs.length ? xs.map((x) => x.replace(/[-_]/g, " ")).join(", ") : "not set");
 
@@ -19,10 +19,12 @@ export default function ProfilePage() {
 
   const [ctx, setCtx] = useState<ProfileContext | null>(null);
   const [pastTrip, setPastTrip] = useState("");
+  const [requests, setRequests] = useState<BookingRequestOut[]>([]);
 
   useEffect(() => {
     v2.getProfile().then(setProfile).catch((e) => setError(String(e)));
     v2.context().then(setCtx).catch(() => setCtx(null));
+    v2.myRequests().then(setRequests).catch(() => setRequests([]));
   }, []);
 
   const act = async (fn: () => Promise<void>) => {
@@ -115,6 +117,33 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {requests.length > 0 && (
+        <div className="panel">
+          <h3>Your booking requests</h3>
+          <ul className="requests">
+            {requests.map((r) => (
+              <li key={r.id} className="request">
+                <div>
+                  <strong>{r.title}</strong>
+                  <div className="muted small">
+                    {new Date(r.start).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · {r.people} {r.people === 1 ? "person" : "people"}
+                  </div>
+                  {r.booking_code && <div className="muted small">Booking {r.booking_code}: use it to leave a verified review after your visit.</div>}
+                </div>
+                <div className="row">
+                  <span className={`status ${r.status}`}>{r.status}</span>
+                  {(r.status === "pending" || r.status === "accepted") && (
+                    <button type="button" className="secondary mini" onClick={() => act(async () => {
+                      await v2.cancelRequest(r.id); setRequests(await v2.myRequests()); setNote("Request cancelled.");
+                    })}>Cancel</button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); act(async () => {
         await v2.changePassword(pw.current, pw.next); setPw({ current: "", next: "" }); setNote("Password changed. Other devices were signed out.");

@@ -41,6 +41,7 @@ from app.models import (
     Tag,
     TravelerState,
 )
+from app.routes import host as host_routes
 from app.routes.deps import COOKIE
 from app.schemas import ChatContext, ClosedNow, WeatherNow
 from app.seed import Seed, load_seed
@@ -223,6 +224,7 @@ def catalog(lat: float | None = None, lon: float | None = None) -> dict:
         "providers": list(s.providers.values()),
         "experiences": list(s.experiences.values()),
         "provider_listings": store.listing_ids(),
+        "requestable": store.requestable_ids(),  # host listings with an account: "Request to book"
         "paused": sorted(store.paused_ids()),
         "vocabulary": {
             "tags": get_args(Tag),
@@ -453,6 +455,8 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
             "nearby. Tell me, e.g. food, history or a view."
         )
     store.log_demand(state, [r.experience_id for r in recs], excluded)  # aggregates only
+    offered = {t for r in recs for t in s.experiences[r.experience_id].tags}
+    store.log_area_demand(state, [i for i in state.intents if i not in offered])  # ~5 km cell
     it = plan(Itinerary(), state, s)
     if user:
         accounts.bump_context(
@@ -659,11 +663,13 @@ def cancel_booking(code: str) -> dict:
 # ---------------------------------------------------------------- provider side
 
 
-def _require_owner(experience_id: str, token: str | None) -> None:
-    """Provider listings change only with their edit token. Seed (curated) experiences are open
-    in the demo; set SEED_ADMIN_TOKEN to lock them too."""
+def _require_owner(experience_id: str, token: str | None, request: Request) -> None:
+    """Provider listings change only for their signed-in host or with their edit token. Seed
+    (curated) experiences are open in the demo; set SEED_ADMIN_TOKEN to lock them too."""
     if store.is_listing(experience_id):
-        if not store.owns(experience_id, token):
+        user = accounts.user_for(request.cookies.get(COOKIE))
+        host = store.listing_user(experience_id)
+        if not (user and host == user["id"]) and not store.owns(experience_id, token):
             raise HTTPException(403, "only the listing's owner can change it (edit token needed)")
     elif (admin := os.environ.get("SEED_ADMIN_TOKEN")) and token != admin:
         raise HTTPException(403, "curated experiences need the admin token")
@@ -682,13 +688,14 @@ def provider_draft(req: DraftRequest) -> DraftResponse:
 
 
 @app.post("/providers/listings")
-def provider_publish(req: PublishRequest) -> Listing:
+def provider_publish(req: PublishRequest, request: Request) -> Listing:
     today = (req.today or now_ist()).date()
     try:
         pv, pl, exp = provider.to_listing(req.draft, seed(), today)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     token = store.add_listing(pv, pl, exp)
+    host_routes.attach(exp.id, accounts.user_for(request.cookies.get(COOKIE)))
     return Listing(provider=pv, place=pl, experience=exp, edit_token=token)
 
 
@@ -703,11 +710,14 @@ def provider_listing(experience_id: str) -> DraftResponse:
 
 @app.put("/providers/listings/{experience_id}")
 def provider_update(
-    experience_id: str, req: PublishRequest, x_provider_token: str | None = Header(default=None)
+    experience_id: str,
+    req: PublishRequest,
+    request: Request,
+    x_provider_token: str | None = Header(default=None),
 ) -> Listing:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
-    _require_owner(experience_id, x_provider_token)
+    _require_owner(experience_id, x_provider_token, request)
     today = (req.today or now_ist()).date()
     try:
         pv, pl, exp = provider.to_listing(
@@ -721,21 +731,21 @@ def provider_update(
 
 @app.delete("/providers/listings/{experience_id}")
 def provider_delete(
-    experience_id: str, x_provider_token: str | None = Header(default=None)
+    experience_id: str, request: Request, x_provider_token: str | None = Header(default=None)
 ) -> dict:
     if not store.is_listing(experience_id):
         raise HTTPException(404, "not a provider listing")
-    _require_owner(experience_id, x_provider_token)
+    _require_owner(experience_id, x_provider_token, request)
     store.delete_listing(experience_id)
     return {"experience_id": experience_id, "deleted": True}
 
 
 @app.post("/providers/availability")
 def provider_availability(
-    req: PauseRequest, x_provider_token: str | None = Header(default=None)
+    req: PauseRequest, request: Request, x_provider_token: str | None = Header(default=None)
 ) -> dict:
     _check_ids(seed(), req.experience_id)
-    _require_owner(req.experience_id, x_provider_token)
+    _require_owner(req.experience_id, x_provider_token, request)
     store.set_paused(req.experience_id, req.paused)
     return {"experience_id": req.experience_id, "paused": req.paused}
 
@@ -774,5 +784,6 @@ if os.environ.get("WEBSITE_V2", "1") == "1":
         trip_routes.router,
         calendar_routes.router,
         review_routes.router,
+        host_routes.router,
     ):
         app.include_router(_router)

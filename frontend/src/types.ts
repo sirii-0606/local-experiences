@@ -285,3 +285,47 @@ export type Trip = TripDraft & {
 };
 
 export const MAX_TRIP_DAYS = 7;
+
+// ---- hosts: listings, booking requests, demand near you (backend/app/routes/host.py)
+export type RequestStatus = "pending" | "accepted" | "declined" | "cancelled";
+
+export interface HostListing {
+  experience_id: string;
+  title: string;
+  place_name: string;
+  lat: number;
+  lon: number;
+  paused: boolean;
+  pending_requests: number;
+  created: string | null;
+}
+
+export interface BookingRequestIn {
+  experience_id: string; // host listings only (ex-u-*)
+  start: string;
+  people: number;
+  note?: string;
+}
+
+export interface BookingRequestOut {
+  id: number;
+  experience_id: string;
+  title: string;
+  traveler_name: string; // display name only: hosts never see email, location or profile
+  people: number;
+  start: string;
+  note: string | null;
+  status: RequestStatus;
+  created: string;
+  booking_code: string | null; // set on accept; unlocks a verified-visit review
+}
+
+export interface AreaDemand {
+  searches: number;
+  min_searches: number; // details are withheld below this
+  wanted: [string, number][];
+  unmet: [string, number][];
+  start_hours: [number, number][];
+  budget_per_person: [string, number][];
+  group_sizes: [string, number][];
+}

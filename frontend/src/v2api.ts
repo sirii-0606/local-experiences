@@ -6,7 +6,11 @@ import type {
   AdminStats,
   AdminUserPatch,
   AdminUserRow,
+  AreaDemand,
+  BookingRequestIn,
+  BookingRequestOut,
   Candidate,
+  HostListing,
   Profile,
   ProfileContext,
   Question,
@@ -50,6 +54,13 @@ export type V2 = {
   context(): Promise<ProfileContext>;
   importContext(text: string): Promise<ProfileContext>;
   forgetContext(tag?: string): Promise<void>; // no tag = forget everything
+  myListings(): Promise<HostListing[]>;
+  requestBooking(r: BookingRequestIn): Promise<BookingRequestOut>;
+  myRequests(): Promise<BookingRequestOut[]>;
+  cancelRequest(id: number): Promise<BookingRequestOut>;
+  incomingRequests(): Promise<BookingRequestOut[]>;
+  decideRequest(id: number, accept: boolean): Promise<BookingRequestOut>;
+  areaDemand(lat: number, lon: number): Promise<AreaDemand>;
 };
 
 const realV2: V2 = {
@@ -90,6 +101,14 @@ const realV2: V2 = {
   importContext: (text) => call<ProfileContext>("/me/context/import", { text }),
   forgetContext: (tag) =>
     call<void>(tag ? `/me/context/${encodeURIComponent(tag)}` : "/me/context", undefined, "DELETE"),
+  myListings: () => call<HostListing[]>("/me/listings"),
+  requestBooking: (r) => call<BookingRequestOut>("/requests", r),
+  myRequests: () => call<BookingRequestOut[]>("/me/requests"),
+  cancelRequest: (id) => call<BookingRequestOut>(`/me/requests/${id}`, undefined, "DELETE"),
+  incomingRequests: () => call<BookingRequestOut[]>("/me/requests/incoming"),
+  decideRequest: (id, accept) =>
+    call<BookingRequestOut>(`/me/requests/${id}/decision`, { accept }),
+  areaDemand: (lat, lon) => call<AreaDemand>(`/providers/demand?lat=${lat}&lon=${lon}`),
 };
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";

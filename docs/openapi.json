@@ -2179,6 +2179,268 @@
           }
         }
       }
+    },
+    "/me/listings": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "My Listings",
+        "operationId": "my_listings_me_listings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HostListing"
+                  },
+                  "type": "array",
+                  "title": "Response My Listings Me Listings Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests": {
+      "post": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Request Booking",
+        "operationId": "request_booking_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/requests": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "My Requests",
+        "operationId": "my_requests_me_requests_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookingRequestOut"
+                  },
+                  "type": "array",
+                  "title": "Response My Requests Me Requests Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Cancel Request",
+        "operationId": "cancel_request_me_requests__request_id__delete",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/requests/incoming": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Incoming",
+        "operationId": "incoming_me_requests_incoming_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookingRequestOut"
+                  },
+                  "type": "array",
+                  "title": "Response Incoming Me Requests Incoming Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/requests/{request_id}/decision": {
+      "post": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Decide",
+        "operationId": "decide_me_requests__request_id__decision_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers/demand": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Demand Near",
+        "description": "Public aggregates: what travelers around here asked for, and what found nothing.",
+        "operationId": "demand_near_providers_demand_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Lon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaDemand"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2325,6 +2587,115 @@
         "title": "AdminUserRow",
         "description": "What an admin may see about a user: account facts only, never profile data."
       },
+      "AreaDemand": {
+        "properties": {
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "min_searches": {
+            "type": "integer",
+            "title": "Min Searches"
+          },
+          "wanted": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Wanted",
+            "default": []
+          },
+          "unmet": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Unmet",
+            "default": []
+          },
+          "start_hours": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Start Hours",
+            "default": []
+          },
+          "budget_per_person": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Budget Per Person",
+            "default": []
+          },
+          "group_sizes": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Group Sizes",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "searches",
+          "min_searches"
+        ],
+        "title": "AreaDemand",
+        "description": "Aggregates of traveler searches around a point (last 30 days, ~5 km cells). Details are\nwithheld below `min_searches` so a single search can't be picked out."
+      },
       "AvailabilityWindow": {
         "properties": {
           "start": {
@@ -2412,6 +2783,118 @@
           "experience_id"
         ],
         "title": "BookingRequest"
+      },
+      "BookingRequestIn": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "pattern": "^ex-u-[\\w.-]{1,80}$",
+            "title": "Experience Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "people": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "People"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "start",
+          "people"
+        ],
+        "title": "BookingRequestIn"
+      },
+      "BookingRequestOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "traveler_name": {
+            "type": "string",
+            "title": "Traveler Name"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created"
+          },
+          "booking_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "experience_id",
+          "title",
+          "traveler_name",
+          "people",
+          "start",
+          "status",
+          "created"
+        ],
+        "title": "BookingRequestOut",
+        "description": "What both sides see. The host gets the traveler's display name only: no email, no\nlocation, no profile."
       },
       "BookingResponse": {
         "properties": {
@@ -4027,6 +4510,61 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HostListing": {
+        "properties": {
+          "experience_id": {
+            "type": "string",
+            "title": "Experience Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "place_name": {
+            "type": "string",
+            "title": "Place Name"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          },
+          "pending_requests": {
+            "type": "integer",
+            "title": "Pending Requests"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experience_id",
+          "title",
+          "place_name",
+          "lat",
+          "lon",
+          "paused",
+          "pending_requests"
+        ],
+        "title": "HostListing"
+      },
       "ImpactZonePolygon": {
         "properties": {
           "name": {
@@ -5536,6 +6074,19 @@
           "display_name"
         ],
         "title": "RegisterRequest"
+      },
+      "RequestDecision": {
+        "properties": {
+          "accept": {
+            "type": "boolean",
+            "title": "Accept"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accept"
+        ],
+        "title": "RequestDecision"
       },
       "ReviewBatch": {
         "properties": {

@@ -25,7 +25,7 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 |---|---|---|---|
 | GET | `/` | none | Redirects to `/docs`, the interactive API docs |
 | GET | `/health` | none | `{ok, experiences}` |
-| GET | `/catalog?lat=&lon=` | none | `{places[], providers[], experiences[], provider_listings[], paused[], vocabulary{tags, categories, accessibility}}`, i.e. everything the map and provider views need. Without `lat`/`lon`: the curated Jaipur seed. With them: what's offered around that point, in any city (see "Any city" below). |
+| GET | `/catalog?lat=&lon=` | none | `{places[], providers[], experiences[], provider_listings[], requestable[], paused[], vocabulary{tags, categories, accessibility}}`, i.e. everything the map and provider views need. Without `lat`/`lon`: the curated Jaipur seed. With them: what's offered around that point, in any city (see "Any city" below). |
 | POST | `/chat` | `{text, state?, now?, lat?, lon?}` | `{parser, parsed, state, recommendations[], excluded{}, plan{itinerary, problems[]}, context}`. `lat`/`lon` = the device's location, if shared. `context` = `{location, location_source: text\|device\|previous\|profile\|default, lat, lon, data_source, places_considered, weather{available, condition, temp_c, rain_chance, applied}, traffic, closed_now[{experience_id, title, why, next_open, hours_confirmed}], assumptions[], profile_used}`. Signed in (cookie), the profile and learned context shape the starting state and each message nudges that context. |
 | POST | `/discover` | `{state, k?=5}` | `{recommendations[], excluded{}}` |
 | POST | `/plan` | `{state, itinerary?, max_new?=3, add?}` | `{itinerary, problems[]}`. It fills gaps around existing stops; locked stops never move. `add` is an experience id: the engine fits it into the earliest feasible gap, or returns **409** with a readable `detail` if it fits nowhere. |
@@ -41,8 +41,8 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 | POST | `/bookings` | `{state, itinerary, experience_id}` | `{code, experience_id, start, people, itinerary}`. A **stub** with no payment: it holds spots for a stop already in the plan and marks it confirmed and locked. **409** with a readable reason if the stop doesn't validate or the start time is full (capacity minus booked people). |
 | DELETE | `/bookings/{code}` | none | Cancels a booking and frees its spots. **404** if the code is unknown. |
 | POST | `/providers/draft` | `{text}` | `{parser, draft: ListingDraft, fits[]}`. Free text becomes an editable draft; nothing is saved. Outside the curated city, the area it names is geocoded into `draft.lat/lon/area`. `fits` = the traveler segments it suits ("families with kids", "students and budget travelers", ...). |
-| POST | `/providers/listings` | `{draft, today?}` | `{provider, place, experience, edit_token}`. **Keep `edit_token`:** it's shown only once and is needed to edit, pause or remove the listing (the web app keeps it in the browser's localStorage). Validates the reviewed draft and publishes it. A bad draft returns **422** with a readable `detail` (no known landmark and no pin, a pin outside India, hours shorter than the experience, no tags, no days). A listing can be pinned anywhere with `lat`/`lon` (+ `area`); it's then offered to travelers within 40 km. |
-| POST | `/providers/availability` | `{experience_id, paused}` + header `X-Provider-Token` for provider listings | Pauses or resumes an experience. A provider listing needs its edit token (**403** otherwise). Curated seed experiences are open in the demo; set `SEED_ADMIN_TOKEN` to lock them. |
+| POST | `/providers/listings` | `{draft, today?}` | `{provider, place, experience, edit_token}`. **Signed in** (cookie), the listing belongs to that account (a traveler becomes a `provider`): it can then be edited, paused and removed from any device without the token, and it takes booking requests. **Keep `edit_token`:** it's shown only once and is needed to edit, pause or remove the listing (the web app keeps it in the browser's localStorage). Validates the reviewed draft and publishes it. A bad draft returns **422** with a readable `detail` (no known landmark and no pin, a pin outside India, hours shorter than the experience, no tags, no days). A listing can be pinned anywhere with `lat`/`lon` (+ `area`); it's then offered to travelers within 40 km. |
+| POST | `/providers/availability` | `{experience_id, paused}` + header `X-Provider-Token` for provider listings | Pauses or resumes an experience. A provider listing needs its signed-in host or its edit token (**403** otherwise). Curated seed experiences are open in the demo; set `SEED_ADMIN_TOKEN` to lock them. |
 | GET | `/providers/listings/{id}` | none | `{draft}`: a provider listing as an editable draft |
 | PUT | `/providers/listings/{id}` | `{draft, today?}` + `X-Provider-Token` | Edits in place (same id). **403** without the token. |
 | DELETE | `/providers/listings/{id}` | `X-Provider-Token` | Removes the listing, its owner record and any pause |
@@ -50,7 +50,7 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 
 Unknown experience ids return `422`. An empty `problems` means the whole plan is feasible.
 
-**Storage:** provider listings, pauses and the demand log live in SQLite (`backend/data/local.db`, gitignored; override the location with `DB_PATH`). Delete the file to reset a demo. `/chat` logs **aggregates only**: start hour, duration, budget, group size, kids yes/no, intents, which ids were shown, and exclusion reasons. It never logs location or the chat text.
+**Storage:** provider listings, pauses and the demand log live in SQLite (`backend/data/local.db`, gitignored; override the location with `DB_PATH`). Delete the file to reset a demo. `/chat` logs **aggregates only**: start hour, duration, budget, group size, kids yes/no, intents, which ids were shown, and exclusion reasons. It never logs the chat text. Separately, for "demand near you", it logs the search's ~5 km cell (coordinates rounded to 0.05°), start hour, budget per person, group size, intents and unmet intents: never the exact location or who searched.
 
 ## Any city: open data (`app/opendata.py`)
 - **Where:** the place the traveler names ("in Pune", geocoded with Open-Meteo/GeoNames, India only), else the device location, else the previous turn, else the profile's home city, else Jaipur with a note in `context.assumptions`.
@@ -140,6 +140,21 @@ Contract-first: request and response models are in `backend/app/schemas.py`, mir
 | GET | `/admin/stats` | none | `{users, admins, providers, disabled, active_sessions, provider_listings}` |
 
 **Admin account:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (8+ characters) in the backend's environment. The account is created, or promoted, on the first admin sign-in. There's no default admin password anywhere in the code.
+
+### Hosts: listings, booking requests, demand near you
+Signed-in (401 otherwise), writes need `X-Requested-With: le`. Hosts see a traveler's **display name, party size, time and note only**: never email, location or profile.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/me/listings` | none | `HostListing[] {experience_id, title, place_name, lat, lon, paused, pending_requests, created}`: listings published while signed in |
+| POST | `/requests` | `{experience_id (ex-u-…), start, people 1–50, note? ≤300}` | 201 `BookingRequestOut`. **404** if the listing has no host account, **409** own listing / paused / not running at that time / not enough spots, **422** time passed |
+| GET | `/me/requests` | none | Your requests (traveler), newest first |
+| DELETE | `/me/requests/{id}` | none | Cancels your pending or accepted request (an accepted one frees its booking). 409 if already declined or cancelled |
+| GET | `/me/requests/incoming` | none | Requests for your listings (host) |
+| POST | `/me/requests/{id}/decision` | `{accept}` | Accept makes a real booking and returns its `booking_code` (usable for a verified-visit review); 409 if already decided or full. Another host's request is 404 |
+| GET | `/providers/demand?lat=&lon=` | none (public) | `AreaDemand {searches, min_searches, wanted[[intent,n]], unmet[[intent,n]], start_hours, budget_per_person, group_sizes}`: `/chat` searches in the last 30 days within ~5 km (0.05° cells and their neighbours). `unmet` = intents none of the recommendations offered. Only `searches` is returned below `min_searches` (3) |
+
+`BookingRequestOut` = `{id, experience_id, title, traveler_name, people, start, note, status: pending|accepted|declined|cancelled, created, booking_code}`. `/me/export` includes your requests and listing ids; `DELETE /me` withdraws your pending requests, replaces your name in hosts' inboxes with "Deleted account", and detaches your listings (they stay live, editable only with the edit token).
 
 ### Trips (P3)
 Signed-in only (401 otherwise). A trip is private to its owner: another user's trip id answers **404**, never 403. Writes need `X-Requested-With: le`.

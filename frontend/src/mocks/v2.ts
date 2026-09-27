@@ -4,6 +4,7 @@ import type { Catalog } from "../api";
 import type {
   AdminStats,
   AdminUserRow,
+  BookingRequestOut,
   Candidate,
   ContextEntry,
   Profile,
@@ -83,6 +84,8 @@ const checkTrip = (d: TripDraft) => {
 
 // learned context per user id; the mock only records imports (the real parser is server-side)
 const contexts = new Map<number, ContextEntry[]>();
+// the mock has no host listings, so requests only exist if a page creates them
+const requests: (BookingRequestOut & { traveler_id: number })[] = [];
 const ctxOf = (u: Row): ProfileContext => ({
   entries: contexts.get(u.id) ?? [],
   from_trips: [],
@@ -153,6 +156,7 @@ const mockStays: Stay[] = [
 const catalog: Catalog = {
   places: [],
   provider_listings: [],
+  requestable: [],
   paused: [],
   experiences: [
     ["ex-hawa-mahal", "Hawa Mahal: Palace of Winds", "culture"],
@@ -560,5 +564,42 @@ export const mockV2: V2 = {
   async forgetContext(tag) {
     const u = need();
     contexts.set(u.id, tag ? (contexts.get(u.id) ?? []).filter((e) => e.tag !== tag) : []);
+  },
+  async myListings() {
+    need();
+    return delay([]);
+  },
+  async requestBooking(r) {
+    const u = need();
+    const out = {
+      id: requests.length + 1, experience_id: r.experience_id, title: r.experience_id,
+      traveler_name: u.display_name, people: r.people, start: r.start, note: r.note ?? null,
+      status: "pending" as const, created: now(), booking_code: null, traveler_id: u.id,
+    };
+    requests.push(out);
+    return delay(out);
+  },
+  async myRequests() {
+    const u = need();
+    return delay(requests.filter((r) => r.traveler_id === u.id));
+  },
+  async cancelRequest(id) {
+    const u = need();
+    const r = requests.find((x) => x.id === id && x.traveler_id === u.id);
+    if (!r) fail("no such request");
+    r!.status = "cancelled";
+    return delay(r!);
+  },
+  async incomingRequests() {
+    need();
+    return delay([]);
+  },
+  async decideRequest() {
+    need();
+    return fail("no such request");
+  },
+  async areaDemand() {
+    return delay({ searches: 0, min_searches: 3, wanted: [], unmet: [], start_hours: [],
+      budget_per_person: [], group_sizes: [] });
   },
 };

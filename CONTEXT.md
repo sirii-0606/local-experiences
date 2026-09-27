@@ -1,6 +1,6 @@
 # Current Context
 
-_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-photos-empty-plan.md](docs/context/2026-09-27-06-real-photos-empty-plan.md)_
+_Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-07-host-loop.md](docs/context/2026-09-27-07-host-loop.md)_
 
 **TrueLocal** — "Local Experiences, Intelligently Planned". A context-aware local experience discovery and planning platform (hackathon). Baseline: `docs/ideation/`. Decisions: `docs/ideation/decisions.md`. API: `docs/api.md` + `docs/openapi.json`.
 
@@ -11,6 +11,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-phot
 4. They approve the plan and add it to their calendar with "leave now" reminders (`POST /calendar/export`).
 5. When things change (rain, delay, closure, tired, budget), only the affected part is replanned (`/events`, `/context/check`).
 6. Local vendors list themselves in plain words, get structured and classified, and are matched to the travelers they suit (`/providers/*`).
+7. Travelers request a slot with a host; the host accepts (a real booking with a code, which unlocks a verified review) or declines. Hosts see what travelers nearby asked for and found nothing for (`/requests`, `/me/requests…`, `/providers/demand`).
 
 ## Architecture (unchanged rules)
 - One pure-Python engine (`backend/app/engine/`) decides: feasibility → ranking → itinerary → replanning. UI, chat and API are thin consumers.
@@ -36,6 +37,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-phot
   - localized replanning, a feedback learning loop, and bookings (a stub with no payment)
 - **Accounts:** sessions, roles, admin (who never sees profile data), trips CRUD.
 - **Providers:** free text → draft → listing, anywhere (pin + area). Pause, edit token, demand insights, and the traveler segments each listing fits.
+- **Host loop:** listings published while signed in belong to the account (`GET /me/listings`), booking requests with an accept/decline inbox, and "demand near you" (a ~5 km cell, aggregates only, hidden below 3 searches).
 - **Calendar:** `.ics` with travel-aware reminders, plus Google Calendar links per stop.
 - **Review verification:** every review gets a trust score and reasons (machine-written style, no specifics, bursts, near-copies, repeated claims; extremes weigh less; booking-verified visits trusted most). Only trusted reviews feed ratings. `/reviews`, `/reviews/check`.
 - **Social signals and digital twin** (teammate, [2026-09-27-21](docs/context/2026-09-27-21-additional-integration-tasks.md)): `/social/signals`, `/social/report`, `/simulation/presets`, `/simulation/what-if` (weather what-if with plan repair via `replan()`), plus map layers and modals in Explore. Jaipur-scoped. **The social feed is hardcoded sample posts**, some attributed to real-sounding accounts: label it as demo data or replace it before anyone treats it as live.
@@ -50,14 +52,15 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-phot
   - The plan gets back to Bandra Terminus by 18:00 on a ₹600 budget.
 
 ## Frontend
-- Current TrueLocal design kept. `/` is the product landing page (no city named). `/explore` is the planner, a calm two-column page that scrolls with a sticky map: an Ask box at the top with location sharing, a context strip (where, weather, traffic, closed-now, assumptions), verified reviews per place, "Add to calendar". `/onboarding` after sign-up; `/profile` shows preferences and what we've learned (correctable); `/verify` checks any pasted reviews; the host form works anywhere (pin/area) and shows who a listing fits.
+- Current TrueLocal design kept. `/` is the product landing page (no city named). `/explore` is the planner, a calm two-column page that scrolls with a sticky map: an Ask box at the top with location sharing, a context strip (where, weather, traffic, closed-now, assumptions), verified reviews per place, "Add to calendar". `/onboarding` after sign-up; `/profile` shows preferences and what we've learned (correctable); `/verify` checks any pasted reviews; `/provider` has three tabs (List an experience · My listings with insights and demand near you · Requests inbox); Explore cards for host listings have "Request to book"; Profile lists your booking requests.
 - Other routes: `/3d` (also `/spatial`), `/provider`, `/login`, `/register`, `/trips`, `/trips/new`, `/trips/:id`, `/trips/:id/shortlist`, `/trips/:id/itinerary`, `/admin`.
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 154 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 158 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
 - Keys live in `.env` (gitignored): NVIDIA NIM (working, 0.3–30 s per call), OpenWeatherMap (used as the weather backup). `ADMIN_PASSWORD` there is under 8 characters, so no admin is created.
-- `main` on GitHub has everything: any-city, review verification, the new UI, live keys, and the teammate's trips/simulation work (`c1176b4`), merged 2026-09-27.
+- Not on `main` yet: `feat/photos-empty-plan` (real photos, no invented plan) and `feat/host-loop` (this change).
+- `main` on GitHub has: any-city, review verification, the new UI, live keys, and the teammate's trips/simulation work (`c1176b4`), merged 2026-09-27.
 - Teammate's rain/heat "convenience" scores default to 30–40% for places without a curated value (all open-data places) and are shown as a precise percentage: worth labelling as an estimate.
 
 ## Known gaps
@@ -68,8 +71,9 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-06-real-phot
 - AR/3D is a presentation layer only.
 
 ## Next steps
-1. Polish: Escape closes modals; Explore's filters edit the chat state instead of demo groups; tie reviews to signed-in users.
-2. Later: Google Calendar OAuth, `/trips` for any city, P6 feedback loop, P7 interactive cards, P8 print/PDF.
+1. Push `feat/photos-empty-plan` + `feat/host-loop` to `main` when asked (fetch first).
+2. Polish: notifications for new/decided requests; Escape closes modals; Explore's filters edit the chat state instead of demo groups; tie reviews to signed-in users.
+3. Later: Google Calendar OAuth, `/trips` for any city, P6 feedback loop, P7 interactive cards, P8 print/PDF.
 
 ## Run it
 - Everything: `python scripts/dev.py [--reset]` → http://localhost:5173. Set `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` for an admin account.
