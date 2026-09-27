@@ -427,15 +427,21 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
     # Say plainly when the list isn't what they asked for, and why (never "5 options that fit").
     wanted = ", ".join(t.replace("-", " ") for t in state.intents)
     if state.intents and not any(set(state.intents) & set(e.tags) for e in s.experiences.values()):
-        notes.append(f"I don't know any places for {wanted} around {where} yet: open data covers "
-                     "sights better than eateries and shops. Local hosts can list theirs under "
-                     "For Hosts.")
+        notes.append(
+            f"I don't know any places for {wanted} around {where} yet: open data covers "
+            "sights better than eateries and shops. Local hosts can list theirs under "
+            "For Hosts."
+        )
     elif state.intents and recs and not any(r.factors["intent"] > 0 for r in recs):
-        notes.append(f"Nothing for {wanted} fits right now (see why not), so these are the "
-                     "closest alternatives.")
+        notes.append(
+            f"Nothing for {wanted} fits right now (see why not), so these are the "
+            "closest alternatives."
+        )
     elif not state.intents and not any(t.interests for t in state.group):
-        notes.append("I didn't catch what you'd like to do, so these are simply what's open "
-                     "nearby. Tell me, e.g. food, history or a view.")
+        notes.append(
+            "I didn't catch what you'd like to do, so these are simply what's open "
+            "nearby. Tell me, e.g. food, history or a view."
+        )
     store.log_demand(state, [r.experience_id for r in recs], excluded)  # aggregates only
     it = plan(Itinerary(), state, s)
     if user:

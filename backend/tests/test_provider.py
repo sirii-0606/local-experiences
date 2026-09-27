@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import store
-from app.main import SEED, app
+from app.main import SEED, app, seed
 from app.provider import draft_rules
 
 client = TestClient(app)
@@ -110,3 +110,37 @@ def test_demand_log_stores_no_location_or_text():
     with sqlite3.connect(store.db_path()) as c:
         cols = [r[1] for r in c.execute("pragma table_info(demand)")]
     assert not {"lat", "lon", "text", "location"} & set(cols)
+
+
+def test_an_empty_llm_draft_is_filled_from_the_text():
+    from app.provider import ListingDraft, merge_draft
+
+    text = (
+        "I'm Salim, a lac bangle maker in Maniharon ka Rasta near Tripolia Bazaar. Our family has "
+        "made bangles for five generations. Visitors can watch and make their own bangle, 45 "
+        "minutes, ₹250 per person, open 11am to 7pm, closed on Friday. Kids welcome, "
+        "up to 6 people."
+    )
+    rules = draft_rules(text, SEED)
+    # what the free-tier model actually returned: the schema defaults and one real tag
+    lazy = ListingDraft(tags=["craft"], near="Invented Palace")
+    d = merge_draft(lazy, rules, SEED)
+    assert d.title and d.provider_name == "Salim" and d.near == "Tripolia Bazaar"
+    assert (d.price_inr, d.duration_min, d.open_time, d.close_time, d.capacity) == (
+        250,
+        45,
+        "11:00",
+        "19:00",
+        6,
+    )
+    assert 4 not in d.days and d.community_led
+    assert d.tags == ["craft"]  # what the LLM did fill in is kept
+
+
+def test_other_listings_are_not_landmarks_for_a_new_draft():
+    from app.provider import draft
+
+    text = "I'm Salim, lac bangles near Tripolia Bazaar, 45 minutes, ₹250"
+    client.post("/providers/listings", json={"draft": draft_rules(text, SEED).model_dump()})
+    d, _ = draft(text, seed())
+    assert d.near == "Tripolia Bazaar" and "shopping" not in d.tags

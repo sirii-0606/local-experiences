@@ -162,15 +162,54 @@ Use only what they said; keep defaults for anything not mentioned.
 - community_led: true for family businesses, cooperatives, hereditary artisans, community hosts."""
 
 
+# Facts the rules read exactly from the text; they win over the LLM's reading.
+EXACT = (
+    "near",
+    "duration_min",
+    "price_inr",
+    "price_model",
+    "capacity",
+    "min_age",
+    "open_time",
+    "close_time",
+    "days",
+)
+
+
+def merge_draft(llm: ListingDraft, rules: ListingDraft, seed: Seed) -> ListingDraft:
+    """A small hosted model often returns the schema's defaults (no title, ₹0, 10:00-18:00):
+    rule-found facts replace the LLM's, and anything the LLM left at its default is filled in."""
+    default, update = ListingDraft(), {}
+    for f in ListingDraft.model_fields:
+        m, r, d = getattr(llm, f), getattr(rules, f), getattr(default, f)
+        if r != d and (f in EXACT or m == d or m in ("", None, [])):
+            update[f] = r
+    if llm.near and not any(p.name == llm.near for p in seed.places.values()):
+        update.setdefault("near", rules.near)  # an invented landmark is not a landmark
+    return llm.model_copy(update=update)
+
+
 def draft(text: str, seed: Seed, client=None) -> tuple[ListingDraft, str]:
+    # landmarks only: other hosts' listing places ("Salim, near Tripolia Bazaar") aren't landmarks
+    seed = Seed(
+        seed.providers,
+        {i: p for i, p in seed.places.items() if not i.startswith("pl-u-")},
+        seed.experiences,
+        seed.stays,
+    )
+    rules = draft_rules(text, seed)
     return llm_or_rules(
-        lambda: claude_parse(
-            DRAFT_SYSTEM,
-            f"KNOWN PLACES: {known_places(seed)}\n\nPROVIDER: {text}",
-            ListingDraft,
-            client,
+        lambda: merge_draft(
+            claude_parse(
+                DRAFT_SYSTEM,
+                f"KNOWN PLACES: {known_places(seed)}\n\nPROVIDER: {text}",
+                ListingDraft,
+                client,
+            ),
+            rules,
+            seed,
         ),
-        lambda: draft_rules(text, seed),
+        lambda: rules,
     )
 
 

@@ -194,5 +194,3 @@ def test_experience_outdoor_convenience_values_and_planning():
     assert jantar_cand.outdoor_convenience_heat <= 0.35
     # Albert Hall should score significantly higher than open-air Jantar Mantar under heat
     assert albert_cand.score > jantar_cand.score
-
-

@@ -78,9 +78,13 @@ def _problem(
     rain_conv = getattr(exp, "outdoor_convenience_rain", 0.5) if exp else 0.5
     if exp and (rained_out(exp, state) or (state.weather == "rain" and rain_conv < 0.35)):
         return "outdoors with low rain convenience, and it's raining"
-    if exp and state.weather == "heat" and (
-        (not exp.indoor and exp.weather_sensitive)
-        or (getattr(exp, "outdoor_convenience_heat", 0.5) < 0.35)
+    if (
+        exp
+        and state.weather == "heat"
+        and (
+            (not exp.indoor and exp.weather_sensitive)
+            or (getattr(exp, "outdoor_convenience_heat", 0.5) < 0.35)
+        )
     ):
         return "low heat convenience / exposed outdoor venue during severe heatwave"
     if exp and event.kind == "fatigue" and is_strenuous(exp):

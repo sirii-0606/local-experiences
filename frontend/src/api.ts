@@ -261,6 +261,7 @@ export type Insights = {
   budget_per_person: [string, number][];
   with_kids: number;
   also_wanted: [string, number][];
+  fits?: string[]; // traveler segments it suits
 };
 
 // Provider edit tokens, kept only in this browser. Losing one means the listing can't be edited.

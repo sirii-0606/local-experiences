@@ -273,4 +273,3 @@ def simulate_trip_weather(
         "trip": _found(saved),
         "simulation": sim_res,
     }
-
