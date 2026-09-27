@@ -87,6 +87,7 @@ export default function ExplorePage() {
   const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
   const [calendar, setCalendar] = useState<CalendarExport | null>(null);
   const [reviewsFor, setReviewsFor] = useState<{ id: string; title: string } | null>(null);
+  const [whyOpen, setWhyOpen] = useState<string | null>(null); // card whose full reasons are shown
   const [params, setParams] = useSearchParams();
   const askedFromUrl = useRef(false);
 
@@ -527,7 +528,7 @@ export default function ExplorePage() {
       const ctx = res.context ?? null;
       setChatCtx(ctx);
       if (ctx && ctx.location_source !== "default") setCatalog(await api.catalog(ctx.lat, ctx.lon));
-      setMsgs((m) => [...m, { role: "bot", text: botReply(res.recommendations.length, ctx) }]);
+      setMsgs((m) => [...m, { role: "bot", text: botReply(res.recommendations, ctx, Object.keys(res.excluded).length) }]);
     });
 
   const shareLocation = () => {
@@ -833,6 +834,17 @@ export default function ExplorePage() {
                         {recIds.has(r.experience_id) ? reasonText
                           : "Not checked against your time and budget yet. Add it and we'll say if it fits."}
                       </p>
+                      {recIds.has(r.experience_id) && r.reasons.length > 0 && (
+                        <>
+                          <button type="button" className="why-btn" aria-expanded={whyOpen === r.experience_id}
+                            onClick={() => setWhyOpen(whyOpen === r.experience_id ? null : r.experience_id)}>
+                            {whyOpen === r.experience_id ? "Hide why" : "Why this?"}
+                          </button>
+                          {whyOpen === r.experience_id && (
+                            <ul className="why-list">{r.reasons.map((x) => <li key={x} className={x.startsWith("⚠") ? "warn" : ""}>{x}</li>)}</ul>
+                          )}
+                        </>
+                      )}
 
                       <div className="spot-meta-row">
                         <span className="spot-price">₹{r.cost_inr || "Free"}</span>
@@ -868,6 +880,8 @@ export default function ExplorePage() {
               })}
             </div>
           </section>
+
+          <RuledOut excluded={excluded} expMap={expMap} wanted={[...(state?.intents ?? []), ...(state?.group ?? []).flatMap((g) => g.interests)]} />
 
           {/* Bottom: The Plan for the Day (Itinerary Timeline) */}
           <section className="day-plan-section">
@@ -1548,17 +1562,63 @@ export default function ExplorePage() {
   );
 }
 
-// The assistant's reply, from what the engine actually did (never a canned claim).
-function botReply(n: number, ctx: ChatContext | null): string {
-  if (!ctx) return n ? `Found ${n} options that fit.` : "Nothing fits right now. Try another time or area.";
-  const parts = [n ? `${n} options in ${ctx.location} that fit your time and budget.` : `Nothing fits right now in ${ctx.location}.`];
-  if (ctx.weather.available && ctx.weather.condition) {
+// The assistant's reply, from what the engine actually did (never a canned claim): the top picks
+// with their own reasons, what was ruled out, and every assumption.
+function botReply(recs: Recommendation[], ctx: ChatContext | null, ruledOut: number): string {
+  const where = ctx ? ` in ${ctx.location}` : "";
+  if (!recs.length) {
+    return `Nothing fits right now${where}. ${ruledOut} places were ruled out; see "Why not these?" for each reason.` +
+      (ctx?.assumptions.length ? ` Note: ${ctx.assumptions.join(" ")}` : "");
+  }
+  const top = recs.slice(0, 3).map((r, i) => {
+    const why = r.reasons.filter((x) => !x.startsWith("⚠")).slice(0, 2).join(", ");
+    return `${i + 1}. ${r.title} (${why})`;
+  });
+  const parts = [`Here's what works${where}:`, ...top];
+  if (ctx?.weather.available && ctx.weather.condition) {
     parts.push(`Weather: ${ctx.weather.condition}${ctx.weather.temp_c != null ? `, ${Math.round(ctx.weather.temp_c)}°C` : ""}${ctx.weather.applied ? " (outdoor plans adjusted)" : ""}.`);
   }
-  const closed = ctx.closed_now[0];
+  const closed = ctx?.closed_now[0];
   if (closed) parts.push(`${closed.title} is closed for now${closed.next_open ? `, opens ${fmtWhen(closed.next_open)}` : ""}.`);
-  if (ctx.assumptions.length) parts.push(`I assumed: ${ctx.assumptions.join(" ")}`);
-  return parts.join(" ");
+  if (ruledOut) parts.push(`${ruledOut} other places were ruled out (see "Why not these?").`);
+  if (ctx?.assumptions.length) parts.push(`Note: ${ctx.assumptions.join(" ")}`);
+  return parts.join("\n");
+}
+
+// Everything the engine ruled out, with its reasons; the ones closest to what you wanted first.
+function RuledOut({ excluded, expMap, wanted }: { excluded: Record<string, string[]>; expMap: Map<string, any>; wanted: string[] }) {
+  const [all, setAll] = useState(false);
+  const want = new Set(wanted);
+  const rows = Object.entries(excluded)
+    .map(([id, why]) => {
+      const exp = expMap.get(id);
+      return { id, why, title: exp?.title ?? id, match: (exp?.tags ?? []).filter((t: string) => want.has(t)).length };
+    })
+    .sort((a, b) => b.match - a.match || a.title.localeCompare(b.title));
+  if (!rows.length) return null;
+  const shown = all ? rows : rows.slice(0, 12);
+  return (
+    <details className="ruled-out">
+      <summary>Why not these? <span className="count-pill">{rows.length} ruled out</span></summary>
+      <p className="muted small">
+        These can't work right now: closed, too far for your time, over budget, missing access you need,
+        or something you said to skip. Everything else that's open is ranked, and the best are shown above.
+      </p>
+      <ul>
+        {shown.map((r) => (
+          <li key={r.id}>
+            <b>{r.title}</b>{r.match > 0 && <span className="chip tag">matches you</span>}
+            <span className="muted">{r.why.join("; ")}</span>
+          </li>
+        ))}
+      </ul>
+      {rows.length > 12 && (
+        <button type="button" className="secondary mini" onClick={() => setAll(!all)}>
+          {all ? "Show fewer" : `Show all ${rows.length}`}
+        </button>
+      )}
+    </details>
+  );
 }
 
 function fmtWhen(iso: string): string {

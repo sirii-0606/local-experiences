@@ -36,6 +36,9 @@ CACHE_DAYS = 14
 NEAR_KM = 40  # curated/provider experiences further than this from the traveler are left out
 RETRY_S = 300  # after every source failed for an area, don't ask again for 5 minutes
 FALLBACK_TTL = timedelta(hours=1)  # a Wikipedia fallback is replaced by Wikidata when it can be
+# Areas fetched before this lack newer kinds of place (eateries): refreshed once, like a fallback.
+KINDS_SINCE = datetime(2026, 9, 27, 10, 0)
+NOT_PUBLIC = re.compile(r"\bclub\b|gymkhana", re.I)  # members-only, not somewhere to drop in
 _failed: dict[tuple[float, float], float] = {}
 
 # Wikidata classes (labels checked against wikidata.org) -> our kind of place.
@@ -76,11 +79,15 @@ KIND_BY_QID = {
     "Q1010155": "ghat",
     "Q330284": "market",
     "Q219760": "market",
+    "Q11707": "eatery",
+    "Q30022": "eatery",
+    "Q274393": "eatery",
     "Q55488": "station",
     "Q1248784": "airport",
 }
 # When an item is several kinds (a zoo that is also a park), the first one here wins.
 PRIORITY = [
+    "eatery",
     "station",
     "airport",
     "beach",
@@ -175,6 +182,7 @@ TEMPLATES = {
         "21:00",
         0,
     ),
+    "eatery": ("food", ["local-food"], 45, True, False, "08:00", "22:30", 200),
     "market": (
         "shopping",
         ["market", "shopping", "local-food"],
@@ -228,6 +236,7 @@ OTHER_HERITAGE = "Local government heritage list"
 
 # Wikipedia fallback: kind from the title first, then the short description.
 TEXT_KINDS = [
+    ("eatery", r"\brestaurant\b|\bcaf[eé]\b|\bbakery\b|\beatery\b"),
     ("station", r"railway station|railway terminus|\bterminus\b"),
     ("airport", r"\bairport\b"),
     ("beach", r"\bbeach\b|chowpatty"),
@@ -353,6 +362,7 @@ def from_wikidata(raw: dict) -> list[dict]:
             or not name
             or name == qid
             or (kind == "station" and re.search(r"metro|monorail", name, re.I))
+            or (kind == "eatery" and NOT_PUBLIC.search(name))
         ):
             continue
         it = items.setdefault(
@@ -450,7 +460,8 @@ def pois(lat: float, lon: float, fetch=None) -> tuple[list[dict], str]:
     A Wikipedia fallback is only kept for an hour; then Wikidata is tried again, and the old
     fallback is still served if that fails too."""
     hit = store.area_near(lat, lon, AREA_KM - 5, CACHE_DAYS)
-    if hit and (hit[1] == "wikidata" or datetime.now() - hit[2] < FALLBACK_TTL):
+    fresh_kinds = hit is not None and hit[2] >= KINDS_SINCE
+    if hit and ((hit[1] == "wikidata" and fresh_kinds) or datetime.now() - hit[2] < FALLBACK_TTL):
         return hit[0], hit[1]
     stale = (hit[0], hit[1]) if hit else ([], "none")
     cell = (round(lat, 1), round(lon, 1))

@@ -377,3 +377,36 @@ def test_place_names_are_found_after_other_prepositions():
     assert place_candidates(text) == ["versova mumbai"]
     store.cache_put("geo-in:mumbai", ["Mumbai", *MUMBAI])
     assert opendata.geocode_phrase("versova mumbai") == ("Mumbai", *MUMBAI)
+
+
+def test_a_quick_bite_is_food_and_the_bot_says_so_when_there_is_none(cities):
+    from app.intent import parse_rules
+
+    assert "local-food" in parse_rules("im in pune i want a quick bite", SEED).intents
+    out = chat(TestClient(app), "im in pune i want a quick bite", now="2026-09-27T09:30:00")
+    # the cached Pune fixture predates eateries: no food supply, and the bot must say so
+    notes = " ".join(out["context"]["assumptions"])
+    assert "don't know any places for local food around Pune" in notes
+    assert out["excluded"]  # the ruled-out places come with their reasons
+
+
+def test_open_data_eateries_are_food_and_clubs_are_left_out():
+    raw = {
+        "results": {
+            "bindings": [
+                {
+                    "item": {"value": f"http://www.wikidata.org/entity/{q}"},
+                    "itemLabel": {"value": name},
+                    "type": {"value": "http://www.wikidata.org/entity/Q11707"},
+                    "loc": {"value": "Point(73.85 18.52)"},
+                    "links": {"value": "3"},
+                }
+                for q, name in (("Q1", "Vaishali"), ("Q2", "The Poona Club Ltd."))
+            ]
+        }
+    }
+    items = opendata.from_wikidata(raw)
+    assert [i["name"] for i in items] == ["Vaishali"]
+    exp = next(iter(opendata.to_seed(items, date(2026, 9, 27)).experiences.values()))
+    assert exp.category == "food" and "local-food" in exp.tags
+    assert exp.evidence["availability"].source == "estimate"

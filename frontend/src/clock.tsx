@@ -8,7 +8,12 @@ type Clock = { clock: string; setClock(v: string): void; live: WeatherHour | nul
 const ClockCtx = createContext<Clock | null>(null);
 
 export function ClockProvider({ children }: { children: ReactNode }) {
-  const [clock, setClock] = useState("2026-09-26T15:30");
+  // Starts at the real current time (local); change it to replay any moment in a demo.
+  const [clock, setClock] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
   const [live, setLive] = useState<WeatherHour | null | "offline">(null);
   useEffect(() => {
     if (!clock || clock.length < 10) return;

@@ -55,7 +55,7 @@ _Last updated: 2026-09-27 · latest entry: [docs/context/2026-09-27-03-live-keys
 - Nothing is invented on screen: no fake fallbacks, ratings, weather or photos; the social feed is labelled sample data.
 
 ## Health
-- Backend: 147 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
+- Backend: 149 passed, 1 skipped (live LLM); tests stay offline whatever `.env` holds. Ruff is clean. Frontend `npm run build` is clean.
 - Keys live in `.env` (gitignored): NVIDIA NIM (working, 0.3–30 s per call), OpenWeatherMap (used as the weather backup). `ADMIN_PASSWORD` there is under 8 characters, so no admin is created.
 - `main` on GitHub = `a5373c0` (any-city work + teammate merge). The review engine and UI are on `feat/review-verification`, not pushed yet.
 

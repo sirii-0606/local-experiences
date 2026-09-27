@@ -168,7 +168,8 @@ NUM = {
 N = r"(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)"
 KEYWORDS: dict[str, list[str]] = {  # regex -> tags
     r"street[- ]?food|chaat|kachori": ["street-food", "local-food"],
-    r"\b(?:food|foodie|eat|eating|lunch|dinner|snacks?|cuisine|thali|breakfast)\b": ["local-food"],
+    r"\b(?:food|foodie|eat|eating|lunch|dinner|snacks?|cuisine|thali|breakfast|brunch|bite|"
+    r"hungry|meal|cafe|café|coffee|restaurant)\b": ["local-food"],
     r"sweet|dessert|mithai": ["sweets"],
     r"\bchai\b|\btea\b": ["chai"],
     r"cultur": ["heritage", "performance"],

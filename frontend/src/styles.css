@@ -2767,3 +2767,15 @@ button.spot-reviews-btn:hover:not(:disabled) { background: transparent; color: v
   .verify-row textarea { grid-column: 1 / -1; }
   .rv-ratings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Why this / why not (Explore) */
+.chat-msg.bot { white-space: pre-line; }
+button.why-btn { align-self: flex-start; background: transparent; color: var(--rec); border: 0; padding: 0; font-size: 0.74rem; font-weight: 700; text-decoration: underline dotted; text-underline-offset: 3px; }
+button.why-btn:hover:not(:disabled) { background: transparent; color: var(--accent-2); }
+.why-list { margin: 2px 0 0; padding-left: 16px; font-size: 0.74rem; color: var(--ink); line-height: 1.4; }
+.why-list li.warn { color: var(--warn); }
+.ruled-out { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; font-size: 0.82rem; }
+.ruled-out summary { cursor: pointer; font-weight: 800; display: flex; gap: 8px; align-items: center; }
+.ruled-out ul { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.ruled-out li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; border-bottom: 1px dashed var(--line); padding-bottom: 5px; }
+.ruled-out li .muted { flex-basis: 100%; font-size: 0.76rem; }
